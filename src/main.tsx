@@ -2,6 +2,8 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./app/App.tsx";
+import "@ace-ds/styles/variables.css";
+import "@ace-ds/styles/typography-tokens.css";
 import "./styles/index.css";
 
 class ErrorBoundary extends React.Component<

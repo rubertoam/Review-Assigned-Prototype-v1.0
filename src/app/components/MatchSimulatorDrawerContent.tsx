@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown } from "lucide-react";
+import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import { aceAccordionFixedHeaderClass } from "../lib/aceAccordion";
+import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import type { ScreeningResultRow } from "./ScreeningResultsTable";
 import {
   MatchStringTiles,
@@ -8,22 +17,11 @@ import {
   SimulatorRunResultsTable,
   buildNamePatternTableRows,
   buildSimulatorRunRows,
-  durationAccordion,
-  easeAccordion,
   scoreIsHighRisk,
   type ReferenceDataFieldRow,
 } from "./ScreeningResultsTable";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
 import { cn } from "./ui/utils";
-
-const MATCH_SIMULATOR_ILLUSTRATION =
-  "https://www.figma.com/api/mcp/asset/8dd6ad82-79cf-4a83-a98b-2abff0e85659";
+import matchSimulatorIntro from "../../assets/match-simulator-intro.svg";
 
 const SIMULATOR_VIEWS = [
   "Run Results",
@@ -123,64 +121,34 @@ function AliasAccordionRow({
   const hasDetail = detail != null && badge !== "None";
 
   return (
-    <div className="overflow-hidden rounded-[4px] border border-[#cfd2d9] bg-white dark:border-[#38414a] dark:bg-[#22272b]">
-      <button
-        type="button"
-        disabled={!hasDetail}
-        aria-expanded={hasDetail ? open : false}
-        onClick={() => hasDetail && setOpen((v) => !v)}
-        className={cn(
-          "flex w-full items-center justify-between px-4 py-3 text-left",
-          hasDetail && "hover:bg-[#fafafb] dark:hover:bg-[#1d2125]",
-        )}
-      >
-        <div className="flex items-center gap-4">
-          <ChevronRight
-            className={cn(
-              "size-2 shrink-0 text-[#464c59] transition-transform dark:text-[#9fadbc]",
-              durationAccordion,
-              easeAccordion,
-              open && "rotate-90",
-            )}
-            strokeWidth={2.5}
-            aria-hidden
-          />
-          <span
-            className="font-['Noto_Sans:SemiBold',sans-serif] text-[14px] font-semibold leading-[1.65] text-[#23262c] dark:text-[#b6c2cf]"
-            style={noto}
-          >
-            {token}
-          </span>
-        </div>
-        <span
-          className="rounded-full bg-[#e4e6ea] px-3 py-0.5 font-['Noto_Sans:Regular',sans-serif] text-[10px] leading-[1.65] tracking-wide text-[#23262c] dark:bg-[#38414a] dark:text-[#b6c2cf]"
-          style={noto}
-        >
-          {badge}
-        </span>
-      </button>
+    <AceAccordion
+      title={token}
+      tagLabel={badge}
+      showTag
+      showAddIcon={false}
+      showDeleteIcon={false}
+      showEditIcon={false}
+      showMoreIcon={false}
+      surface="white"
+      open={hasDetail ? open : false}
+      onOpenChange={hasDetail ? setOpen : undefined}
+      className={cn(aceAccordionFixedHeaderClass, !hasDetail && "pointer-events-none")}
+      titleClassName={cn(
+        aceTypography(ACE_TYPE.p1SemiBold),
+        "text-[var(--screening-text-primary)]",
+      )}
+    >
       {hasDetail ? (
-        <div
+        <p
           className={cn(
-            "grid overflow-hidden transition-[grid-template-rows]",
-            durationAccordion,
-            easeAccordion,
-            open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+            aceTypography(ACE_TYPE.p1Regular),
+            "m-0 text-[var(--screening-text-secondary)]",
           )}
         >
-          <div className="min-h-0 overflow-hidden">
-            <div className="border-t border-[#cfd2d9] px-4 py-3 dark:border-[#38414a]">
-              <p
-                className="font-['Noto_Sans:Regular',sans-serif] text-[14px] leading-[1.65] text-[#464c59] dark:text-[#9fadbc]"
-                style={noto}
-              >
-                {detail}
-              </p>
-            </div>
-          </div>
-        </div>
+          {detail}
+        </p>
       ) : null}
-    </div>
+    </AceAccordion>
   );
 }
 
@@ -280,28 +248,31 @@ function NamePatternsView({
     <div className={cn("flex flex-col", comfortable ? "gap-4" : "gap-3")}>
       <SimulatorNamePatternsTable rows={tableRows} size={tableSize} />
 
-      <button
-        type="button"
-        onClick={() => setShowMorePatterns((v) => !v)}
-        className="text-left font-['Noto_Sans:Regular',sans-serif] text-[12px] leading-[1.65] text-[#7868cd] transition-colors hover:text-[#523eb9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/35 rounded"
-        style={noto}
-      >
-        Show additional candidate patterns
-      </button>
-      <div
-        className={cn(
-          "grid overflow-hidden transition-[grid-template-rows]",
-          durationAccordion,
-          easeAccordion,
-          showMorePatterns ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+      <AceAccordion
+        title="Show additional candidate patterns"
+        showTag={false}
+        showAddIcon={false}
+        showDeleteIcon={false}
+        showEditIcon={false}
+        showMoreIcon={false}
+        surface="gray"
+        open={showMorePatterns}
+        onOpenChange={setShowMorePatterns}
+        titleClassName={cn(
+          aceTypography(ACE_TYPE.p1Regular),
+          "text-sm text-[var(--screening-primary)]",
         )}
+        className={cn("border-[var(--screening-border-soft)]", aceAccordionFixedHeaderClass)}
       >
-        <div className="min-h-0 overflow-hidden">
-          <p className="pt-1 font-['Noto_Sans:Regular',sans-serif] text-[12px] text-[#464c59] dark:text-[#9fadbc]" style={noto}>
-            Additional candidate patterns (prototype placeholder).
-          </p>
-        </div>
-      </div>
+        <p
+          className={cn(
+            aceTypography(ACE_TYPE.p1Regular),
+            "m-0 text-xs text-[var(--screening-text-secondary)]",
+          )}
+        >
+          Additional candidate patterns (prototype placeholder).
+        </p>
+      </AceAccordion>
 
       <div className="flex flex-col gap-2 pt-1">
         <p
@@ -360,39 +331,27 @@ function EditDistanceView() {
           valueClassName="font-semibold text-[#66b345] dark:text-[#7bc96f]"
         />
       </div>
-      <button
-        type="button"
-        onClick={() => setShowMore((v) => !v)}
-        className="inline-flex items-center gap-3 font-['Noto_Sans:Regular',sans-serif] text-[14px] leading-[1.65] text-[#7868cd] transition-colors hover:text-[#523eb9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/35 rounded"
-        style={noto}
-      >
-        Show More
-        <ChevronDown
-          className={cn(
-            "size-2.5 shrink-0 transition-transform",
-            durationAccordion,
-            easeAccordion,
-            showMore && "rotate-180",
-          )}
-          strokeWidth={2.5}
-          aria-hidden
-        />
-      </button>
-      <div
-        className={cn(
-          "grid overflow-hidden transition-[grid-template-rows]",
-          durationAccordion,
-          easeAccordion,
-          showMore ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+      <AceAccordion
+        title="Show More"
+        showTag={false}
+        showAddIcon={false}
+        showDeleteIcon={false}
+        showEditIcon={false}
+        showMoreIcon={false}
+        surface="gray"
+        open={showMore}
+        onOpenChange={setShowMore}
+        titleClassName={cn(
+          aceTypography(ACE_TYPE.p1Regular),
+          "text-[var(--screening-primary)]",
         )}
+        className={cn("border-[var(--screening-border-soft)]", aceAccordionFixedHeaderClass)}
       >
-        <div className="min-h-0 overflow-hidden">
-          <div className="flex flex-col gap-2 pt-1">
-            <EditDistanceLine label="Distance Score" value="0.82" />
-            <EditDistanceLine label="Token Count" value="2" />
-          </div>
+        <div className="flex flex-col gap-2">
+          <EditDistanceLine label="Distance Score" value="0.82" />
+          <EditDistanceLine label="Token Count" value="2" />
         </div>
-      </div>
+      </AceAccordion>
     </div>
   );
 }
@@ -402,25 +361,59 @@ const headerTitleClass =
 
 const noto = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 
-export type MatchSimulatorPresentation = "drawer" | "modal";
+const simulatorViewTriggerClass = cn(
+  "inline-flex w-[12.5rem] shrink-0 items-center justify-between gap-[var(--space-2)] rounded-[var(--radius-sm)] border border-solid border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-[var(--ace-button-px-sm)] py-[var(--ace-button-py-sm)] text-xs font-semibold leading-[1.65] text-[var(--screening-text-primary)] outline-none transition-colors [font-family:var(--font-screening)]",
+  "hover:bg-[var(--screening-surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--screening-primary-ring-offset)]",
+  "data-[state=open]:bg-[var(--screening-surface-hover)] data-[state=open]:ring-2 data-[state=open]:ring-[var(--screening-primary-ring)] data-[state=open]:ring-offset-2 data-[state=open]:ring-offset-[var(--screening-primary-ring-offset)]",
+);
 
-interface MatchSimulatorDrawerContentProps {
-  row: ScreeningResultRow;
-  onClose: () => void;
-  presentation?: MatchSimulatorPresentation;
-  onSwitchToModal?: () => void;
-  onSwitchToDrawer?: () => void;
+function SimulatorViewDropdown({
+  view,
+  onViewChange,
+}: {
+  view: SimulatorView;
+  onViewChange: (view: SimulatorView) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className={simulatorViewTriggerClass}>
+        <span className="min-w-0 flex-1 truncate text-left">{view}</span>
+        <ChevronDown className="ml-auto size-4 shrink-0 opacity-70" aria-hidden />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        variant="primary"
+        align="start"
+        className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[var(--radix-dropdown-menu-trigger-width)] max-w-[var(--radix-dropdown-menu-trigger-width)]"
+      >
+        {SIMULATOR_VIEWS.map((option) => (
+          <DropdownMenuItem
+            key={option}
+            className={cn(
+              option === view &&
+                "bg-[var(--screening-surface-hover)] [&>span:first-child]:bg-[var(--ace-dropdown-menu-primary)]",
+            )}
+            onSelect={() => onViewChange(option)}
+          >
+            {option}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
-export function MatchSimulatorDrawerContent({
+interface MatchSimulatorContentProps {
+  row: ScreeningResultRow;
+  layout?: "modal" | "inline";
+}
+
+export function MatchSimulatorContent({
   row,
-  onClose,
-  presentation = "drawer",
-  onSwitchToModal,
-  onSwitchToDrawer,
-}: MatchSimulatorDrawerContentProps) {
+  layout = "inline",
+}: MatchSimulatorContentProps) {
   const [phase, setPhase] = useState<SimulatorPhase>("intro");
   const [view, setView] = useState<SimulatorView>("Run Results");
+  const isInline = layout === "inline";
 
   useEffect(() => {
     setPhase("intro");
@@ -428,40 +421,26 @@ export function MatchSimulatorDrawerContent({
   }, [row.id]);
 
   const runRows = useMemo(() => buildSimulatorRunRows(row), [row]);
-  const isModal = presentation === "modal";
 
   return (
-    <div className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", isModal && "h-full")}>
-      <div className="flex shrink-0 items-center justify-between gap-3 bg-white px-5 py-4 dark:bg-[#22272b]">
-        <p className={headerTitleClass} style={noto}>
-          Match Simulator
-        </p>
-        {presentation === "drawer" && onSwitchToModal ? (
-          <button
-            type="button"
-            onClick={onSwitchToModal}
-            className="shrink-0 rounded-[4px] border border-[#3d2e8a] bg-white px-3 py-1.5 font-['Noto_Sans:Bold',sans-serif] text-[12px] font-bold leading-[1.65] text-[#523eb9] transition-colors hover:bg-[#f4f1fc] dark:border-[#7c6bc4] dark:bg-[#22272b] dark:text-[#dcd7e8] dark:hover:bg-[#2c333a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/40 focus-visible:ring-offset-2"
-            style={noto}
-          >
-            Option B: Modal View
-          </button>
-        ) : null}
-        {presentation === "modal" && onSwitchToDrawer ? (
-          <button
-            type="button"
-            onClick={onSwitchToDrawer}
-            className="shrink-0 rounded-[4px] border border-[#3d2e8a] bg-white px-3 py-1.5 font-['Noto_Sans:Bold',sans-serif] text-[12px] font-bold leading-[1.65] text-[#523eb9] transition-colors hover:bg-[#f4f1fc] dark:border-[#7c6bc4] dark:bg-[#22272b] dark:text-[#dcd7e8] dark:hover:bg-[#2c333a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/40 focus-visible:ring-offset-2"
-            style={noto}
-          >
-            Option A: Drawer View
-          </button>
-        ) : null}
-      </div>
+    <div
+      className={cn(
+        "flex flex-col",
+        isInline ? "gap-4 overflow-visible" : "h-full min-h-0 flex-1 overflow-hidden",
+      )}
+    >
+      {!isInline ? (
+        <div className="flex shrink-0 items-center justify-between gap-3 bg-white px-5 py-4 dark:bg-[#22272b]">
+          <p className={headerTitleClass} style={noto}>
+            Match Simulator
+          </p>
+        </div>
+      ) : null}
 
       <div
         className={cn(
-          "flex min-h-0 flex-1 flex-col gap-6 p-6",
-          isModal ? "overflow-hidden" : "justify-between overflow-y-auto",
+          "flex flex-col",
+          isInline ? "gap-4 overflow-visible" : "min-h-0 flex-1 gap-6 overflow-hidden p-6",
         )}
       >
         <div className="flex shrink-0 flex-wrap items-center gap-3">
@@ -479,24 +458,22 @@ export function MatchSimulatorDrawerContent({
           <MatchStringTiles tiles={row.matchTiles} />
         </div>
 
-        <div
-          className={cn(
-            "flex min-h-0 flex-1 flex-col",
-            isModal && "overflow-hidden",
-          )}
-        >
+        <div className={cn("flex flex-col", isInline ? "gap-4" : "min-h-0 flex-1")}>
         {phase === "intro" ? (
           <section
             className={cn(
-              "flex flex-1 flex-col items-center justify-center gap-8 rounded-[4px] px-4 py-6",
-              isModal ? "min-h-0 overflow-y-auto" : "min-h-[240px]",
+              "flex flex-col items-center justify-center gap-6 rounded-[4px]",
+              isInline ? "px-2 py-4" : "min-h-[320px] flex-1 gap-8 px-4 py-6",
             )}
           >
-            <div className="flex flex-col items-center gap-6">
+            <div className="flex flex-col items-center gap-4">
               <img
-                src={MATCH_SIMULATOR_ILLUSTRATION}
+                src={matchSimulatorIntro}
                 alt=""
-                className="h-[199px] w-[248px] max-w-full object-contain"
+                className={cn(
+                  "max-w-full object-contain",
+                  isInline ? "h-[120px] w-[150px]" : "h-[199px] w-[248px]",
+                )}
               />
               <p
                 className="font-['Noto_Sans:Bold',sans-serif] text-[14px] font-bold leading-[1.65] text-[#464c59] dark:text-[#9fadbc]"
@@ -517,33 +494,15 @@ export function MatchSimulatorDrawerContent({
         ) : (
           <section
             className={cn(
-              "flex min-h-0 flex-1 flex-col gap-5 rounded-[4px]",
-              isModal ? "overflow-hidden" : "p-5",
+              "flex flex-col gap-4 rounded-[4px]",
+              isInline ? "" : "min-h-0 flex-1 gap-5",
             )}
           >
-            <Select value={view} onValueChange={(v) => setView(v as SimulatorView)}>
-              <SelectTrigger
-                className="h-auto w-[200px] shrink-0 rounded-[4px] border-[#cfd2d9] bg-white px-3 py-2 text-[12px] text-[#23262c] dark:border-[#38414a] dark:bg-[#22272b] dark:text-[#b6c2cf]"
-                style={noto}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SIMULATOR_VIEWS.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="shrink-0 self-start p-0.5">
+              <SimulatorViewDropdown view={view} onViewChange={setView} />
+            </div>
 
-            <div
-              className={cn(
-                "min-h-0 flex-1",
-                isModal && "overflow-y-auto",
-                !isModal && "p-0",
-              )}
-            >
+            <div className={cn(isInline ? "max-h-[420px] overflow-y-auto" : "min-h-0 flex-1 overflow-y-auto")}>
               {view === "Run Results" ? (
                 <SimulatorRunResultsTable rows={runRows} />
               ) : view === "Reference Data" ? (
@@ -551,39 +510,28 @@ export function MatchSimulatorDrawerContent({
               ) : view === "Edit Distance" ? (
                 <EditDistanceView />
               ) : view === "Name Patterns" ? (
-                <NamePatternsView row={row} tableSize={isModal ? "comfortable" : "compact"} />
+                <NamePatternsView row={row} tableSize={isInline ? "compact" : "comfortable"} />
               ) : null}
             </div>
           </section>
         )}
         </div>
 
-        <footer
-          className={cn(
-            "flex shrink-0 items-center gap-4",
-            phase === "results" ? "justify-between" : "justify-end",
-          )}
-        >
-          {phase === "results" ? <SimulatorAttribution /> : null}
-          <div className="flex shrink-0 items-center gap-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-[4px] border border-[#3d2e8a] bg-white px-4 py-2 font-['Noto_Sans:Bold',sans-serif] text-[14px] font-bold leading-[1.65] text-[#523eb9] transition-colors hover:bg-[#f4f1fc] dark:border-[#7c6bc4] dark:bg-[#22272b] dark:text-[#dcd7e8] dark:hover:bg-[#2c333a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/40 focus-visible:ring-offset-2"
-            style={noto}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="rounded-[4px] bg-[#3d2e8a] px-4 py-2 font-['Noto_Sans:Bold',sans-serif] text-[14px] font-bold leading-[1.65] text-white transition-colors hover:bg-[#523eb9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/40 focus-visible:ring-offset-2"
-            style={noto}
-          >
-            Save
-          </button>
-          </div>
-        </footer>
+        {phase === "results" ? (
+          <footer className="flex shrink-0 items-center pt-1">
+            <SimulatorAttribution />
+          </footer>
+        ) : null}
       </div>
+    </div>
+  );
+}
+
+/** @deprecated Use MatchSimulatorContent in expanded table rows. */
+export function MatchSimulatorDrawerContent({ row }: { row: ScreeningResultRow; onClose: () => void }) {
+  return (
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+      <MatchSimulatorContent row={row} layout="modal" />
     </div>
   );
 }

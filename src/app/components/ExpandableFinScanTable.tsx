@@ -22,9 +22,30 @@ const headerLabelClass = cn(headerLabelBase, "text-[12px]");
 const headerLabelCompactClass = cn(headerLabelBase, "text-[10px] leading-tight");
 
 const expandBtnClass =
-  "p-1 rounded transition-colors duration-200 ease-out hover:bg-[#eff0f2] dark:hover:bg-[#2c333a] text-[#23262c] dark:text-[#b6c2cf] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/35 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#22272b]";
+  "inline-flex size-[26px] shrink-0 items-center justify-center rounded p-1 transition-colors duration-200 ease-out hover:bg-[#eff0f2] dark:hover:bg-[#2c333a] text-[#23262c] dark:text-[#b6c2cf] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/35 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#22272b]";
 
 const chevronClass = cn("size-[18px]", durationAccordion, easeAccordion, "transition-transform");
+
+const expandColClass = "w-[34px] px-0 align-middle";
+const selectColClass = "w-7 px-0 align-middle";
+const leadingHeaderPad = (isCompact: boolean) => (isCompact ? "py-0.5" : "py-1");
+const leadingBodyPad = (isCompact: boolean) => (isCompact ? "py-1.5" : "py-3");
+
+function SelectCheckboxCell({
+  children,
+  visible = true,
+}: {
+  children: ReactNode;
+  visible?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-center">
+      <span className={cn(checkboxPadWrapClass, visible ? "opacity-100" : "opacity-0 group-hover/row:opacity-100")}>
+        {children}
+      </span>
+    </div>
+  );
+}
 
 const checkboxClass =
   "h-4 w-4 shrink-0 rounded-[3px] border-[#523eb9] border bg-white dark:bg-[#22272b] text-white transition-all duration-200 ease-out data-[state=checked]:bg-[#523eb9] data-[state=checked]:border-[#523eb9] data-[state=indeterminate]:bg-[#523eb9] data-[state=indeterminate]:border-[#523eb9] focus-visible:ring-2 focus-visible:ring-[#523eb9]/35 [&_svg]:size-3 disabled:cursor-default disabled:opacity-50 disabled:border-[#cfd2d9] dark:disabled:border-[#454c59] disabled:data-[state=checked]:bg-[#d4d6db] disabled:data-[state=checked]:border-[#cfd2d9] disabled:data-[state=indeterminate]:bg-[#d4d6db] disabled:data-[state=indeterminate]:border-[#cfd2d9]";
@@ -66,8 +87,8 @@ export type ExpandableFinScanTableProps<T extends { id: string }> = {
   trailingColumn?: {
     render: (row: T) => ReactNode;
   };
-  /** When false, omits expand chevrons and accordion detail rows. */
-  expandable?: boolean;
+  /** When false, hides the header “expand all / collapse all” control. */
+  showExpandAll?: boolean;
   /** Tighter cell padding for narrow panels (e.g. simulator drawer). */
   density?: "default" | "compact";
   renderExpandedContent?: (row: T) => ReactNode;
@@ -77,6 +98,8 @@ export type ExpandableFinScanTableProps<T extends { id: string }> = {
   tableClassName?: string;
   /** When false, hides horizontal scroll on the table wrapper (use with table-fixed + w-full). */
   scrollX?: boolean;
+  /** When false, rows do not expand (checkbox-only leading column if selection is set). */
+  expandable?: boolean;
   expandedIds?: Set<string>;
   onExpandedIdsChange?: Dispatch<SetStateAction<Set<string>>>;
 };
@@ -90,6 +113,7 @@ export function ExpandableFinScanTable<T extends { id: string }>({
   selection,
   trailingColumn,
   expandable = true,
+  showExpandAll = true,
   density = "default",
   renderExpandedContent,
   emptyState,
@@ -139,9 +163,10 @@ export function ExpandableFinScanTable<T extends { id: string }>({
     setExpandedIds(new Set(rows.map((r) => r.id)));
   };
 
-  const showExpandColumn = expandable || selection != null;
-  const colSpan =
-    (showExpandColumn ? 1 : 0) + columns.length + (trailingColumn ? 1 : 0);
+  const showExpandCol = expandable;
+  const showSelectionCol = selection != null;
+  const leadingColCount = (showExpandCol ? 1 : 0) + (showSelectionCol ? 1 : 0);
+  const colSpan = leadingColCount + columns.length + (trailingColumn ? 1 : 0);
 
   return (
     <div
@@ -152,48 +177,55 @@ export function ExpandableFinScanTable<T extends { id: string }>({
       )}
     >
       <table
-        className={cn("w-full border-collapse text-left", minWidth, tableClassName)}
+        className={cn("w-full table-fixed border-collapse text-left", minWidth, tableClassName)}
         aria-label={caption}
       >
         <caption className="sr-only">{caption}</caption>
+        <colgroup>
+          {showExpandCol ? <col className="w-[34px]" /> : null}
+          {showSelectionCol ? <col className="w-7" /> : null}
+        </colgroup>
         <thead className="sticky top-0 z-[1] border-b border-[#cfd2d9] bg-[#fafafb] shadow-[0_1px_0_rgba(207,210,217,0.6)] dark:border-[#38414a] dark:bg-[#1d2125] dark:shadow-[0_1px_0_rgba(0,0,0,0.45)]">
           <tr className={headerRowH}>
-            {showExpandColumn ? (
-              <th scope="col" className="w-12 px-2 py-1 align-middle">
-                <div className="flex items-center gap-0.5">
-                  {expandable ? (
-                    <button
-                      type="button"
-                      className={expandBtnClass}
-                      aria-label={allVisibleExpanded ? "Collapse all rows" : "Expand all rows"}
-                      onClick={toggleExpandAll}
-                    >
-                      {allVisibleExpanded ? (
-                        <ChevronDown className={chevronClass} />
-                      ) : (
-                        <ChevronRight className={chevronClass} />
-                      )}
-                    </button>
-                  ) : null}
-                  {selection ? (
-                    <span className={cn(checkboxPadWrapClass, "opacity-100")}>
-                      <Checkbox
-                        className={checkboxClass}
-                        checked={selection.headerCheckboxState}
-                        disabled={selection.actionableCount === 0}
-                        onCheckedChange={selection.onHeaderSelectAll}
-                        aria-label={
-                          selection.actionableCount === 0
-                            ? "No selectable results"
-                            : selection.headerCheckboxState === true
-                              ? "Deselect all results"
-                              : "Select all results"
-                        }
-                      />
-                    </span>
-                  ) : null}
+            {showExpandCol ? (
+              <th scope="col" className={cn(expandColClass, leadingHeaderPad(isCompact))}>
+                <div className="flex items-center justify-center">
+                  {expandable && showExpandAll ? (
+                  <button
+                    type="button"
+                    className={expandBtnClass}
+                    aria-label={allVisibleExpanded ? "Collapse all rows" : "Expand all rows"}
+                    onClick={toggleExpandAll}
+                  >
+                    {allVisibleExpanded ? (
+                      <ChevronDown className={chevronClass} />
+                    ) : (
+                      <ChevronRight className={chevronClass} />
+                    )}
+                  </button>
+                ) : null}
                 </div>
-                <span className="sr-only">{selection ? "Expand and select" : "Expand rows"}</span>
+                <span className="sr-only">Expand rows</span>
+              </th>
+            ) : null}
+            {showSelectionCol ? (
+              <th scope="col" className={cn(selectColClass, leadingHeaderPad(isCompact))}>
+                <SelectCheckboxCell>
+                  <Checkbox
+                    className={checkboxClass}
+                    checked={selection.headerCheckboxState}
+                    disabled={selection.actionableCount === 0}
+                    onCheckedChange={selection.onHeaderSelectAll}
+                    aria-label={
+                      selection.actionableCount === 0
+                        ? "No selectable results"
+                        : selection.headerCheckboxState === true
+                          ? "Deselect all results"
+                          : "Select all results"
+                    }
+                  />
+                </SelectCheckboxCell>
+                <span className="sr-only">Select rows</span>
               </th>
             ) : null}
             {columns.map((col) => (
@@ -255,51 +287,47 @@ export function ExpandableFinScanTable<T extends { id: string }>({
 
             const rowCells = (
               <>
-                {showExpandColumn ? (
-                  <td className={cn("w-12 px-2 align-middle not-italic", isCompact ? "py-1.5" : "py-3")}>
-                    <div className="flex items-center gap-0.5">
+                {showExpandCol ? (
+                  <td className={cn(expandColClass, leadingBodyPad(isCompact))}>
+                    <div className="flex items-center justify-center">
                       {expandable ? (
                         <button
-                          type="button"
-                          aria-expanded={expanded}
-                          aria-label={expanded ? "Collapse row" : "Expand row"}
-                          onClick={() => toggleExpanded(row.id)}
-                          className={cn(
-                            expandBtnClass,
-                            expanded || showControls
-                              ? "opacity-100"
-                              : "opacity-0 pointer-events-none group-hover/row:opacity-100 group-hover/row:pointer-events-auto",
-                          )}
-                        >
-                          {expanded ? (
-                            <ChevronDown className={chevronClass} />
-                          ) : (
-                            <ChevronRight className={chevronClass} />
-                          )}
-                        </button>
-                      ) : null}
-                      {selection ? (
-                        <span
-                          className={cn(
-                            checkboxPadWrapClass,
-                            !selectable && "cursor-default",
-                            showControls ? "opacity-100" : "opacity-0 group-hover/row:opacity-100",
-                          )}
-                        >
-                          <Checkbox
-                            className={checkboxClass}
-                            checked={selected}
-                            disabled={!selectable}
-                            onCheckedChange={(v) => {
-                              if (selectable) selection.onToggleRow(row.id, v === true);
-                            }}
-                            aria-label={
-                              selectable ? `Select row ${row.id}` : `Row ${row.id} (not selectable)`
-                            }
-                          />
-                        </span>
-                      ) : null}
+                        type="button"
+                        aria-expanded={expanded}
+                        aria-label={expanded ? "Collapse row" : "Expand row"}
+                        onClick={() => toggleExpanded(row.id)}
+                        className={cn(
+                          expandBtnClass,
+                          expanded || showControls
+                            ? "opacity-100"
+                            : "opacity-0 pointer-events-none group-hover/row:opacity-100 group-hover/row:pointer-events-auto",
+                        )}
+                      >
+                        {expanded ? (
+                          <ChevronDown className={chevronClass} />
+                        ) : (
+                          <ChevronRight className={chevronClass} />
+                        )}
+                      </button>
+                    ) : null}
                     </div>
+                  </td>
+                ) : null}
+                {showSelectionCol ? (
+                  <td className={cn(selectColClass, leadingBodyPad(isCompact))}>
+                    <SelectCheckboxCell visible={showControls}>
+                      <Checkbox
+                        className={checkboxClass}
+                        checked={selected}
+                        disabled={!selectable}
+                        onCheckedChange={(v) => {
+                          if (selectable) selection.onToggleRow(row.id, v === true);
+                        }}
+                        aria-label={
+                          selectable ? `Select row ${row.id}` : `Row ${row.id} (not selectable)`
+                        }
+                      />
+                    </SelectCheckboxCell>
                   </td>
                 ) : null}
                 {columns.map((col) => (
@@ -307,7 +335,7 @@ export function ExpandableFinScanTable<T extends { id: string }>({
                     key={col.key}
                     className={cn(
                       cellPad,
-                      "font-['Noto_Sans:Regular',sans-serif] not-italic",
+                      "font-['Noto_Sans:Regular',sans-serif]",
                       bodyText,
                       col.cellClassName,
                     )}
@@ -319,7 +347,7 @@ export function ExpandableFinScanTable<T extends { id: string }>({
                 {trailingColumn ? (
                   <td
                     className={cn(
-                      "w-10 px-1 align-middle not-italic",
+                      "w-10 px-1 align-middle",
                       isCompact ? "py-1.5" : "py-3",
                     )}
                   >

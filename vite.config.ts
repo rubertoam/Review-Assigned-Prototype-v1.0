@@ -7,6 +7,12 @@ import react from '@vitejs/plugin-react'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+/** ACE Design System (ACEDesignSystem / ds-github) — local sandbox clone */
+const aceDesignSystemSrc = path.resolve(
+  __dirname,
+  '../../Design System/Design System Sandbox/src',
+)
+
 function figmaAssetResolver() {
   return {
     name: 'figma-asset-resolver',
@@ -41,8 +47,13 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      // Alias @ to the src directory
       '@': path.resolve(__dirname, './src'),
+      '@ace-ds': aceDesignSystemSrc,
+    },
+  },
+  server: {
+    fs: {
+      allow: [path.resolve(__dirname, '..'), path.resolve(__dirname, '../..')],
     },
   },
 

@@ -7,7 +7,12 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { ChevronDown, Eye, EyeOff, FlaskConical } from "lucide-react";
+import { Eye, EyeOff, List } from "lucide-react";
+import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
+import { MatchSimulatorContent } from "./MatchSimulatorDrawerContent";
+import { aceAccordionFixedHeaderClass } from "../lib/aceAccordion";
+import { aceDropShadowXsClass } from "../lib/aceShadow";
+import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { cn } from "./ui/utils";
 import {
   ExpandableFinScanTable,
@@ -20,12 +25,32 @@ export { easeAccordion, durationAccordion } from "./ExpandableFinScanTable";
 
 export type ScreeningRowStatus = "New" | "Escalated";
 
-/** Shared lavender pill surface (table “New” badge, profile header tags, in‑process tile) — same in light and dark. */
-export const screeningNewPillSurfaceClass =
-  "border border-[#d6cef5] bg-[#f4f1fc] transition-colors duration-200 ease-out dark:border-[#d6cef5] dark:bg-[#f4f1fc]";
+const STATUS_FILTER_ORDER: ScreeningRowStatus[] = ["New", "Escalated"];
 
-export const screeningNewPillLabelClass =
-  "font-['Noto_Sans:SemiBold',sans-serif] text-[12px] text-[#523eb9]";
+/** Shared lavender pill surface (table “New” badge, profile header tags, in‑process tile). */
+export const screeningNewPillSurfaceClass =
+  "border border-[var(--screening-pill-new-border)] bg-[var(--screening-pill-new-surface)] transition-colors duration-200 ease-out";
+
+export const screeningNewPillLabelClass = cn(
+  aceTypography(ACE_TYPE.captionSemiBold),
+  "text-[var(--screening-pill-new-label)]",
+);
+
+/** Disabled / completed screening rows — ACE neutral 600 (theme-aware). */
+export const screeningDisabledTextClass = "text-[var(--ace-button-neutral-600)]";
+
+export const screeningDisabledRowClass = cn(
+  "bg-[#f3f4f6] dark:bg-[#2c333a]",
+  "[&_td]:italic [&_td_*]:italic",
+  "[&_td]:!text-[var(--ace-button-neutral-600)] [&_td_*]:!text-[var(--ace-button-neutral-600)]",
+);
+
+export function isDisabledScreeningRow(
+  row: ScreeningTableDisplayRow,
+  flowVariant: "level-1" | "level-2" = "level-1",
+): boolean {
+  return flowVariant === "level-2" ? row.readOnlyHistory === true : row.status === "Escalated";
+}
 
 export type ScreeningResultRow = {
   id: string;
@@ -36,6 +61,12 @@ export type ScreeningResultRow = {
   matchScore: number;
   matchTiles: string[];
   status: ScreeningRowStatus;
+};
+
+/** Row shape used inside the table (Level 2 review history adds display overrides). */
+export type ScreeningTableDisplayRow = ScreeningResultRow & {
+  readOnlyHistory?: boolean;
+  displayStatus?: "Safe";
 };
 
 const CASE_RESULT_COUNTS = [8, 8, 7, 5, 3, 2] as const;
@@ -105,15 +136,7 @@ export function getScreeningRowsForCase(caseIndex: number): ScreeningResultRow[]
 
 export const MOCK_ROWS: ScreeningResultRow[] = getScreeningRowsForCase(0);
 
-const MATCH_KEY_ITEMS: { code: string; label: string; bg: string; fg: string; border: string }[] = [
-  { code: "E", label: "Equal", bg: "#fdeaea", fg: "#9e2a2a", border: "rgba(194,40,40,0.12)" },
-  { code: "N", label: "Not Equal", bg: "#e8f4ea", fg: "#2d6a3e", border: "rgba(46,125,50,0.12)" },
-  { code: "C1", label: "Very Close", bg: "#fff4e8", fg: "#b35c00", border: "rgba(230,126,0,0.12)" },
-  { code: "C2", label: "Close", bg: "#fff9e6", fg: "#9a6b00", border: "rgba(249,168,37,0.15)" },
-  { code: "B", label: "Blank", bg: "#f0f1f3", fg: "#5c6370", border: "rgba(106,114,130,0.15)" },
-];
-
-type SortKey = "name" | "dob" | "matchAge" | "matchScore" | "matchString" | "status";
+type SortKey = "name" | "dob" | "matchAge" | "matchScore" | "status";
 type SortDir = "asc" | "desc";
 
 export function scoreIsHighRisk(score: number): boolean {
@@ -225,12 +248,11 @@ const RUN_RESULTS_COLUMNS: FinScanTableColumn<SimulatorRunResultRow>[] = [
   {
     key: "matchAttribute",
     label: "Match Attribute",
-    cellClassName: "min-w-[120px]",
     render: (r) => {
       const soft = tileSoftStyle(r.tile);
       return (
         <span
-          className="flex w-full min-w-0 items-center justify-center rounded-[4px] border border-solid px-1 py-1.5 font-['Noto_Sans:Bold',sans-serif] text-[10px] font-bold leading-none tracking-wide"
+          className="inline-flex w-fit items-center rounded-[4px] border border-solid px-2 py-1 font-['Noto_Sans:Bold',sans-serif] text-[10px] font-bold leading-none tracking-wide"
           style={{
             backgroundColor: soft.bg,
             color: soft.fg,
@@ -472,27 +494,59 @@ export function SimulatorRunResultsTable({ rows }: { rows: SimulatorRunResultRow
 interface ScreeningResultsTableProps {
   rows?: ScreeningResultRow[];
   title?: string;
+  /** Level 2 shows escalated-only work queue plus optional L1 review history. */
+  flowVariant?: "level-1" | "level-2";
   /** Optional root classes (e.g. `w-full`). Table body scroll is internal to the component; avoid `flex-1` on the root so the closed accordion does not stretch. */
   className?: string;
   /** When both are passed, row selection is controlled by the parent (e.g. task bar). */
   selectedIds?: Set<string>;
   onSelectedIdsChange?: Dispatch<SetStateAction<Set<string>>>;
-  /** Row id with Match Simulator open in the page-level right panel. */
-  activeSimulatorRowId?: string | null;
-  onSimulatorRowSelect?: (rowId: string | null) => void;
+}
+
+function safeStatusPill() {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-[#a5d6a7] bg-[#e8f4ea] pl-1.5 pr-2.5 py-1 transition-colors duration-200 ease-out">
+      <span className="size-2 shrink-0 rounded-full bg-[#2e7d32]" />
+      <span
+        className="font-['Noto_Sans:SemiBold',sans-serif] text-[12px] text-[#2d6a3e]"
+        style={notoVar}
+      >
+        Safe
+      </span>
+    </span>
+  );
+}
+
+function buildLevel2DisplayRows(
+  rows: ScreeningResultRow[],
+  showReviewHistory: boolean,
+): ScreeningTableDisplayRow[] {
+  const active = rows.filter((r) => r.status === "Escalated");
+  if (!showReviewHistory) return active;
+  const history = rows
+    .filter((r) => r.status === "New")
+    .map(
+      (r): ScreeningTableDisplayRow => ({
+        ...r,
+        readOnlyHistory: true,
+        displayStatus: "Safe",
+      }),
+    );
+  return [...active, ...history];
 }
 
 export function ScreeningResultsTable({
   rows = MOCK_ROWS,
   title = "Screening Results",
+  flowVariant = "level-1",
   className,
   selectedIds: selectedIdsProp,
   onSelectedIdsChange,
-  activeSimulatorRowId = null,
-  onSimulatorRowSelect,
 }: ScreeningResultsTableProps) {
+  const isLevel2 = flowVariant === "level-2";
   /** Empty set = no filter (show all). Otherwise rows must match one of the selected statuses. */
   const [statusFilters, setStatusFilters] = useState<Set<ScreeningRowStatus>>(() => new Set());
+  const [showReviewHistory, setShowReviewHistory] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -511,19 +565,34 @@ export function ScreeningResultsTable({
     [isSelectionControlled, onSelectedIdsChange],
   );
   const [sectionCollapsed, setSectionCollapsed] = useState(false);
-  const [matchKeyOpen, setMatchKeyOpen] = useState(false);
+
+  useEffect(() => {
+    if (isLevel2) setShowReviewHistory(false);
+  }, [isLevel2, rows]);
+
+  const level2ActiveRows = useMemo(
+    () => (isLevel2 ? rows.filter((r) => r.status === "Escalated") : []),
+    [isLevel2, rows],
+  );
+
+  const baseRows = useMemo((): ScreeningTableDisplayRow[] => {
+    if (isLevel2) return buildLevel2DisplayRows(rows, showReviewHistory);
+    return rows;
+  }, [isLevel2, rows, showReviewHistory]);
 
   // Chips = one per status present in `rows`. Multi-select: OR semantics. Empty selection = show all rows.
   const statusChips = useMemo(() => {
+    if (isLevel2) return [];
     const set = new Set<ScreeningRowStatus>();
     rows.forEach((r) => set.add(r.status));
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [rows]);
+    return STATUS_FILTER_ORDER.filter((status) => set.has(status));
+  }, [isLevel2, rows]);
 
   const filteredRows = useMemo(() => {
-    if (statusFilters.size === 0) return rows;
-    return rows.filter((r) => statusFilters.has(r.status));
-  }, [rows, statusFilters]);
+    if (isLevel2) return baseRows;
+    if (statusFilters.size === 0) return baseRows;
+    return baseRows.filter((r) => statusFilters.has(r.status));
+  }, [isLevel2, baseRows, statusFilters]);
 
   const sortedRows = useMemo(() => {
     const list = [...filteredRows];
@@ -544,9 +613,6 @@ export function ScreeningResultsTable({
         case "matchScore":
           cmp = a.matchScore - b.matchScore;
           break;
-        case "matchString":
-          cmp = a.matchTiles.join("").localeCompare(b.matchTiles.join(""));
-          break;
         case "status":
           cmp = a.status.localeCompare(b.status);
           break;
@@ -565,11 +631,19 @@ export function ScreeningResultsTable({
 
   useEffect(() => {
     const allow = new Set(sortedRows.map((r) => r.id));
-    const allowNew = new Set(sortedRows.filter((r) => r.status === "New").map((r) => r.id));
+    const allowSelectable = new Set(
+      sortedRows
+        .filter((r) =>
+          isLevel2
+            ? !r.readOnlyHistory && r.status === "Escalated"
+            : r.status === "New",
+        )
+        .map((r) => r.id),
+    );
     setSelectedIds((prev) => {
       const next = new Set<string>();
       prev.forEach((id) => {
-        if (allowNew.has(id)) next.add(id);
+        if (allowSelectable.has(id)) next.add(id);
       });
       return next;
     });
@@ -580,7 +654,7 @@ export function ScreeningResultsTable({
       });
       return next;
     });
-  }, [selectionRowsSignature, setSelectedIds]);
+  }, [selectionRowsSignature, setSelectedIds, isLevel2]);
 
   const selectedRef = useRef(selectedIds);
   const filterRef = useRef(statusFilters);
@@ -604,13 +678,22 @@ export function ScreeningResultsTable({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const reviewedCount = useMemo(() => rows.filter((r) => r.status === "Escalated").length, [rows]);
-  const totalCount = rows.length;
+  const reviewedCount = useMemo(() => {
+    if (isLevel2) return 0;
+    return rows.filter((r) => r.status === "Escalated").length;
+  }, [isLevel2, rows]);
+  const totalCount = isLevel2 ? level2ActiveRows.length : rows.length;
   const progress = totalCount === 0 ? 0 : (reviewedCount / totalCount) * 100;
 
   const selectionMode = selectedIds.size > 0;
 
-  const actionableRows = useMemo(() => sortedRows.filter((r) => r.status === "New"), [sortedRows]);
+  const actionableRows = useMemo(
+    () =>
+      sortedRows.filter((r) =>
+        isLevel2 ? !r.readOnlyHistory && r.status === "Escalated" : r.status === "New",
+      ),
+    [sortedRows, isLevel2],
+  );
 
   const allVisibleSelected =
     actionableRows.length > 0 && actionableRows.every((r) => selectedIds.has(r.id));
@@ -648,22 +731,26 @@ export function ScreeningResultsTable({
   const headerCheckboxState: boolean | "indeterminate" =
     someVisibleSelected && !allVisibleSelected ? "indeterminate" : allVisibleSelected;
 
-  const screeningColumns: FinScanTableColumn<ScreeningResultRow>[] = useMemo(
+  const screeningColumns: FinScanTableColumn<ScreeningTableDisplayRow>[] = useMemo(
     () => [
       {
         key: "status",
         label: "Status",
         sortKey: "status",
         cellClassName: "whitespace-nowrap",
-        render: (row) =>
-          row.status === "New" ? (
-            <span className={cn("inline-flex items-center gap-1.5 rounded-full pl-1.5 pr-2.5 py-1", screeningNewPillSurfaceClass)}>
-              <span className="size-2 shrink-0 rounded-full bg-[#523eb9]" />
-              <span className={screeningNewPillLabelClass} style={notoVar}>
-                New
+        render: (row) => {
+          if (row.displayStatus === "Safe") return safeStatusPill();
+          if (row.status === "New") {
+            return (
+              <span className={cn("inline-flex items-center gap-1.5 rounded-full pl-1.5 pr-2.5 py-1", screeningNewPillSurfaceClass)}>
+                <span className="size-2 shrink-0 rounded-full bg-[#523eb9]" />
+                <span className={screeningNewPillLabelClass} style={notoVar}>
+                  New
+                </span>
               </span>
-            </span>
-          ) : (
+            );
+          }
+          return (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[#ffcc80] bg-[#fff4e8] pl-1.5 pr-2.5 py-1 transition-colors duration-200 ease-out">
               <span className="size-2 rounded-full bg-[#ef6c00]" />
               <span
@@ -673,7 +760,8 @@ export function ScreeningResultsTable({
                 Escalated
               </span>
             </span>
-          ),
+          );
+        },
       },
       {
         key: "name",
@@ -709,8 +797,8 @@ export function ScreeningResultsTable({
         render: (row) => (
           <span
             className={cn(
-              row.status === "Escalated"
-                ? "text-[#6a7285] dark:text-[#8696a7]"
+              isDisabledScreeningRow(row, flowVariant)
+                ? screeningDisabledTextClass
                 : scoreIsHighRisk(row.matchScore)
                   ? "text-[#c62828] dark:text-[#f48a8a]"
                   : "text-[#23262c] dark:text-[#b6c2cf]",
@@ -721,21 +809,25 @@ export function ScreeningResultsTable({
         ),
       },
       {
-        key: "matchString",
-        label: "Match String",
-        sortKey: "matchString",
-        render: (row) => (
-          <MatchStringTiles
-            tiles={row.matchTiles}
-            className={cn(
-              row.status !== "Escalated" &&
-                "[&_span]:transition-transform [&_span]:duration-200 [&_span]:ease-out [&_span:hover]:scale-[1.03]",
-            )}
-          />
-        ),
+        key: "listCategory",
+        label: "List Category",
+        cellClassName: "text-[#464c59] dark:text-[#9fadbc]",
+        render: () => null,
+      },
+      {
+        key: "listId",
+        label: "List ID",
+        cellClassName: "text-[#464c59] dark:text-[#9fadbc]",
+        render: () => null,
+      },
+      {
+        key: "listProfileId",
+        label: "List Profile ID",
+        cellClassName: "text-[#464c59] dark:text-[#9fadbc]",
+        render: () => null,
       },
     ],
-    [],
+    [isLevel2, flowVariant],
   );
 
   const screeningEmptyState = (
@@ -760,164 +852,131 @@ export function ScreeningResultsTable({
     </>
   );
 
-  return (
-    <div
-      className={cn(
-        "bg-white dark:bg-[#22272b] border border-[#cfd2d9] dark:border-[#38414a] rounded overflow-hidden shadow-[0_1px_2px_rgba(35,38,44,0.06),0_2px_8px_rgba(35,38,44,0.08)] transition-shadow duration-200 ease-out hover:shadow-[0_2px_4px_rgba(35,38,44,0.08),0_4px_12px_rgba(35,38,44,0.1)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.35)] flex w-full flex-col shrink-0",
-        className,
-      )}
-    >
-      <div
-        className="flex min-h-[56px] items-center justify-between gap-3 px-4 py-3 cursor-pointer select-none transition-colors duration-200 ease-out hover:bg-[#eff0f2] dark:hover:bg-[#2c333a] shrink-0"
-        onClick={() => setSectionCollapsed((c) => !c)}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            setSectionCollapsed((c) => !c);
-          }
-        }}
-        aria-expanded={!sectionCollapsed}
-      >
-        <div className="flex flex-wrap items-center gap-3 min-w-0">
-          <div
-            className={cn(
-              "shrink-0 transition-transform",
-              durationAccordion,
-              easeAccordion,
-              sectionCollapsed ? "-rotate-90" : "",
-            )}
-            aria-hidden
-          >
-            <ChevronDown className="size-4 text-[#23262c] dark:text-[#b6c2cf]" strokeWidth={2} />
-          </div>
-          <p
-            className="font-['Noto_Sans:SemiBold',sans-serif] font-semibold leading-[1.5] text-[#23262c] dark:text-[#b6c2cf] text-[15px] truncate"
-            style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-          >
-            {title}
-          </p>
-        </div>
-        <div
-          className="flex items-center gap-3 shrink-0"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span
-            className="hidden sm:inline font-['Noto_Sans:Regular',sans-serif] text-[13px] text-[#464c59] dark:text-[#9fadbc] whitespace-nowrap"
-            style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-          >
-            {reviewedCount} of {totalCount} Reviewed
-          </span>
-          <div
-            className="w-[120px] h-2 rounded-full bg-[#eff0f2] dark:bg-[#2c333a] overflow-hidden border border-[#e4e6ea] dark:border-[#38414a]"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={totalCount}
-            aria-valuenow={reviewedCount}
-            aria-label={`Review progress: ${reviewedCount} of ${totalCount} reviewed`}
-          >
-            <div
-              className="h-full rounded-full bg-[#523eb9] transition-[width] duration-300 ease-out"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div
+  const tableHeaderTrailing = (
+    <div className="flex shrink-0 items-center gap-3" onClick={(e) => e.stopPropagation()}>
+      <span
         className={cn(
-          "grid border-t border-[#cfd2d9] dark:border-[#38414a] transition-[grid-template-rows]",
-          durationAccordion,
-          easeAccordion,
-          sectionCollapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]",
+          aceTypography(ACE_TYPE.p1Regular),
+          "hidden whitespace-nowrap text-sm text-[var(--screening-text-secondary)] sm:inline",
         )}
       >
-        <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden", sectionCollapsed && "pointer-events-none")}>
+        {reviewedCount} of {totalCount} Reviewed
+      </span>
+      <div
+        className="h-[var(--screening-progress-height)] w-[var(--screening-progress-width)] overflow-hidden rounded-full border border-[var(--screening-border-soft)] bg-[var(--screening-progress-track)]"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={totalCount}
+        aria-valuenow={reviewedCount}
+        aria-label={`Review progress: ${reviewedCount} of ${totalCount} reviewed`}
+      >
+        <div
+          className="h-full rounded-full bg-[var(--screening-progress-fill)] transition-[width] duration-300 ease-out"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+    </div>
+  );
+
+  return (
+    <AceAccordion
+      className={cn(
+        "flex w-full shrink-0 flex-col border-[var(--screening-border-strong)]",
+        aceAccordionFixedHeaderClass,
+        aceDropShadowXsClass,
+        className,
+      )}
+      surface="white"
+      dropShadow
+      showTag={false}
+      showAddIcon={false}
+      showDeleteIcon={false}
+      showEditIcon={false}
+      showMoreIcon={false}
+      open={!sectionCollapsed}
+      onOpenChange={(next) => setSectionCollapsed(!next)}
+      title={title}
+      titleClassName={cn(
+        aceTypography(ACE_TYPE.h6SmallSemiBold),
+        "truncate leading-[1.5] text-[var(--screening-text-primary)]",
+      )}
+      headerTrailing={tableHeaderTrailing}
+      contentPadding={false}
+    >
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden max-h-[calc(100dvh-14rem)]">
+            {isLevel2 || statusChips.length > 0 ? (
             <div className="shrink-0 border-b border-[#cfd2d9] dark:border-[#38414a] bg-[#fafafb] dark:bg-[#1d2125] px-4 py-3">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                <span
-                  className="font-['Noto_Sans:SemiBold',sans-serif] text-[14px] text-[#23262c] dark:text-[#b6c2cf] shrink-0"
-                  style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-                >
-                  Filter by
-                </span>
-                <div className="flex flex-wrap items-center gap-2 min-w-0">
-                  {statusChips.map((st) => {
-                    const active = statusFilters.has(st);
-                    return (
-                      <button
-                        key={st}
-                        type="button"
-                        onClick={() =>
-                          setStatusFilters((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(st)) next.delete(st);
-                            else next.add(st);
-                            return next;
-                          })
-                        }
-                        className={cn(
-                          "cursor-pointer rounded-[4px] px-3.5 py-1.5 text-[13px] font-['Noto_Sans:SemiBold',sans-serif] font-semibold transition-all duration-200 ease-out border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/40 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#22272b]",
-                          active
-                            ? "bg-[#efeef9] border-[#523eb9] text-[#523eb9] hover:bg-[#e4dff3] hover:border-[#4334a3] dark:bg-[#2a2540] dark:border-[#7c6bc4] dark:text-[#dcd7e8] dark:hover:bg-[#352f4d] dark:hover:border-[#9b8ed4]"
-                            : "bg-white dark:bg-[#22272b] border-[#cfd2d9] dark:border-[#38414a] text-[#23262c] dark:text-[#b6c2cf] hover:border-[#949baa] hover:bg-[#f5f6f8] dark:hover:border-[#5c6773] dark:hover:bg-[#2c333a]",
-                        )}
-                        style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-                      >
-                        {st}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="ms-auto flex min-w-0 max-w-full flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    aria-expanded={matchKeyOpen}
-                    aria-label={matchKeyOpen ? "Hide match string key" : "Show match string key"}
-                    onClick={() => setMatchKeyOpen((o) => !o)}
-                    className="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-[4px] border border-[#cfd2d9] dark:border-[#38414a] bg-white dark:bg-[#22272b] text-[#464c59] dark:text-[#9fadbc] transition-colors duration-200 ease-out hover:border-[#949baa] hover:bg-[#eff0f2] dark:hover:bg-[#2c333a] hover:text-[#23262c] dark:hover:text-[#b6c2cf] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/35 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#22272b]"
-                  >
-                    {matchKeyOpen ? <EyeOff className="size-4" strokeWidth={2} aria-hidden /> : <Eye className="size-4" strokeWidth={2} aria-hidden />}
-                  </button>
-                  <span
-                    className="font-['Noto_Sans:SemiBold',sans-serif] text-[13px] text-[#23262c] dark:text-[#b6c2cf] shrink-0"
-                    style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-                  >
-                    Match string key
-                  </span>
-                  {matchKeyOpen && (
-                    <div className="flex max-w-full flex-wrap items-center gap-x-3 gap-y-1.5">
-                      {MATCH_KEY_ITEMS.map((item) => (
-                        <span
-                          key={item.code}
-                          className="inline-flex items-center gap-2 font-['Noto_Sans:Regular',sans-serif] text-[12px] text-[#464c59] dark:text-[#9fadbc]"
-                          style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-                        >
-                          <span
-                            className="inline-flex min-w-[22px] h-[22px] items-center justify-center rounded border border-solid px-0.5 text-[10px] font-semibold"
-                            style={{
-                              backgroundColor: item.bg,
-                              color: item.fg,
-                              borderColor: item.border,
-                            }}
+                {!isLevel2 ? (
+                  <>
+                    <span
+                      className="font-['Noto_Sans:SemiBold',sans-serif] text-[14px] text-[#23262c] dark:text-[#b6c2cf] shrink-0"
+                      style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+                    >
+                      Filter by
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2 min-w-0">
+                      {statusChips.map((st) => {
+                        const active = statusFilters.has(st);
+                        return (
+                          <button
+                            key={st}
+                            type="button"
+                            onClick={() =>
+                              setStatusFilters((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(st)) next.delete(st);
+                                else next.add(st);
+                                return next;
+                              })
+                            }
+                            className={cn(
+                              "cursor-pointer rounded-[4px] px-3.5 py-1.5 text-[13px] font-['Noto_Sans:SemiBold',sans-serif] font-semibold transition-all duration-200 ease-out border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/40 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#22272b]",
+                              active
+                                ? "bg-[#efeef9] border-[#523eb9] text-[#523eb9] hover:bg-[#e4dff3] hover:border-[#4334a3] dark:bg-[#2a2540] dark:border-[#7c6bc4] dark:text-[#dcd7e8] dark:hover:bg-[#352f4d] dark:hover:border-[#9b8ed4]"
+                                : "bg-white dark:bg-[#22272b] border-[#cfd2d9] dark:border-[#38414a] text-[#23262c] dark:text-[#b6c2cf] hover:border-[#949baa] hover:bg-[#f5f6f8] dark:hover:border-[#5c6773] dark:hover:bg-[#2c333a]",
+                            )}
+                            style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
                           >
-                            {item.code}
-                          </span>
-                          {item.label}
-                        </span>
-                      ))}
+                            {st}
+                          </button>
+                        );
+                      })}
                     </div>
-                  )}
-                </div>
+                  </>
+                ) : null}
+                {isLevel2 ? (
+                  <div className="ms-auto flex min-w-0 max-w-full flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      aria-expanded={showReviewHistory}
+                      aria-label={showReviewHistory ? "Hide review history" : "Show review history"}
+                      onClick={() => setShowReviewHistory((o) => !o)}
+                      className="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-[4px] border border-[#cfd2d9] dark:border-[#38414a] bg-white dark:bg-[#22272b] text-[#464c59] dark:text-[#9fadbc] transition-colors duration-200 ease-out hover:border-[#949baa] hover:bg-[#eff0f2] dark:hover:bg-[#2c333a] hover:text-[#23262c] dark:hover:text-[#b6c2cf] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/35 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#22272b]"
+                    >
+                      {showReviewHistory ? (
+                        <EyeOff className="size-4" strokeWidth={2} aria-hidden />
+                      ) : (
+                        <Eye className="size-4" strokeWidth={2} aria-hidden />
+                      )}
+                    </button>
+                    <span
+                      className="font-['Noto_Sans:SemiBold',sans-serif] text-[13px] text-[#23262c] dark:text-[#b6c2cf] shrink-0"
+                      style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+                    >
+                      {showReviewHistory ? "Hide review history" : "Show review history"}
+                    </span>
+                  </div>
+                ) : null}
               </div>
             </div>
+            ) : null}
             <ExpandableFinScanTable
               rows={sortedRows}
               columns={screeningColumns}
               caption={`${title}, ${sortedRows.length} ${sortedRows.length === 1 ? "row" : "rows"}${statusFilters.size > 0 ? `, filtered by ${[...statusFilters].sort((a, b) => a.localeCompare(b)).join(", ")}` : ""}`}
-              minWidth="min-w-[720px]"
+              minWidth="min-w-[960px]"
+              showExpandAll={false}
               expandedIds={expandedIds}
               onExpandedIdsChange={setExpandedIds}
               sort={{
@@ -927,39 +986,30 @@ export function ScreeningResultsTable({
               }}
               selection={{
                 selectedIds,
-                isSelectable: (row) => row.status === "New",
+                isSelectable: (row) =>
+                  isLevel2
+                    ? !row.readOnlyHistory && row.status === "Escalated"
+                    : row.status === "New",
                 onToggleRow: toggleRowSelect,
                 onHeaderSelectAll: onHeaderSelectAllChange,
                 headerCheckboxState,
                 actionableCount: actionableRows.length,
               }}
               trailingColumn={{
-                render: (row) => (
-                  <button
-                    type="button"
-                    aria-label={`Run match simulation for ${row.name}`}
-                    aria-pressed={activeSimulatorRowId === row.id}
-                    disabled={!onSimulatorRowSelect}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSimulatorRowSelect?.(activeSimulatorRowId === row.id ? null : row.id);
-                    }}
-                    className={cn(
-                      "inline-flex size-8 cursor-pointer items-center justify-center rounded-[4px] border border-[#cfd2d9] dark:border-[#38414a] bg-white dark:bg-[#22272b] text-[#523eb9] transition-all duration-200 ease-out hover:border-[#949baa] hover:bg-[#f4f1fc] dark:hover:bg-[#2c333a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/35 focus-visible:ring-offset-2",
-                      activeSimulatorRowId === row.id
-                        ? "opacity-100"
-                        : "opacity-0 pointer-events-none group-hover/row:opacity-100 group-hover/row:pointer-events-auto",
-                    )}
+                render: () => (
+                  <span
+                    aria-hidden
+                    className="inline-flex size-8 items-center justify-center rounded-[4px] border border-[#cfd2d9] dark:border-[#38414a] bg-white dark:bg-[#22272b] text-[#523eb9] opacity-0 pointer-events-none transition-all duration-200 ease-out group-hover/row:opacity-100"
                   >
-                    <FlaskConical className="size-4 shrink-0" strokeWidth={2} aria-hidden />
-                  </button>
+                    <List className="size-4 shrink-0" strokeWidth={2} />
+                  </span>
                 ),
               }}
               getRowClassName={(row) => {
-                const rowDone = row.status === "Escalated";
+                const rowDone = isDisabledScreeningRow(row, flowVariant);
                 const selected = selectedIds.has(row.id);
                 return cn(
-                  rowDone && "bg-[#f3f4f6] dark:bg-[#2c333a] italic text-[#6a7285] dark:text-[#8696a7]",
+                  rowDone && screeningDisabledRowClass,
                   !rowDone &&
                     "bg-white dark:bg-[#22272b] hover:bg-[#f3f4f6] dark:hover:bg-[#2c333a] hover:shadow-[inset_2px_0_0_0_rgba(82,62,185,0.2)]",
                   selected && !rowDone && "bg-[#f4f1fc]/60 dark:bg-[#38414a]/45",
@@ -967,16 +1017,10 @@ export function ScreeningResultsTable({
               }}
               emptyState={sortedRows.length === 0 ? screeningEmptyState : undefined}
               renderExpandedContent={(row) => (
-                <p className="m-0 font-['Noto_Sans:Regular',sans-serif] text-[13px] not-italic text-[#464c59] dark:text-[#9fadbc]" style={notoVar}>
-                  Expanded match detail for{" "}
-                  <span className="font-semibold text-[#23262c] dark:text-[#b6c2cf]">{row.name}</span> (prototype
-                  placeholder).
-                </p>
+                <MatchSimulatorContent key={row.id} row={row} layout="inline" />
               )}
             />
           </div>
-        </div>
-      </div>
-    </div>
+    </AceAccordion>
   );
 }

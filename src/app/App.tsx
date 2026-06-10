@@ -1,5 +1,6 @@
+import { FlowProvider } from "./flows/FlowContext";
+import { ReviewFlowRouter } from "./flows/ReviewFlowRouter";
 import { ScreeningResultsTable } from "./components/ScreeningResultsTable";
-import { ResponsiveReviewInterface } from "./components/ResponsiveReviewInterface";
 
 function getView(): "table" | "app" {
   if (typeof window === "undefined") return "app";
@@ -17,5 +18,9 @@ export default function App() {
     );
   }
 
-  return <ResponsiveReviewInterface />;
+  return (
+    <FlowProvider>
+      <ReviewFlowRouter />
+    </FlowProvider>
+  );
 }

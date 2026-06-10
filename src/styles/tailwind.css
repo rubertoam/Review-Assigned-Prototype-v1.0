@@ -1,4 +1,6 @@
 @import 'tailwindcss' source(none);
 @source '../**/*.{js,ts,jsx,tsx}';
+/* ACE DS components (@ace-ds) — arbitrary utilities must be scanned or surfaces/overlays render transparent */
+@source '../../../../Design System/Design System Sandbox/src/**/*.{js,ts,jsx,tsx}';
 
 @import 'tw-animate-css';

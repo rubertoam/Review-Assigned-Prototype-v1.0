@@ -26,6 +26,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Checkout ACE Design System (local @ace-ds alias)
+        run: |
+          DS_ROOT="${GITHUB_WORKSPACE}/../../Design System/Design System Sandbox"
+          mkdir -p "$(dirname "$DS_ROOT")"
+          git clone --depth 1 https://github.com/rubertoam/ACEDesignSystem.git "$DS_ROOT"
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
