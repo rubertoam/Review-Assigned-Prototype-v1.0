@@ -9,7 +9,9 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { ChevronDown, ChevronRight, MoreVertical } from "lucide-react";
+import { MoreVertical } from "lucide-react";
+import { AllCasesClearedState } from "../../components/AllCasesClearedState";
+import { CaseListSection } from "../../components/CaseListSection";
 import { ThemeProvider } from "../../context/ThemeContext";
 import { aceAccordionFixedHeaderClass } from "../../lib/aceAccordion";
 import { aceDropShadowXsClass } from "../../lib/aceShadow";
@@ -191,7 +193,7 @@ function ReviewSidebarNavRow({
           "transition-colors duration-[var(--ace-motion-duration-fast)] [transition-timing-function:var(--ace-motion-ease-standard)]",
           item.selectable
             ? "cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--screening-primary-ring-offset)]"
-            : "cursor-default",
+            : "cursor-not-allowed",
         )}
       >
         <span
@@ -422,10 +424,16 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
     return { pendingRows: pending, doneRows: done };
   }, [filteredRows, caseRowsForIndex]);
 
-  const navigableRows = useMemo(
-    () => (doneSectionExpanded ? [...pendingRows, ...doneRows] : pendingRows),
-    [pendingRows, doneRows, doneSectionExpanded],
-  );
+  const navigableRows = useMemo(() => {
+    const showDone = doneSectionExpanded || pendingRows.length === 0;
+    return showDone ? [...pendingRows, ...doneRows] : pendingRows;
+  }, [pendingRows, doneRows, doneSectionExpanded]);
+
+  useEffect(() => {
+    if (pendingRows.length === 0 && doneRows.length > 0) {
+      setDoneSectionExpanded(true);
+    }
+  }, [pendingRows.length, doneRows.length]);
 
   const caseReviewProgress = useMemo(
     () =>
@@ -607,40 +615,18 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
         </div>
       </div>
       <div className="flex flex-col">
-        {pendingRows.map(({ item, index }) => renderCaseRow(item, index))}
-        {doneRows.length > 0 ? (
-          <div className="border-t border-[#cfd2d9] dark:border-[#38414a]">
-            <button
-              type="button"
-              aria-expanded={doneSectionExpanded}
-              onClick={() => setDoneSectionExpanded((open) => !open)}
-              className="flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 text-left transition-colors hover:bg-[#eff0f2] dark:hover:bg-[#2c333a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#523eb9]/35"
-            >
-              {doneSectionExpanded ? (
-                <ChevronDown className="size-4 shrink-0 text-[#464c59] dark:text-[#9fadbc]" aria-hidden />
-              ) : (
-                <ChevronRight className="size-4 shrink-0 text-[#464c59] dark:text-[#9fadbc]" aria-hidden />
-              )}
-              <span
-                className="font-['Noto_Sans:SemiBold',sans-serif] text-[13px] text-[#464c59] dark:text-[#9fadbc]"
-                style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-              >
-                Done
-              </span>
-              <span className="ms-auto flex items-center justify-center rounded-[4px] border border-[#cfd2d9] bg-[#f5f6f8] px-1.5 py-0.5 dark:border-[#38414a] dark:bg-[#333a42]">
-                <span
-                  className="font-['Noto_Sans:Bold',sans-serif] text-[12px] text-[#6a7285] dark:text-[#9fadbc]"
-                  style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-                >
-                  {doneRows.length}
-                </span>
-              </span>
-            </button>
-            {doneSectionExpanded
-              ? doneRows.map(({ item, index }) => renderCaseRow(item, index))
-              : null}
-          </div>
-        ) : null}
+        <CaseListSection title="To Do" count={pendingRows.length} collapsible={false}>
+          {pendingRows.map(({ item, index }) => renderCaseRow(item, index))}
+        </CaseListSection>
+        <CaseListSection
+          title="Done"
+          count={doneRows.length}
+          expanded={doneSectionExpanded}
+          onExpandedChange={setDoneSectionExpanded}
+          hideWhenEmpty
+        >
+          {doneRows.map(({ item, index }) => renderCaseRow(item, index))}
+        </CaseListSection>
       </div>
     </div>
   );
@@ -652,6 +638,7 @@ interface DetailPanelProps {
   screeningRows: ScreeningResultRow[];
   screeningSelectedIds: Set<string>;
   onScreeningSelectedIdsChange: Dispatch<SetStateAction<Set<string>>>;
+  allCasesCleared: boolean;
 }
 
 function DetailPanel({
@@ -660,6 +647,7 @@ function DetailPanel({
   screeningRows,
   screeningSelectedIds,
   onScreeningSelectedIdsChange,
+  allCasesCleared,
 }: DetailPanelProps) {
   const [clientExpanded, setClientExpanded] = useState(false);
   const [caseActionModal, setCaseActionModal] = useState<
@@ -676,6 +664,14 @@ function DetailPanel({
         : caseActionModal === "reports"
           ? "Reports"
           : "";
+
+  if (allCasesCleared) {
+    return (
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <AllCasesClearedState />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
@@ -973,6 +969,16 @@ export function Level1ReviewInterface() {
     [screeningRows],
   );
 
+  const allCasesCleared = useMemo(
+    () =>
+      casesData.every((_, index) => {
+        const rows =
+          screeningRowsByCase[index] ?? getScreeningRowsForCase(index, "level-1");
+        return isCaseScreeningComplete(rows);
+      }),
+    [screeningRowsByCase],
+  );
+
   const handleShowReview = useCallback(() => {
     setIsReviewDrawerOpen((open) => !open);
   }, []);
@@ -1091,14 +1097,17 @@ export function Level1ReviewInterface() {
                 screeningRows={screeningRows}
                 screeningSelectedIds={screeningSelectedIds}
                 onScreeningSelectedIdsChange={setScreeningSelectedIds}
+                allCasesCleared={allCasesCleared}
               />
             </div>
-            <TaskBar
-              onShowReview={handleShowReview}
-              isReviewOpen={isReviewDrawerOpen}
-              screeningSelectionCount={screeningSelectedIds.size}
-              onDeselectAllScreening={() => setScreeningSelectedIds(new Set())}
-            />
+            {!allCasesCleared ? (
+              <TaskBar
+                onShowReview={handleShowReview}
+                isReviewOpen={isReviewDrawerOpen}
+                screeningSelectionCount={screeningSelectedIds.size}
+                onDeselectAllScreening={() => setScreeningSelectedIds(new Set())}
+              />
+            ) : null}
           </div>
           <ReviewDrawer
             isOpen={isReviewDrawerOpen}

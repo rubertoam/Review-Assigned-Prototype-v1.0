@@ -294,7 +294,7 @@ export function ReviewDrawer({
               <button
                 type="button"
                 onClick={onClose}
-                className="relative flex items-start rounded-[var(--radius-sm)] border border-[var(--screening-primary)] bg-[var(--screening-surface)] px-4 py-2 transition-colors hover:bg-[var(--screening-surface-hover)]"
+                className="relative flex cursor-pointer items-start rounded-[var(--radius-sm)] border border-[var(--screening-primary)] bg-[var(--screening-surface)] px-4 py-2 transition-colors hover:bg-[var(--screening-surface-hover)]"
               >
                 <p
                   className={cn(
@@ -311,7 +311,7 @@ export function ReviewDrawer({
                 disabled={!canSubmit}
                 onClick={handleSubmit}
                 className={cn(
-                  "flex items-center justify-center rounded-[var(--radius-sm)] bg-[var(--screening-primary)] px-4 py-2 transition-colors hover:bg-[var(--dialog-modal-primary-hover)]",
+                  "flex cursor-pointer items-center justify-center rounded-[var(--radius-sm)] bg-[var(--screening-primary)] px-4 py-2 transition-colors hover:bg-[var(--dialog-modal-primary-hover)]",
                   !canSubmit && "cursor-not-allowed opacity-50",
                 )}
               >

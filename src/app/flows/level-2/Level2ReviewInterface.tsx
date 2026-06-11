@@ -10,6 +10,8 @@ import {
   type SetStateAction,
 } from "react";
 import { MoreVertical } from "lucide-react";
+import { AllCasesClearedState } from "../../components/AllCasesClearedState";
+import { CaseListSection } from "../../components/CaseListSection";
 import { ThemeProvider } from "../../context/ThemeContext";
 import { aceAccordionFixedHeaderClass } from "../../lib/aceAccordion";
 import { aceDropShadowXsClass } from "../../lib/aceShadow";
@@ -42,8 +44,12 @@ import {
 import {
   ScreeningResultsTable,
   getScreeningRowsForCase,
+  isCaseReviewComplete,
+  isLevel2ReviewedStatus,
+  LEVEL2_ANALYST_REVIEWER,
   screeningNewPillSurfaceClass,
   type ScreeningResultRow,
+  type ScreeningRowStatus,
 } from "../../components/ScreeningResultsTable";
 import { cn } from "../../components/ui/utils";
 import { ReviewDrawer } from "../../components/ReviewDrawer";
@@ -189,7 +195,7 @@ function ReviewSidebarNavRow({
           "transition-colors duration-[var(--ace-motion-duration-fast)] [transition-timing-function:var(--ace-motion-ease-standard)]",
           item.selectable
             ? "cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--screening-primary-ring-offset)]"
-            : "cursor-default",
+            : "cursor-not-allowed",
         )}
       >
         <span
@@ -378,16 +384,21 @@ function MetaDot() {
 interface CaseListProps {
   onSelectCase: (index: number) => void;
   selectedCaseIndex: number;
+  screeningRowsByCase: Record<number, ScreeningResultRow[]>;
 }
 
-function CaseList({ onSelectCase, selectedCaseIndex }: CaseListProps) {
+type CaseListRow = { item: (typeof casesData)[number]; index: number };
+
+function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: CaseListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
+  const [doneSectionExpanded, setDoneSectionExpanded] = useState(false);
   const [interactionPicklist, setInteractionPicklist] =
     useState<CaseInteractionPicklist>("all");
+  const wasSelectedCaseCompleteRef = useRef(false);
 
-  const visibleRows = useMemo(() => {
-    const out: { item: (typeof casesData)[number]; index: number }[] = [];
+  const filteredRows = useMemo(() => {
+    const out: CaseListRow[] = [];
     casesData.forEach((item, index) => {
       if (interactionPicklist === "all" || item.interaction === interactionPicklist) {
         out.push({ item, index });
@@ -396,39 +407,87 @@ function CaseList({ onSelectCase, selectedCaseIndex }: CaseListProps) {
     return out;
   }, [interactionPicklist]);
 
+  const caseRowsForIndex = useCallback(
+    (index: number) =>
+      screeningRowsByCase[index] ?? getScreeningRowsForCase(index, "level-2"),
+    [screeningRowsByCase],
+  );
+
+  const isCaseLevel2Complete = useCallback(
+    (index: number) => isCaseReviewComplete(caseRowsForIndex(index), "level-2"),
+    [caseRowsForIndex],
+  );
+
+  const { pendingRows, doneRows } = useMemo(() => {
+    const pending: CaseListRow[] = [];
+    const done: CaseListRow[] = [];
+    filteredRows.forEach((row) => {
+      if (isCaseLevel2Complete(row.index)) {
+        done.push(row);
+      } else {
+        pending.push(row);
+      }
+    });
+    return { pendingRows: pending, doneRows: done };
+  }, [filteredRows, isCaseLevel2Complete]);
+
+  const navigableRows = useMemo(() => {
+    const showDone = doneSectionExpanded || pendingRows.length === 0;
+    return showDone ? [...pendingRows, ...doneRows] : pendingRows;
+  }, [pendingRows, doneRows, doneSectionExpanded]);
+
+  useEffect(() => {
+    if (pendingRows.length === 0 && doneRows.length > 0) {
+      setDoneSectionExpanded(true);
+    }
+  }, [pendingRows.length, doneRows.length]);
+
   const caseReviewProgress = useMemo(
     () =>
       casesData.map((_, i) => {
-        const rows = getScreeningRowsForCase(i, "level-2");
-        const done = rows.filter((r) => r.status === "Escalated").length;
-        return { done, total: rows.length };
+        const rows = caseRowsForIndex(i);
+        const done = rows.filter((r) => isLevel2ReviewedStatus(r.status)).length;
+        const escalated = rows.filter((r) => r.status === "Escalated").length;
+        return { done, total: done + escalated };
       }),
-    [],
+    [caseRowsForIndex],
   );
 
   useEffect(() => {
-    if (visibleRows.some((r) => r.index === selectedCaseIndex)) return;
-    if (visibleRows.length > 0) {
-      onSelectCase(visibleRows[0].index);
+    wasSelectedCaseCompleteRef.current = isCaseLevel2Complete(selectedCaseIndex);
+  }, [selectedCaseIndex, isCaseLevel2Complete]);
+
+  useEffect(() => {
+    const complete = isCaseLevel2Complete(selectedCaseIndex);
+    if (complete && !wasSelectedCaseCompleteRef.current && pendingRows.length > 0) {
+      onSelectCase(pendingRows[0].index);
     }
-  }, [visibleRows, selectedCaseIndex, onSelectCase]);
+    wasSelectedCaseCompleteRef.current = complete;
+  }, [screeningRowsByCase, selectedCaseIndex, pendingRows, onSelectCase, isCaseLevel2Complete]);
+
+  useEffect(() => {
+    if (navigableRows.some((r) => r.index === selectedCaseIndex)) return;
+    if (navigableRows.length > 0) {
+      onSelectCase(navigableRows[0].index);
+    }
+  }, [navigableRows, selectedCaseIndex, onSelectCase]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isFocused) return;
 
-      const pos = visibleRows.findIndex((r) => r.index === selectedCaseIndex);
+      const pos = navigableRows.findIndex((r) => r.index === selectedCaseIndex);
       if (pos < 0) return;
 
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        if (pos < visibleRows.length - 1) {
-          onSelectCase(visibleRows[pos + 1].index);
+        if (pos < navigableRows.length - 1) {
+          onSelectCase(navigableRows[pos + 1].index);
         }
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         if (pos > 0) {
-          onSelectCase(visibleRows[pos - 1].index);
+          onSelectCase(navigableRows[pos - 1].index);
         }
       }
     };
@@ -438,7 +497,59 @@ function CaseList({ onSelectCase, selectedCaseIndex }: CaseListProps) {
       listElement.addEventListener('keydown', handleKeyDown);
       return () => listElement.removeEventListener('keydown', handleKeyDown);
     }
-  }, [selectedCaseIndex, onSelectCase, isFocused, visibleRows]);
+  }, [selectedCaseIndex, onSelectCase, isFocused, navigableRows]);
+
+  const renderCaseRow = (caseItem: (typeof casesData)[number], index: number) => {
+    const isEntity = "isEntity" in caseItem && caseItem.isEntity;
+    const { done, total } = caseReviewProgress[index] ?? { done: 0, total: 1 };
+    const progressPct = total > 0 ? (done / total) * 100 : 0;
+    return (
+      <div
+        key={index}
+        className={cn(
+          "group relative cursor-pointer px-4 pb-2.5 pt-1 transition-colors",
+          selectedCaseIndex === index ? "bg-[#e4e6ea] dark:bg-[#333a42]" : "hover:bg-[#e4e6ea] dark:hover:bg-[#333a42]",
+        )}
+        onClick={() => onSelectCase(index)}
+      >
+        {selectedCaseIndex === index && isFocused && (
+          <div aria-hidden="true" className="absolute inset-0 z-20 border-[0.5px] border-[#523eb9] border-solid pointer-events-none" />
+        )}
+        <div className="relative z-10 flex items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className={`${isEntity ? 'h-[15px]' : ''} w-[16px] shrink-0`}>
+              <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox={isEntity ? "0 0 16 15" : "0 0 16 16"}>
+                <path d={isEntity ? svgPaths.p1ac17500 : svgPaths.p8c3ef80} fill="var(--fill-0, #523EB9)" />
+              </svg>
+            </div>
+            <div className="flex flex-col flex-1 min-w-0">
+              <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[#23262c] dark:text-[#b6c2cf] text-[14px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
+                {caseItem.name}
+              </p>
+              <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[#23262c] dark:text-[#b6c2cf] text-[10px] tracking-[0.2px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
+                {caseItem.results} results
+              </p>
+            </div>
+          </div>
+          {caseItem.name === "John Smith" && !isCaseLevel2Complete(index) ? (
+            <span className="shrink-0" title="Overdue warning">
+              <OverdueWarningIcon />
+              <span className="sr-only">Overdue warning</span>
+            </span>
+          ) : null}
+        </div>
+        <div
+          className="pointer-events-none absolute bottom-1 left-4 right-4 z-10 h-1 overflow-hidden rounded-full border border-[#e4e6ea] bg-[#eff0f2] dark:bg-[#2c333a] opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+          aria-hidden
+        >
+          <div
+            className="h-full rounded-full bg-[#523eb9] transition-[width] duration-300 ease-out"
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div
@@ -456,7 +567,7 @@ function CaseList({ onSelectCase, selectedCaseIndex }: CaseListProps) {
           Sanction Matches
         </p>
         <div className="flex items-center justify-center border border-[#d6cef5] bg-[#f4f1fc] dark:border-[#454c59] dark:bg-[#333a42] px-2 py-1 rounded-[4px] min-w-[25px]">
-          <p className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[#523eb9] dark:text-[#9fadbc] text-[14px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>{visibleRows.length}</p>
+          <p className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[#523eb9] dark:text-[#9fadbc] text-[14px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>{pendingRows.length}</p>
         </div>
       </div>
       <div className="shrink-0 border-b border-[#cfd2d9] dark:border-[#38414a] bg-white dark:bg-[#22272b] px-3 py-2.5">
@@ -510,54 +621,18 @@ function CaseList({ onSelectCase, selectedCaseIndex }: CaseListProps) {
         </div>
       </div>
       <div className="flex flex-col">
-        {visibleRows.map(({ item: caseItem, index }) => {
-          const isEntity = "isEntity" in caseItem && caseItem.isEntity;
-          const { done, total } = caseReviewProgress[index] ?? { done: 0, total: 1 };
-          const progressPct = total > 0 ? (done / total) * 100 : 0;
-          return (
-          <div
-            key={index}
-            className={cn(
-              "group relative cursor-pointer px-4 pb-2.5 pt-1 transition-colors",
-              selectedCaseIndex === index ? "bg-[#e4e6ea] dark:bg-[#333a42]" : "hover:bg-[#e4e6ea] dark:hover:bg-[#333a42]",
-            )}
-            onClick={() => onSelectCase(index)}
-          >
-            {selectedCaseIndex === index && isFocused && (
-              <div aria-hidden="true" className="absolute inset-0 z-20 border-[0.5px] border-[#523eb9] border-solid pointer-events-none" />
-            )}
-            <div className="relative z-10 flex items-center justify-between gap-3">
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className={`${isEntity ? 'h-[15px]' : ''} w-[16px] shrink-0`}>
-              <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox={isEntity ? "0 0 16 15" : "0 0 16 16"}>
-                <path d={isEntity ? svgPaths.p1ac17500 : svgPaths.p8c3ef80} fill="var(--fill-0, #523EB9)" />
-              </svg>
-            </div>
-            <div className="flex flex-col flex-1 min-w-0">
-              <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[#23262c] dark:text-[#b6c2cf] text-[14px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                {caseItem.name}
-              </p>
-              <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[#23262c] dark:text-[#b6c2cf] text-[10px] tracking-[0.2px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                {caseItem.results} results
-              </p>
-            </div>
-            </div>
-            {caseItem.name === "John Smith" ? (
-              <span className="shrink-0" title="Overdue warning">
-                <OverdueWarningIcon />
-                <span className="sr-only">Overdue warning</span>
-              </span>
-            ) : null}
-            </div>
-            <div
-              className="pointer-events-none absolute bottom-1 left-4 right-4 z-10 h-1 overflow-hidden rounded-full border border-[#e4e6ea] bg-[#eff0f2] dark:bg-[#2c333a] opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-              aria-hidden
-            >
-              <div className="h-full rounded-full bg-[#523eb9] transition-[width] duration-300 ease-out" style={{ width: `${progressPct}%` }} />
-            </div>
-          </div>
-          );
-        })}
+        <CaseListSection title="To Do" count={pendingRows.length} collapsible={false}>
+          {pendingRows.map(({ item, index }) => renderCaseRow(item, index))}
+        </CaseListSection>
+        <CaseListSection
+          title="Done"
+          count={doneRows.length}
+          expanded={doneSectionExpanded}
+          onExpandedChange={setDoneSectionExpanded}
+          hideWhenEmpty
+        >
+          {doneRows.map(({ item, index }) => renderCaseRow(item, index))}
+        </CaseListSection>
       </div>
     </div>
   );
@@ -569,6 +644,7 @@ interface DetailPanelProps {
   screeningRows: ScreeningResultRow[];
   screeningSelectedIds: Set<string>;
   onScreeningSelectedIdsChange: Dispatch<SetStateAction<Set<string>>>;
+  allCasesCleared: boolean;
 }
 
 function DetailPanel({
@@ -577,6 +653,7 @@ function DetailPanel({
   screeningRows,
   screeningSelectedIds,
   onScreeningSelectedIdsChange,
+  allCasesCleared,
 }: DetailPanelProps) {
   const [clientExpanded, setClientExpanded] = useState(false);
   const [caseActionModal, setCaseActionModal] = useState<
@@ -584,6 +661,8 @@ function DetailPanel({
   >(null);
   const profile = clientProfileForCaseIndex(selectedCaseIndex);
   const riskPresentation = riskBandPresentation(profile.riskBand);
+  const isCaseComplete = isCaseReviewComplete(screeningRows, "level-2");
+  const showOverdueWarning = profile.reviewTargetOverdue && !isCaseComplete;
 
   const caseActionModalTitle =
     caseActionModal === "comments"
@@ -593,6 +672,14 @@ function DetailPanel({
         : caseActionModal === "reports"
           ? "Reports"
           : "";
+
+  if (allCasesCleared) {
+    return (
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <AllCasesClearedState />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
@@ -622,7 +709,7 @@ function DetailPanel({
           >
             <ClientProfileMetaBadge>{profile.countryLabel}</ClientProfileMetaBadge>
             {profile.dob ? <ClientProfileMetaBadge>{profile.dob}</ClientProfileMetaBadge> : null}
-            {profile.reviewTargetOverdue ? <ClientProfileOverdueBadge /> : null}
+            {showOverdueWarning ? <ClientProfileOverdueBadge /> : null}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -756,7 +843,7 @@ function DetailPanel({
                   <span>Review Target </span>
                   <MetaDot />
                   <span>{profile.reviewTargetSummary}</span>
-                  {profile.reviewTargetOverdue ? (
+                  {showOverdueWarning ? (
                     <span className="text-[#e65100]"> Overdue Warning</span>
                   ) : null}
                 </p>
@@ -864,16 +951,27 @@ function TaskBar({
 }
 
 
+function buildInitialLevel2ScreeningRows(): Record<number, ScreeningResultRow[]> {
+  const out: Record<number, ScreeningResultRow[]> = {};
+  casesData.forEach((_, index) => {
+    out[index] = getScreeningRowsForCase(index, "level-2");
+  });
+  return out;
+}
+
 export function Level2ReviewInterface() {
   const [sidebarPinned, setSidebarPinned] = useState(true);
   const [sidebarPeek, setSidebarPeek] = useState(false);
   const [selectedCaseIndex, setSelectedCaseIndex] = useState(0);
   const [isReviewDrawerOpen, setIsReviewDrawerOpen] = useState(false);
   const [screeningSelectedIds, setScreeningSelectedIds] = useState<Set<string>>(() => new Set());
+  const [screeningRowsByCase, setScreeningRowsByCase] = useState(buildInitialLevel2ScreeningRows);
 
   const screeningRows = useMemo(
-    () => getScreeningRowsForCase(selectedCaseIndex, "level-2"),
-    [selectedCaseIndex],
+    () =>
+      screeningRowsByCase[selectedCaseIndex] ??
+      getScreeningRowsForCase(selectedCaseIndex, "level-2"),
+    [screeningRowsByCase, selectedCaseIndex],
   );
 
   const actionableScreeningCount = useMemo(
@@ -881,9 +979,43 @@ export function Level2ReviewInterface() {
     [screeningRows],
   );
 
+  const allCasesCleared = useMemo(
+    () =>
+      casesData.every((_, index) => {
+        const rows =
+          screeningRowsByCase[index] ?? getScreeningRowsForCase(index, "level-2");
+        return isCaseReviewComplete(rows, "level-2");
+      }),
+    [screeningRowsByCase],
+  );
+
   const handleShowReview = useCallback(() => {
     setIsReviewDrawerOpen((open) => !open);
   }, []);
+
+  const handleSubmitDecision = useCallback(
+    (status: string, reason: string) => {
+      setScreeningRowsByCase((prev) => {
+        const current =
+          prev[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex, "level-2");
+        return {
+          ...prev,
+          [selectedCaseIndex]: current.map((row) =>
+            screeningSelectedIds.has(row.id)
+              ? {
+                  ...row,
+                  status: status as ScreeningRowStatus,
+                  decisionReason: reason,
+                  decisionReviewer: LEVEL2_ANALYST_REVIEWER,
+                }
+              : row,
+          ),
+        };
+      });
+      setScreeningSelectedIds(new Set());
+    },
+    [selectedCaseIndex, screeningSelectedIds],
+  );
 
   useEffect(() => {
     setScreeningSelectedIds(new Set());
@@ -968,7 +1100,11 @@ export function Level2ReviewInterface() {
           <div className="flex flex-col flex-1 min-h-0 overflow-hidden px-4 pb-4 gap-4">
             <div className="flex flex-1 min-h-0 overflow-hidden gap-4 pt-4">
               <div className="shrink-0 self-stretch flex flex-col min-h-0">
-                <CaseList onSelectCase={setSelectedCaseIndex} selectedCaseIndex={selectedCaseIndex} />
+                <CaseList
+                  onSelectCase={setSelectedCaseIndex}
+                  selectedCaseIndex={selectedCaseIndex}
+                  screeningRowsByCase={screeningRowsByCase}
+                />
               </div>
               <DetailPanel
                 selectedCase={casesData[selectedCaseIndex]}
@@ -976,14 +1112,17 @@ export function Level2ReviewInterface() {
                 screeningRows={screeningRows}
                 screeningSelectedIds={screeningSelectedIds}
                 onScreeningSelectedIdsChange={setScreeningSelectedIds}
+                allCasesCleared={allCasesCleared}
               />
             </div>
-            <TaskBar
-              onShowReview={handleShowReview}
-              isReviewOpen={isReviewDrawerOpen}
-              screeningSelectionCount={screeningSelectedIds.size}
-              onDeselectAllScreening={() => setScreeningSelectedIds(new Set())}
-            />
+            {!allCasesCleared ? (
+              <TaskBar
+                onShowReview={handleShowReview}
+                isReviewOpen={isReviewDrawerOpen}
+                screeningSelectionCount={screeningSelectedIds.size}
+                onDeselectAllScreening={() => setScreeningSelectedIds(new Set())}
+              />
+            ) : null}
           </div>
           <ReviewDrawer
             isOpen={isReviewDrawerOpen}
@@ -991,6 +1130,7 @@ export function Level2ReviewInterface() {
             flowVariant="level-2"
             selectedCount={screeningSelectedIds.size}
             actionableRowCount={actionableScreeningCount}
+            onSubmit={handleSubmitDecision}
           />
         </div>
       </div>

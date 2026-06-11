@@ -24,7 +24,7 @@ const captionBold =
   "[font:var(--ace-type-caption-bold)] [letter-spacing:var(--ace-type-caption-bold-tracking)]";
 
 const profileTriggerClass = cn(
-  "inline-flex shrink-0 rounded-full p-1 transition-colors duration-[var(--ace-motion-duration-fast)]",
+  "inline-flex shrink-0 cursor-pointer rounded-full p-1 transition-colors duration-[var(--ace-motion-duration-fast)]",
   "[transition-timing-function:var(--ace-motion-ease-standard)]",
   "hover:bg-[var(--ace-site-header-nav-hover)]",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)]",

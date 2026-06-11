@@ -485,7 +485,7 @@ export function MatchSimulatorContent({
             <button
               type="button"
               onClick={() => setPhase("results")}
-              className="rounded-[4px] bg-[#3d2e8a] px-4 py-2 font-['Noto_Sans:Bold',sans-serif] text-[14px] font-bold leading-[1.65] text-white transition-colors hover:bg-[#523eb9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/40 focus-visible:ring-offset-2"
+              className="cursor-pointer rounded-[4px] bg-[#3d2e8a] px-4 py-2 font-['Noto_Sans:Bold',sans-serif] text-[14px] font-bold leading-[1.65] text-white transition-colors hover:bg-[#523eb9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/40 focus-visible:ring-offset-2"
               style={noto}
             >
               Simulate Match
