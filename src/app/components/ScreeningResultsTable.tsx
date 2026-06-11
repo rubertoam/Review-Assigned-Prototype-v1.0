@@ -7,13 +7,17 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { Eye, EyeOff, List } from "lucide-react";
+import { Check, Eye, EyeOff, List } from "lucide-react";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
 import { MatchSimulatorContent } from "./MatchSimulatorDrawerContent";
 import { aceAccordionFixedHeaderClass } from "../lib/aceAccordion";
 import { aceDropShadowXsClass } from "../lib/aceShadow";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { cn } from "./ui/utils";
+import {
+  LEVEL1_STATUS_DISPLAY_ORDER,
+  type Level1ScreeningStatus,
+} from "../lib/reviewDecisionConfig";
 import {
   ExpandableFinScanTable,
   durationAccordion,
@@ -23,9 +27,8 @@ import {
 
 export { easeAccordion, durationAccordion } from "./ExpandableFinScanTable";
 
-export type ScreeningRowStatus = "New" | "Escalated";
-
-const STATUS_FILTER_ORDER: ScreeningRowStatus[] = ["New", "Escalated"];
+/** Level 1 decision outcomes; Level 2 work queue still uses Escalated. */
+export type ScreeningRowStatus = Level1ScreeningStatus | "Escalated";
 
 /** Shared lavender pill surface (table “New” badge, profile header tags, in‑process tile). */
 export const screeningNewPillSurfaceClass =
@@ -49,7 +52,8 @@ export function isDisabledScreeningRow(
   row: ScreeningTableDisplayRow,
   flowVariant: "level-1" | "level-2" = "level-1",
 ): boolean {
-  return flowVariant === "level-2" ? row.readOnlyHistory === true : row.status === "Escalated";
+  if (flowVariant === "level-2") return row.readOnlyHistory === true;
+  return row.status !== "New";
 }
 
 export type ScreeningResultRow = {
@@ -111,7 +115,10 @@ function dobForCase(caseIndex: number): string {
   return dobs[Math.min(caseIndex, dobs.length - 1)];
 }
 
-export function getScreeningRowsForCase(caseIndex: number): ScreeningResultRow[] {
+export function getScreeningRowsForCase(
+  caseIndex: number,
+  flowVariant: "level-1" | "level-2" = "level-1",
+): ScreeningResultRow[] {
   const ci = Math.max(0, Math.min(caseIndex, CASE_RESULT_COUNTS.length - 1));
   const total = CASE_RESULT_COUNTS[ci];
   const names = CASE_VARIANT_NAMES[ci];
@@ -128,7 +135,7 @@ export function getScreeningRowsForCase(caseIndex: number): ScreeningResultRow[]
       matchAgeTone: TONE_ROTATION[i % TONE_ROTATION.length],
       matchScore: score,
       matchTiles: [...tiles],
-      status: rowStatusForIndex(i, total, ci),
+      status: flowVariant === "level-1" ? "New" : rowStatusForIndex(i, total, ci),
     });
   }
   return rows;
@@ -503,18 +510,116 @@ interface ScreeningResultsTableProps {
   onSelectedIdsChange?: Dispatch<SetStateAction<Set<string>>>;
 }
 
+const statusPillShellClass =
+  "inline-flex max-w-full items-center gap-1.5 rounded-full pl-1.5 pr-2 py-1 transition-colors duration-200 ease-out";
+
+const statusPillLabelClass =
+  "min-w-0 font-['Noto_Sans:SemiBold',sans-serif] text-[11px] leading-snug break-words sm:text-[12px]";
+
 function safeStatusPill() {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-[#a5d6a7] bg-[#e8f4ea] pl-1.5 pr-2.5 py-1 transition-colors duration-200 ease-out">
+    <span
+      className={cn(
+        statusPillShellClass,
+        "border border-[#a5d6a7] bg-[#e8f4ea]",
+      )}
+    >
       <span className="size-2 shrink-0 rounded-full bg-[#2e7d32]" />
-      <span
-        className="font-['Noto_Sans:SemiBold',sans-serif] text-[12px] text-[#2d6a3e]"
-        style={notoVar}
-      >
+      <span className={cn(statusPillLabelClass, "text-[#2d6a3e]")} style={notoVar}>
         Safe
       </span>
     </span>
   );
+}
+
+const STATUS_PILL_STYLES: Record<
+  string,
+  { border: string; bg: string; dot: string; text: string }
+> = {
+  New: {
+    border: "border-[var(--screening-pill-new-border)]",
+    bg: "bg-[var(--screening-pill-new-surface)]",
+    dot: "bg-[#523eb9]",
+    text: "text-[var(--screening-pill-new-label)]",
+  },
+  Escalated: {
+    border: "border-[#ffcc80]",
+    bg: "bg-[#fff4e8]",
+    dot: "bg-[#ef6c00]",
+    text: "text-[#e65100]",
+  },
+  Escalate: {
+    border: "border-[#ffcc80]",
+    bg: "bg-[#fff4e8]",
+    dot: "bg-[#ef6c00]",
+    text: "text-[#e65100]",
+  },
+  "Flag for EDD": {
+    border: "border-[#ffe082]",
+    bg: "bg-[#fff8e1]",
+    dot: "bg-[#f9a825]",
+    text: "text-[#f57f17]",
+  },
+  "Research (Internal)": {
+    border: "border-[#90caf9]",
+    bg: "bg-[#e3f2fd]",
+    dot: "bg-[#1976d2]",
+    text: "text-[#1565c0]",
+  },
+  "Research (External)": {
+    border: "border-[#80cbc4]",
+    bg: "bg-[#e0f2f1]",
+    dot: "bg-[#00897b]",
+    text: "text-[#00695c]",
+  },
+  "Route to Supervisor": {
+    border: "border-[#ce93d8]",
+    bg: "bg-[#f3e5f5]",
+    dot: "bg-[#8e24aa]",
+    text: "text-[#6a1b9a]",
+  },
+};
+
+function statusPill(status: ScreeningRowStatus) {
+  if (status === "New") {
+    return (
+      <span className={cn(statusPillShellClass, screeningNewPillSurfaceClass)}>
+        <span className="size-2 shrink-0 rounded-full bg-[#523eb9]" />
+        <span className={cn(statusPillLabelClass, screeningNewPillLabelClass)} style={notoVar}>
+          New
+        </span>
+      </span>
+    );
+  }
+  const style = STATUS_PILL_STYLES[status] ?? STATUS_PILL_STYLES.Escalated;
+  return (
+    <span
+      className={cn(
+        statusPillShellClass,
+        "border",
+        style.border,
+        style.bg,
+      )}
+      title={status}
+    >
+      <span className={cn("size-2 shrink-0 rounded-full", style.dot)} />
+      <span className={cn(statusPillLabelClass, style.text)} style={notoVar}>
+        {status}
+      </span>
+    </span>
+  );
+}
+
+function buildLevel1DisplayRows(
+  rows: ScreeningResultRow[],
+  showReviewHistory: boolean,
+): ScreeningTableDisplayRow[] {
+  const active = rows.filter((r) => r.status === "New");
+  if (!showReviewHistory) return active;
+  const history = rows
+    .filter((r) => r.status !== "New")
+    .map((r): ScreeningTableDisplayRow => ({ ...r, readOnlyHistory: true }));
+  return [...active, ...history];
 }
 
 function buildLevel2DisplayRows(
@@ -533,6 +638,23 @@ function buildLevel2DisplayRows(
       }),
     );
   return [...active, ...history];
+}
+
+/** True when the case work queue is cleared (L1: no "New"; L2: no "Escalated"). */
+export function isCaseReviewComplete(
+  rows: ScreeningResultRow[],
+  flowVariant: "level-1" | "level-2" = "level-1",
+): boolean {
+  if (rows.length === 0) return false;
+  if (flowVariant === "level-2") {
+    return rows.every((r) => r.status !== "Escalated");
+  }
+  return rows.every((r) => r.status !== "New");
+}
+
+/** True when every screening result for the case has been reviewed (no "New" rows). */
+export function isCaseScreeningComplete(rows: ScreeningResultRow[]): boolean {
+  return isCaseReviewComplete(rows, "level-1");
 }
 
 export function ScreeningResultsTable({
@@ -566,27 +688,55 @@ export function ScreeningResultsTable({
   );
   const [sectionCollapsed, setSectionCollapsed] = useState(false);
 
+  const isCaseComplete = useMemo(
+    () => isCaseReviewComplete(rows, flowVariant),
+    [rows, flowVariant],
+  );
+
   useEffect(() => {
-    if (isLevel2) setShowReviewHistory(false);
-  }, [isLevel2, rows]);
+    setShowReviewHistory(false);
+  }, [rows]);
 
   const level2ActiveRows = useMemo(
     () => (isLevel2 ? rows.filter((r) => r.status === "Escalated") : []),
     [isLevel2, rows],
   );
 
-  const baseRows = useMemo((): ScreeningTableDisplayRow[] => {
-    if (isLevel2) return buildLevel2DisplayRows(rows, showReviewHistory);
-    return rows;
-  }, [isLevel2, rows, showReviewHistory]);
+  /** Done cases always show full history; open cases use the toggle. */
+  const effectiveShowReviewHistory = isCaseComplete || showReviewHistory;
 
-  // Chips = one per status present in `rows`. Multi-select: OR semantics. Empty selection = show all rows.
+  const baseRows = useMemo((): ScreeningTableDisplayRow[] => {
+    if (isLevel2) return buildLevel2DisplayRows(rows, effectiveShowReviewHistory);
+    return buildLevel1DisplayRows(rows, effectiveShowReviewHistory);
+  }, [isLevel2, rows, effectiveShowReviewHistory]);
+
+  const showReviewHistoryToggle = !isCaseComplete;
+
+  // Chips = one per status in the current table view. Multi-select: OR semantics. Empty selection = show all rows.
   const statusChips = useMemo(() => {
     if (isLevel2) return [];
     const set = new Set<ScreeningRowStatus>();
-    rows.forEach((r) => set.add(r.status));
-    return STATUS_FILTER_ORDER.filter((status) => set.has(status));
-  }, [isLevel2, rows]);
+    baseRows.forEach((r) => set.add(r.status));
+    return LEVEL1_STATUS_DISPLAY_ORDER.filter((status) => set.has(status));
+  }, [isLevel2, baseRows]);
+
+  const showTableToolbar =
+    (!isLevel2 && statusChips.length > 1) || showReviewHistoryToggle;
+
+  useEffect(() => {
+    if (isLevel2) return;
+    setStatusFilters((prev) => {
+      const allowed = new Set<ScreeningRowStatus>(statusChips);
+      const next = new Set<ScreeningRowStatus>();
+      prev.forEach((status) => {
+        if (allowed.has(status)) next.add(status);
+      });
+      if (next.size === prev.size && [...prev].every((status) => next.has(status))) {
+        return prev;
+      }
+      return next;
+    });
+  }, [isLevel2, statusChips]);
 
   const filteredRows = useMemo(() => {
     if (isLevel2) return baseRows;
@@ -630,8 +780,7 @@ export function ScreeningResultsTable({
   );
 
   useEffect(() => {
-    const allow = new Set(sortedRows.map((r) => r.id));
-    const allowSelectable = new Set(
+    const allowActionable = new Set(
       sortedRows
         .filter((r) =>
           isLevel2
@@ -643,14 +792,14 @@ export function ScreeningResultsTable({
     setSelectedIds((prev) => {
       const next = new Set<string>();
       prev.forEach((id) => {
-        if (allowSelectable.has(id)) next.add(id);
+        if (allowActionable.has(id)) next.add(id);
       });
       return next;
     });
     setExpandedIds((prev) => {
       const next = new Set<string>();
       prev.forEach((id) => {
-        if (allow.has(id)) next.add(id);
+        if (allowActionable.has(id)) next.add(id);
       });
       return next;
     });
@@ -680,7 +829,7 @@ export function ScreeningResultsTable({
 
   const reviewedCount = useMemo(() => {
     if (isLevel2) return 0;
-    return rows.filter((r) => r.status === "Escalated").length;
+    return rows.filter((r) => r.status !== "New").length;
   }, [isLevel2, rows]);
   const totalCount = isLevel2 ? level2ActiveRows.length : rows.length;
   const progress = totalCount === 0 ? 0 : (reviewedCount / totalCount) * 100;
@@ -737,37 +886,17 @@ export function ScreeningResultsTable({
         key: "status",
         label: "Status",
         sortKey: "status",
-        cellClassName: "whitespace-nowrap",
+        cellClassName: "overflow-hidden",
         render: (row) => {
           if (row.displayStatus === "Safe") return safeStatusPill();
-          if (row.status === "New") {
-            return (
-              <span className={cn("inline-flex items-center gap-1.5 rounded-full pl-1.5 pr-2.5 py-1", screeningNewPillSurfaceClass)}>
-                <span className="size-2 shrink-0 rounded-full bg-[#523eb9]" />
-                <span className={screeningNewPillLabelClass} style={notoVar}>
-                  New
-                </span>
-              </span>
-            );
-          }
-          return (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#ffcc80] bg-[#fff4e8] pl-1.5 pr-2.5 py-1 transition-colors duration-200 ease-out">
-              <span className="size-2 rounded-full bg-[#ef6c00]" />
-              <span
-                className="font-['Noto_Sans:SemiBold',sans-serif] text-[12px] text-[#e65100]"
-                style={notoVar}
-              >
-                Escalated
-              </span>
-            </span>
-          );
+          return statusPill(row.status);
         },
       },
       {
         key: "name",
         label: "Name",
         sortKey: "name",
-        cellClassName: "text-[#23262c] dark:text-[#b6c2cf]",
+        cellClassName: "min-w-0 truncate text-[#23262c] dark:text-[#b6c2cf]",
         render: (row) => row.name,
       },
       {
@@ -793,7 +922,7 @@ export function ScreeningResultsTable({
         key: "matchScore",
         label: "Match Score",
         sortKey: "matchScore",
-        cellClassName: "font-['Noto_Sans:SemiBold',sans-serif] font-semibold tabular-nums",
+        cellClassName: "font-['Noto_Sans:SemiBold',sans-serif] font-semibold tabular-nums whitespace-nowrap",
         render: (row) => (
           <span
             className={cn(
@@ -835,9 +964,11 @@ export function ScreeningResultsTable({
       <p className="m-0 mb-3 font-['Noto_Sans:Regular',sans-serif] text-[14px] text-[#464c59] dark:text-[#9fadbc]" style={notoVar}>
         {rows.length === 0
           ? "No screening results to display."
-          : statusFilters.size > 0
-            ? "No results match the current filter."
-            : "No results to display."}
+          : !isLevel2 && rows.some((r) => r.status !== "New") && !effectiveShowReviewHistory
+            ? "All screening results have been reviewed. Show review history to see completed items."
+            : statusFilters.size > 0
+              ? "No results match the current filter."
+              : "No results to display."}
       </p>
       {statusFilters.size > 0 && rows.length > 0 ? (
         <button
@@ -854,27 +985,49 @@ export function ScreeningResultsTable({
 
   const tableHeaderTrailing = (
     <div className="flex shrink-0 items-center gap-3" onClick={(e) => e.stopPropagation()}>
-      <span
-        className={cn(
-          aceTypography(ACE_TYPE.p1Regular),
-          "hidden whitespace-nowrap text-sm text-[var(--screening-text-secondary)] sm:inline",
-        )}
-      >
-        {reviewedCount} of {totalCount} Reviewed
-      </span>
-      <div
-        className="h-[var(--screening-progress-height)] w-[var(--screening-progress-width)] overflow-hidden rounded-full border border-[var(--screening-border-soft)] bg-[var(--screening-progress-track)]"
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={totalCount}
-        aria-valuenow={reviewedCount}
-        aria-label={`Review progress: ${reviewedCount} of ${totalCount} reviewed`}
-      >
-        <div
-          className="h-full rounded-full bg-[var(--screening-progress-fill)] transition-[width] duration-300 ease-out"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
+      {isCaseComplete ? (
+        <div className="flex items-center gap-2">
+          <span
+            className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-[#e8f4ea] dark:bg-[#2a302c]"
+            aria-hidden
+          >
+            <Check className="size-3 stroke-[3] text-[#87b531]" />
+          </span>
+          <span
+            className={cn(
+              aceTypography(ACE_TYPE.p1SemiBold),
+              "whitespace-nowrap text-[#2d6a3e] dark:text-[#87b531]",
+            )}
+            style={notoVar}
+          >
+            Review complete
+          </span>
+        </div>
+      ) : (
+        <>
+          <span
+            className={cn(
+              aceTypography(ACE_TYPE.p1Regular),
+              "hidden whitespace-nowrap text-sm text-[var(--screening-text-secondary)] sm:inline",
+            )}
+          >
+            {reviewedCount} of {totalCount} Reviewed
+          </span>
+          <div
+            className="h-[var(--screening-progress-height)] w-[var(--screening-progress-width)] overflow-hidden rounded-full border border-[var(--screening-border-soft)] bg-[var(--screening-progress-track)]"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={totalCount}
+            aria-valuenow={reviewedCount}
+            aria-label={`Review progress: ${reviewedCount} of ${totalCount} reviewed`}
+          >
+            <div
+              className="h-full rounded-full bg-[var(--screening-progress-fill)] transition-[width] duration-300 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 
@@ -904,10 +1057,10 @@ export function ScreeningResultsTable({
       contentPadding={false}
     >
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden max-h-[calc(100dvh-14rem)]">
-            {isLevel2 || statusChips.length > 0 ? (
+            {showTableToolbar ? (
             <div className="shrink-0 border-b border-[#cfd2d9] dark:border-[#38414a] bg-[#fafafb] dark:bg-[#1d2125] px-4 py-3">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                {!isLevel2 ? (
+                {!isLevel2 && statusChips.length > 1 ? (
                   <>
                     <span
                       className="font-['Noto_Sans:SemiBold',sans-serif] text-[14px] text-[#23262c] dark:text-[#b6c2cf] shrink-0"
@@ -945,7 +1098,7 @@ export function ScreeningResultsTable({
                     </div>
                   </>
                 ) : null}
-                {isLevel2 ? (
+                {showReviewHistoryToggle ? (
                   <div className="ms-auto flex min-w-0 max-w-full flex-wrap items-center gap-2">
                     <button
                       type="button"
@@ -975,8 +1128,14 @@ export function ScreeningResultsTable({
               rows={sortedRows}
               columns={screeningColumns}
               caption={`${title}, ${sortedRows.length} ${sortedRows.length === 1 ? "row" : "rows"}${statusFilters.size > 0 ? `, filtered by ${[...statusFilters].sort((a, b) => a.localeCompare(b)).join(", ")}` : ""}`}
+              className="min-h-0 min-w-0 flex-1"
               minWidth="min-w-[960px]"
               showExpandAll={false}
+              isRowExpandable={(row) =>
+                isLevel2
+                  ? !row.readOnlyHistory && row.status === "Escalated"
+                  : row.status === "New"
+              }
               expandedIds={expandedIds}
               onExpandedIdsChange={setExpandedIds}
               sort={{

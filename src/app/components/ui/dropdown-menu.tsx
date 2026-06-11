@@ -7,6 +7,7 @@ import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { ChevronRightIcon } from "lucide-react";
 import { aceDropdownMenuPanelClass } from "@ace-ds/components/molecules/AceDropdownMenu/AceDropdownMenu";
 import { Checkbox } from "@ace-ds/components/atoms/Checkbox/Checkbox";
+import { Toggle } from "@ace-ds/components/atoms/Toggle/Toggle";
 import { cn } from "./utils";
 
 export type DropdownMenuPanelVariant = "default" | "compact" | "primary";
@@ -45,6 +46,8 @@ const checkboxRowClass = cn(
   "flex w-full cursor-pointer select-none items-center gap-[var(--space-2)] px-[var(--space-3)] py-[var(--space-2)] text-[var(--screening-text-primary)] outline-none",
   "data-[highlighted]:bg-[var(--screening-surface-hover)]",
 );
+
+const toggleRowClass = checkboxRowClass;
 
 function panelClassForVariant(variant: DropdownMenuPanelVariant, className?: string) {
   return cn(
@@ -161,6 +164,43 @@ function DropdownMenuItem({
       {...props}
     >
       {children}
+    </DropdownMenuPrimitive.Item>
+  );
+}
+
+function DropdownMenuToggleItem({
+  className,
+  children,
+  checked,
+  disabled,
+  onCheckedChange,
+  ...props
+}: Omit<React.ComponentProps<typeof DropdownMenuPrimitive.Item>, "onSelect"> & {
+  checked: boolean;
+  disabled?: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <DropdownMenuPrimitive.Item
+      data-slot="dropdown-menu-toggle-item"
+      disabled={disabled}
+      aria-label={typeof children === "string" ? children : undefined}
+      className={cn(toggleRowClass, className)}
+      onSelect={(event) => {
+        event.preventDefault();
+        if (!disabled) onCheckedChange(!checked);
+      }}
+      {...props}
+    >
+      <Toggle
+        size="sm"
+        checked={checked}
+        disabled={disabled}
+        tabIndex={-1}
+        className="pointer-events-none"
+        aria-hidden
+      />
+      <span className="min-w-0 flex-1 truncate text-left">{children}</span>
     </DropdownMenuPrimitive.Item>
   );
 }
@@ -342,6 +382,7 @@ export {
   DropdownMenuLabel,
   DropdownMenuItem,
   DropdownMenuCheckboxItem,
+  DropdownMenuToggleItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,

@@ -1,4 +1,4 @@
-/** Level 2 user flow — cloned from Level 1; diverge flow-specific edits here only. */
+﻿/** Level 2 user flow â€” cloned from Level 1; diverge flow-specific edits here only. */
 import svgPaths from "../../../imports/ReviewAssignedAllCollapsed/svg-e16bopzh98";
 import {
   useCallback,
@@ -46,7 +46,7 @@ import {
   type ScreeningResultRow,
 } from "../../components/ScreeningResultsTable";
 import { cn } from "../../components/ui/utils";
-import { SideDrawer } from "../../components/SideDrawer";
+import { ReviewDrawer } from "../../components/ReviewDrawer";
 import { AceSidebar } from "@ace-ds/components/organisms/AceSidebar/AceSidebar";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
 
@@ -275,7 +275,7 @@ interface ClientProfileFields {
   showIdVerified: boolean;
 }
 
-/** Per-case profile: aligned with `casesData` indices (0–5). */
+/** Per-case profile: aligned with `casesData` indices (0â€“5). */
 const CLIENT_PROFILES: readonly ClientProfileFields[] = [
   {
     countryLabel: "USA",
@@ -399,7 +399,7 @@ function CaseList({ onSelectCase, selectedCaseIndex }: CaseListProps) {
   const caseReviewProgress = useMemo(
     () =>
       casesData.map((_, i) => {
-        const rows = getScreeningRowsForCase(i);
+        const rows = getScreeningRowsForCase(i, "level-2");
         const done = rows.filter((r) => r.status === "Escalated").length;
         return { done, total: rows.length };
       }),
@@ -595,7 +595,7 @@ function DetailPanel({
           : "";
 
   return (
-    <div className="flex flex-1 flex-col min-h-0 gap-4 overflow-y-auto">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
       <AceAccordion
         className={cn(
           "shrink-0 border-[var(--screening-border-strong)]",
@@ -863,229 +863,6 @@ function TaskBar({
   );
 }
 
-interface ReviewDrawerProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-function ReviewDrawer({ isOpen, onClose }: ReviewDrawerProps) {
-  const [decisionExpanded, setDecisionExpanded] = useState(true);
-  const [commentsExpanded, setCommentsExpanded] = useState(false);
-  const [attachmentsExpanded, setAttachmentsExpanded] = useState(false);
-  const [matchHistoryOpen, setMatchHistoryOpen] = useState(false);
-
-  useEffect(() => {
-    if (!isOpen) setMatchHistoryOpen(false);
-  }, [isOpen]);
-
-  return (
-    <SideDrawer
-      isOpen={isOpen}
-      onClose={onClose}
-      widthStorageKey="review-assigned-review-drawer-width"
-      defaultWidth={480}
-      className="self-stretch"
-    >
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="bg-white dark:bg-[#22272b] relative shrink-0 w-full">
-          <div className="flex flex-row items-center overflow-clip rounded-[inherit] size-full">
-            <div className="content-stretch flex items-center px-[20px] py-[16px] relative size-full">
-              <div className="content-stretch flex items-center justify-center relative shrink-0">
-                <p className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] relative shrink-0 text-[#23262c] dark:text-[#b6c2cf] text-[20px] whitespace-nowrap" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                  Review
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-[#22272b] flex-1 min-h-px relative w-full flex flex-col">
-          <div className="flex-1 overflow-y-auto p-[24px] space-y-4">
-          <div className="bg-[#f8fbf1] dark:bg-[#2a302c] relative rounded-[4px]">
-            <div className="flex flex-col items-start overflow-clip p-[16px] relative rounded-[inherit]">
-              <div
-                className="flex items-start justify-between relative shrink-0 w-full cursor-pointer"
-                onClick={() => setDecisionExpanded(!decisionExpanded)}
-              >
-                <div className="flex gap-[16px] items-center">
-                  <div className={`h-[4.94px] w-[8px] transition-transform duration-300 ease-in-out ${decisionExpanded ? '' : '-rotate-90'}`}>
-                    <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 8 4.94">
-                      <path d={svgPaths.p350de480} fill="var(--fill-0, #23262C)" />
-                    </svg>
-                  </div>
-                  <p className="font-['Noto_Sans:SemiBold',sans-serif] font-semibold leading-[1.65] text-[#23262c] dark:text-[#b6c2cf] text-[14px] whitespace-nowrap" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                    Decision
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  aria-label="Decision history"
-                  className="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-[4px] border border-[#cfd2d9] dark:border-[#38414a] bg-white dark:bg-[#22272b] text-[#464c59] dark:text-[#9fadbc] transition-colors duration-200 ease-out hover:border-[#949baa] hover:bg-[#eff0f2] dark:hover:bg-[#2c333a] hover:text-[#23262c] dark:hover:text-[#b6c2cf] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/35 focus-visible:ring-offset-2"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setMatchHistoryOpen(true);
-                  }}
-                >
-                  <svg className="block size-4 shrink-0" fill="none" preserveAspectRatio="none" viewBox="0 0 16 16" aria-hidden>
-                    <path d="M8.88889 7.64444L11.1111 9.86667C11.2741 10.0296 11.3556 10.237 11.3556 10.4889C11.3556 10.7407 11.2741 10.9481 11.1111 11.1111C10.9481 11.2741 10.7407 11.3556 10.4889 11.3556C10.237 11.3556 10.0296 11.2741 9.86667 11.1111L7.37778 8.62222C7.28889 8.53333 7.22222 8.43319 7.17778 8.32178C7.13333 8.21096 7.11111 8.0963 7.11111 7.97778V4.44444C7.11111 4.19259 7.19644 3.98133 7.36711 3.81067C7.53719 3.64059 7.74815 3.55556 8 3.55556C8.25185 3.55556 8.46311 3.64059 8.63378 3.81067C8.80385 3.98133 8.88889 4.19259 8.88889 4.44444V7.64444ZM8 16C6.20741 16 4.6 15.4702 3.17778 14.4107C1.75556 13.3517 0.8 11.9704 0.311111 10.2667C0.237037 10 0.263111 9.74815 0.389333 9.51111C0.514963 9.27407 0.711111 9.12593 0.977778 9.06667C1.22963 9.00741 1.4557 9.06281 1.656 9.23289C1.8557 9.40356 1.99259 9.61482 2.06667 9.86667C2.45185 11.1704 3.19644 12.2222 4.30044 13.0222C5.40385 13.8222 6.63704 14.2222 8 14.2222C9.73333 14.2222 11.2036 13.6184 12.4107 12.4107C13.6184 11.2036 14.2222 9.73333 14.2222 8C14.2222 6.26667 13.6184 4.79615 12.4107 3.58844C11.2036 2.38133 9.73333 1.77778 8 1.77778C6.97778 1.77778 6.02222 2.01481 5.13333 2.48889C4.24444 2.96296 3.4963 3.61481 2.88889 4.44444H4.44444C4.6963 4.44444 4.90756 4.52948 5.07822 4.69956C5.2483 4.87022 5.33333 5.08148 5.33333 5.33333C5.33333 5.58519 5.2483 5.79615 5.07822 5.96622C4.90756 6.13689 4.6963 6.22222 4.44444 6.22222H0.888889C0.637037 6.22222 0.426074 6.13689 0.256 5.96622C0.0853334 5.79615 0 5.58519 0 5.33333V1.77778C0 1.52593 0.0853334 1.31467 0.256 1.144C0.426074 0.973926 0.637037 0.888889 0.888889 0.888889C1.14074 0.888889 1.352 0.973926 1.52267 1.144C1.69274 1.31467 1.77778 1.52593 1.77778 1.77778V2.97778C2.53333 2.02963 3.4557 1.2963 4.54489 0.777778C5.63348 0.259259 6.78519 0 8 0C9.11111 0 10.152 0.210963 11.1227 0.632889C12.0927 1.05541 12.9372 1.62578 13.656 2.344C14.3742 3.06281 14.9446 3.90726 15.3671 4.87733C15.789 5.848 16 6.88889 16 8C16 9.11111 15.789 10.1517 15.3671 11.1218C14.9446 12.0924 14.3742 12.9369 13.656 13.6551C12.9372 14.3739 12.0927 14.9446 11.1227 15.3671C10.152 15.789 9.11111 16 8 16Z" fill="currentColor" />
-                  </svg>
-                </button>
-              </div>
-
-              <div className={`overflow-hidden transition-all duration-300 ease-in-out w-full ${decisionExpanded ? 'max-h-[600px] opacity-100 mt-[24px]' : 'max-h-0 opacity-0'}`}>
-                <div className="flex flex-col gap-[12px] items-start px-[24px] w-full">
-                  <div className="flex flex-col gap-[12px] items-start justify-center w-full">
-                    <p className="font-['Noto_Sans:SemiBold',sans-serif] font-semibold leading-[1.65] text-[#23262c] dark:text-[#b6c2cf] text-[14px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                      Last Updated
-                    </p>
-                    <div className="flex flex-col gap-[4px] items-start font-['Noto_Sans:Regular',sans-serif] font-normal text-[#23262c] dark:text-[#b6c2cf] w-full">
-                      <p className="leading-[1.65] text-[14px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                        <span className="font-['Noto_Sans:SemiBold',sans-serif] font-semibold" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>User</span>
-                        {` · Laura Leader`}
-                      </p>
-                      <p className="leading-[1.65] text-[14px] flex items-center gap-1 flex-wrap" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                        <span className="font-['Noto_Sans:SemiBold',sans-serif] font-semibold" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>Match Status</span>
-                        <span className="text-[#23262c] dark:text-[#b6c2cf]"> · </span>
-                        <span className="font-['Noto_Sans:Bold',sans-serif] font-bold text-[#87b531]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>Confirmed Safe</span>
-                        <svg className="w-3 h-3 shrink-0 text-[#23262c] dark:text-[#b6c2cf]" fill="none" viewBox="0 0 12 12" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2 6h8m0 0L7 3m3 3l-3 3" />
-                        </svg>
-                        <span>New</span>
-                      </p>
-                      <p className="leading-[1.65] text-[14px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                        <span className="font-['Noto_Sans:SemiBold',sans-serif] font-semibold" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>Comment</span>
-                        {` · Last user comment goes here`}
-                      </p>
-                      <p className="leading-[1.65] text-[14px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                        <span className="font-['Noto_Sans:SemiBold',sans-serif] font-semibold" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>Modified Date</span>
-                        {` · 05 Oct 2025 17:33:23`}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-[8px] items-start justify-center w-full">
-                    <p className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[#23262c] dark:text-[#b6c2cf] text-[12px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                      Select Status
-                    </p>
-                    <div className="bg-white dark:bg-[#22272b] relative rounded-[4px] w-full">
-                      <div className="flex flex-row items-center justify-center overflow-clip rounded-[inherit] size-full">
-                        <div className="flex items-center justify-between px-[12px] py-[8px] w-full cursor-pointer hover:bg-gray-50 dark:hover:bg-[#333a42]">
-                          <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[#6a7285] dark:text-[#8696a7] text-[12px] whitespace-nowrap" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                            Status...
-                          </p>
-                          <div className="h-[4.94px] w-[8px]">
-                            <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 8 4.94">
-                              <path d={svgPaths.p350de480} fill="var(--fill-0, #464C59)" />
-                            </svg>
-                          </div>
-                        </div>
-                      </div>
-                      <div aria-hidden="true" className="absolute border border-[#cfd2d9] dark:border-[#38414a] border-solid inset-0 pointer-events-none rounded-[4px]" />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-[8px] items-start justify-center w-full">
-                    <p className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[#23262c] dark:text-[#b6c2cf] text-[12px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                      Select Reason
-                    </p>
-                    <div className="bg-white dark:bg-[#22272b] relative rounded-[4px] w-full">
-                      <div className="flex flex-row items-center justify-center overflow-clip rounded-[inherit] size-full">
-                        <div className="flex items-center justify-between px-[12px] py-[8px] w-full cursor-pointer hover:bg-gray-50 dark:hover:bg-[#333a42]">
-                          <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[#6a7285] dark:text-[#8696a7] text-[12px] whitespace-nowrap" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                            Reason...
-                          </p>
-                          <div className="h-[4.94px] w-[8px]">
-                            <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 8 4.94">
-                              <path d={svgPaths.p350de480} fill="var(--fill-0, #464C59)" />
-                            </svg>
-                          </div>
-                        </div>
-                      </div>
-                      <div aria-hidden="true" className="absolute border border-[#cfd2d9] dark:border-[#38414a] border-solid inset-0 pointer-events-none rounded-[4px]" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div aria-hidden="true" className="absolute border-[#87b531] border-[0.5px] border-solid inset-0 pointer-events-none rounded-[4px]" />
-          </div>
-
-          <div className="border border-[#cfd2d9] dark:border-[#38414a] rounded">
-            <div
-              className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-[#333a42]"
-              onClick={() => setCommentsExpanded(!commentsExpanded)}
-            >
-              <div className="flex items-center gap-2">
-                <div className={`h-[4.94px] w-[8px] transition-transform duration-300 ease-in-out ${commentsExpanded ? '' : '-rotate-90'}`}>
-                  <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 8 4.94">
-                    <path d={svgPaths.p350de480} fill="var(--fill-0, #23262C)" />
-                  </svg>
-                </div>
-                <p className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[#23262c] dark:text-[#b6c2cf] text-[14px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                  Comments
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="border border-[#cfd2d9] dark:border-[#38414a] rounded">
-            <div
-              className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-[#333a42]"
-              onClick={() => setAttachmentsExpanded(!attachmentsExpanded)}
-            >
-              <div className="flex items-center gap-2">
-                <div className={`h-[4.94px] w-[8px] transition-transform duration-300 ease-in-out ${attachmentsExpanded ? '' : '-rotate-90'}`}>
-                  <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 8 4.94">
-                    <path d={svgPaths.p350de480} fill="var(--fill-0, #23262C)" />
-                  </svg>
-                </div>
-                <p className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[#23262c] dark:text-[#b6c2cf] text-[14px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                  Attachments
-                </p>
-              </div>
-            </div>
-          </div>
-          </div>
-
-          <div className="p-[24px] shrink-0">
-            <div className="flex gap-[16px] items-start justify-end w-full">
-              <button
-                onClick={onClose}
-                className="bg-white dark:bg-[#22272b] flex items-start px-[16px] py-[8px] relative rounded-[4px] hover:bg-gray-50 dark:hover:bg-[#333a42] transition-colors"
-              >
-                <div aria-hidden="true" className="absolute border border-[#523eb9] border-solid inset-0 pointer-events-none rounded-[4px]" />
-                <p className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] relative text-[#523eb9] text-[14px] whitespace-nowrap" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                  Close
-                </p>
-              </button>
-              <button className="bg-[#523eb9] flex items-center justify-center px-[16px] py-[8px] relative rounded-[4px] hover:bg-[#3d2e8a] transition-colors">
-                <p className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[14px] text-white whitespace-nowrap" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                  Submit
-                </p>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <Dialog
-        open={isOpen && matchHistoryOpen}
-        onOpenChange={setMatchHistoryOpen}
-      >
-        <DialogContent className="max-w-lg gap-0 overflow-hidden rounded-[4px] border-[#cfd2d9] dark:border-[#38414a] bg-white dark:bg-[#22272b] p-0 sm:max-w-lg">
-          <DialogHeader className="border-b border-[#cfd2d9] dark:border-[#38414a] px-6 py-4 text-left">
-            <DialogTitle
-              className="font-['Noto_Sans:Bold',sans-serif] text-[18px] font-bold text-[#23262c] dark:text-[#b6c2cf]"
-              style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-            >
-              Match History
-            </DialogTitle>
-          </DialogHeader>
-          <div className="min-h-[200px] px-6 py-6" />
-        </DialogContent>
-      </Dialog>
-    </SideDrawer>
-  );
-}
 
 export function Level2ReviewInterface() {
   const [sidebarPinned, setSidebarPinned] = useState(true);
@@ -1094,7 +871,15 @@ export function Level2ReviewInterface() {
   const [isReviewDrawerOpen, setIsReviewDrawerOpen] = useState(false);
   const [screeningSelectedIds, setScreeningSelectedIds] = useState<Set<string>>(() => new Set());
 
-  const screeningRows = useMemo(() => getScreeningRowsForCase(selectedCaseIndex), [selectedCaseIndex]);
+  const screeningRows = useMemo(
+    () => getScreeningRowsForCase(selectedCaseIndex, "level-2"),
+    [selectedCaseIndex],
+  );
+
+  const actionableScreeningCount = useMemo(
+    () => screeningRows.filter((row) => row.status === "Escalated").length,
+    [screeningRows],
+  );
 
   const handleShowReview = useCallback(() => {
     setIsReviewDrawerOpen((open) => !open);
@@ -1200,7 +985,13 @@ export function Level2ReviewInterface() {
               onDeselectAllScreening={() => setScreeningSelectedIds(new Set())}
             />
           </div>
-          <ReviewDrawer isOpen={isReviewDrawerOpen} onClose={() => setIsReviewDrawerOpen(false)} />
+          <ReviewDrawer
+            isOpen={isReviewDrawerOpen}
+            onClose={() => setIsReviewDrawerOpen(false)}
+            flowVariant="level-2"
+            selectedCount={screeningSelectedIds.size}
+            actionableRowCount={actionableScreeningCount}
+          />
         </div>
       </div>
     </div>

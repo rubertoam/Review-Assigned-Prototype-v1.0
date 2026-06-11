@@ -1,6 +1,7 @@
 import {
   Fragment,
   useCallback,
+  useMemo,
   useState,
   type Dispatch,
   type ReactNode,
@@ -57,6 +58,8 @@ export type FinScanTableColumn<T> = {
   key: string;
   label: string;
   sortKey?: string;
+  /** Width hint for `<col>` (e.g. `w-[11rem]`). Helps `table-fixed` layouts on narrow viewports. */
+  colClassName?: string;
   headerClassName?: string;
   cellClassName?: string;
   render: (row: T) => ReactNode;
@@ -100,6 +103,8 @@ export type ExpandableFinScanTableProps<T extends { id: string }> = {
   scrollX?: boolean;
   /** When false, rows do not expand (checkbox-only leading column if selection is set). */
   expandable?: boolean;
+  /** Per-row expand control; non-expandable rows keep the column but hide the control. */
+  isRowExpandable?: (row: T) => boolean;
   expandedIds?: Set<string>;
   onExpandedIdsChange?: Dispatch<SetStateAction<Set<string>>>;
 };
@@ -113,6 +118,7 @@ export function ExpandableFinScanTable<T extends { id: string }>({
   selection,
   trailingColumn,
   expandable = true,
+  isRowExpandable,
   showExpandAll = true,
   density = "default",
   renderExpandedContent,
@@ -143,8 +149,19 @@ export function ExpandableFinScanTable<T extends { id: string }>({
 
   const selectionMode = selection != null && selection.selectedIds.size > 0;
 
+  const canExpandRow = useCallback(
+    (row: T) => expandable && (isRowExpandable?.(row) ?? true),
+    [expandable, isRowExpandable],
+  );
+
+  const expandableRowIds = useMemo(
+    () => rows.filter((r) => canExpandRow(r)).map((r) => r.id),
+    [rows, canExpandRow],
+  );
+
   const allVisibleExpanded =
-    rows.length > 0 && rows.every((r) => expandedIds.has(r.id));
+    expandableRowIds.length > 0 &&
+    expandableRowIds.every((id) => expandedIds.has(id));
 
   const toggleExpanded = useCallback((id: string) => {
     setExpandedIds((prev) => {
@@ -160,7 +177,7 @@ export function ExpandableFinScanTable<T extends { id: string }>({
       setExpandedIds(new Set());
       return;
     }
-    setExpandedIds(new Set(rows.map((r) => r.id)));
+    setExpandedIds(new Set(expandableRowIds));
   };
 
   const showExpandCol = expandable;
@@ -171,7 +188,7 @@ export function ExpandableFinScanTable<T extends { id: string }>({
   return (
     <div
       className={cn(
-        "min-h-0 overflow-y-auto scroll-smooth",
+        "min-h-0 min-w-0 overflow-y-auto scroll-smooth",
         scrollX ? "overflow-x-auto" : "overflow-x-hidden",
         className,
       )}
@@ -184,6 +201,10 @@ export function ExpandableFinScanTable<T extends { id: string }>({
         <colgroup>
           {showExpandCol ? <col className="w-[34px]" /> : null}
           {showSelectionCol ? <col className="w-7" /> : null}
+          {columns.map((col) => (
+            <col key={col.key} className={col.colClassName} />
+          ))}
+          {trailingColumn ? <col className="w-10" /> : null}
         </colgroup>
         <thead className="sticky top-0 z-[1] border-b border-[#cfd2d9] bg-[#fafafb] shadow-[0_1px_0_rgba(207,210,217,0.6)] dark:border-[#38414a] dark:bg-[#1d2125] dark:shadow-[0_1px_0_rgba(0,0,0,0.45)]">
           <tr className={headerRowH}>
@@ -279,7 +300,8 @@ export function ExpandableFinScanTable<T extends { id: string }>({
             </tr>
           ) : null}
           {rows.map((row) => {
-            const expanded = expandedIds.has(row.id);
+            const rowExpandable = canExpandRow(row);
+            const expanded = rowExpandable && expandedIds.has(row.id);
             const selected = selection?.selectedIds.has(row.id) ?? false;
             const selectable = selection?.isSelectable(row) ?? false;
             const showControls = selectionMode || expanded;
@@ -290,7 +312,7 @@ export function ExpandableFinScanTable<T extends { id: string }>({
                 {showExpandCol ? (
                   <td className={cn(expandColClass, leadingBodyPad(isCompact))}>
                     <div className="flex items-center justify-center">
-                      {expandable ? (
+                      {rowExpandable ? (
                         <button
                         type="button"
                         aria-expanded={expanded}
@@ -357,12 +379,12 @@ export function ExpandableFinScanTable<T extends { id: string }>({
               </>
             );
 
-            if (!expandable) {
+            if (!rowExpandable) {
               return (
                 <tr
                   key={row.id}
                   className={cn(
-                    "border-b border-[#eff0f2] dark:border-[#333a42]",
+                    "group/row border-b border-[#eff0f2] dark:border-[#333a42]",
                     customRowClass ??
                       "bg-white dark:bg-[#22272b]",
                   )}

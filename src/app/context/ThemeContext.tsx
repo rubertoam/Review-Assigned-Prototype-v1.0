@@ -22,13 +22,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    localStorage.setItem("review-theme", isDark ? "dark" : "light");
-  }, [isDark]);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", isDark);
+    const theme = isDark ? "dark" : "light";
+    localStorage.setItem("review-theme", theme);
+    // ACE DS tokens live under [data-theme="dark"] on <html> (portaled menus inherit this).
+    document.documentElement.setAttribute("data-theme", theme);
+    document.documentElement.style.colorScheme = theme;
     return () => {
-      document.documentElement.classList.remove("dark");
+      document.documentElement.removeAttribute("data-theme");
+      document.documentElement.style.colorScheme = "";
     };
   }, [isDark]);
 
