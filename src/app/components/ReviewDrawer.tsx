@@ -37,7 +37,7 @@ export interface ReviewDrawerProps {
   onClose: () => void;
   flowVariant: "level-1" | "level-2";
   selectedCount: number;
-  /** Actionable screening rows in the current case (e.g. all "New" or "Escalated"). */
+  /** Actionable screening rows in the current case (L1: New; L2: L1 in-process). */
   actionableRowCount?: number;
   onSubmit?: (status: string, reason: string) => void;
 }

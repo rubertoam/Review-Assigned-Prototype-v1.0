@@ -99,6 +99,8 @@ export type ExpandableFinScanTableProps<T extends { id: string }> = {
   getRowClassName?: (row: T) => string | undefined;
   className?: string;
   tableClassName?: string;
+  /** `auto` sizes columns to content; `fixed` uses `<col>` width hints (default). */
+  tableLayout?: "fixed" | "auto";
   /** When false, hides horizontal scroll on the table wrapper (use with table-fixed + w-full). */
   scrollX?: boolean;
   /** When false, rows do not expand (checkbox-only leading column if selection is set). */
@@ -126,6 +128,7 @@ export function ExpandableFinScanTable<T extends { id: string }>({
   getRowClassName,
   className,
   tableClassName,
+  tableLayout = "fixed",
   scrollX = true,
   expandedIds: expandedIdsProp,
   onExpandedIdsChange,
@@ -194,7 +197,12 @@ export function ExpandableFinScanTable<T extends { id: string }>({
       )}
     >
       <table
-        className={cn("w-full table-fixed border-collapse text-left", minWidth, tableClassName)}
+        className={cn(
+          "w-full border-collapse text-left",
+          tableLayout === "fixed" ? "table-fixed" : "table-auto",
+          minWidth,
+          tableClassName,
+        )}
         aria-label={caption}
       >
         <caption className="sr-only">{caption}</caption>

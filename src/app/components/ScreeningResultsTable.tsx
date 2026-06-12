@@ -16,6 +16,8 @@ import { aceDropShadowXsClass } from "../lib/aceShadow";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { cn } from "./ui/utils";
 import {
+  isLevel1ConfirmedStatus,
+  isLevel1InProcessStatus,
   LEVEL1_STATUS_DISPLAY_ORDER,
   LEVEL2_DECISION_STATUSES,
   type Level1ScreeningStatus,
@@ -35,11 +37,25 @@ export { easeAccordion, durationAccordion } from "./ExpandableFinScanTable";
 
 const LIST_PROFILE_ANIMATION_MS = 420;
 
-/** Level 1 decision outcomes; Level 2 work queue uses Escalated, then L2 decision statuses. */
-export type ScreeningRowStatus = Level1ScreeningStatus | "Escalated" | Level2DecisionStatus;
+/** Level 1 decision outcomes plus Level 2 terminal statuses. */
+export type ScreeningRowStatus = Level1ScreeningStatus | Level2DecisionStatus;
+
+/** L2 terminal statuses (Safe / False Positive). */
+export function isLevel2ReviewedRow(
+  row: Pick<ScreeningResultRow, "status" | "decisionReviewer">,
+): boolean {
+  return row.status === "Safe" || row.status === "False Positive";
+}
 
 export function isLevel2ReviewedStatus(status: ScreeningRowStatus): boolean {
-  return (LEVEL2_DECISION_STATUSES as readonly string[]).includes(status);
+  return status === "Safe" || status === "False Positive";
+}
+
+/** L1 terminal decisions visible to L2 via review history only. */
+export function isLevel1ConfirmedRow(
+  row: Pick<ScreeningResultRow, "status" | "decisionReviewer">,
+): boolean {
+  return isLevel1ConfirmedStatus(row.status) && !row.decisionReviewer;
 }
 
 /** Shared lavender pill surface (table “New” badge, profile header tags, in‑process tile). */
@@ -129,21 +145,6 @@ const TILE_ROTATIONS = [
   ["N", "C1", "B", "E", "N", "B", "B"],
 ] as const;
 
-function rowStatusForIndex(index: number, total: number, caseIndex: number): ScreeningRowStatus {
-  if (caseIndex === 4 && total === 3) {
-    return index === 2 ? "Escalated" : "New";
-  }
-  if (caseIndex === 1 && total === 8) {
-    return index === 0 ? "New" : "Escalated";
-  }
-  if (caseIndex === 2 && total === 7) {
-    return index < 2 ? "New" : "Escalated";
-  }
-  if (total >= 3 && index >= total - 3) return "Escalated";
-  if (total < 3 && index === total - 1) return "Escalated";
-  return "New";
-}
-
 function dobForCase(caseIndex: number): string {
   const dobs = ["03/23/1978", "04/11/1985", "06/07/1942", "09/14/1992", "—", "—"];
   return dobs[Math.min(caseIndex, dobs.length - 1)];
@@ -153,18 +154,7 @@ function level1ReviewerForCase(caseIndex: number): string {
   return LEVEL1_CASE_REVIEWERS[Math.min(caseIndex, LEVEL1_CASE_REVIEWERS.length - 1)];
 }
 
-/** Rows cleared at Level 1 without escalation (visible to Level 2 as read-only history). */
-export function isLevel1ClearedRow(
-  row: Pick<ScreeningResultRow, "status">,
-  flowVariant: "level-1" | "level-2" = "level-2",
-): boolean {
-  return flowVariant === "level-2" && row.status === "New";
-}
-
-export function getScreeningRowsForCase(
-  caseIndex: number,
-  flowVariant: "level-1" | "level-2" = "level-1",
-): ScreeningResultRow[] {
+export function getScreeningRowsForCase(caseIndex: number): ScreeningResultRow[] {
   const ci = Math.max(0, Math.min(caseIndex, CASE_RESULT_COUNTS.length - 1));
   const total = CASE_RESULT_COUNTS[ci];
   const names = CASE_VARIANT_NAMES[ci];
@@ -173,9 +163,7 @@ export function getScreeningRowsForCase(
     const name = names[Math.min(i, names.length - 1)];
     const score = Math.max(22, 93 - i * 7 - (ci % 3) * 2);
     const tiles = TILE_ROTATIONS[i % TILE_ROTATIONS.length];
-    const status =
-      flowVariant === "level-1" ? "New" : rowStatusForIndex(i, total, ci);
-    const row: ScreeningResultRow = {
+    rows.push({
       id: `c${ci}-${i + 1}`,
       name,
       dob: dobForCase(ci),
@@ -183,15 +171,14 @@ export function getScreeningRowsForCase(
       matchAgeTone: TONE_ROTATION[i % TONE_ROTATION.length],
       matchScore: score,
       matchTiles: [...tiles],
-      status,
-    };
-    if (flowVariant === "level-2" && status === "New") {
-      row.level1Reviewer = level1ReviewerForCase(ci);
-      row.level1Reason = "None";
-    }
-    rows.push(row);
+      status: "New",
+    });
   }
   return rows;
+}
+
+export function level1ReviewerForCaseIndex(caseIndex: number): string {
+  return level1ReviewerForCase(caseIndex);
 }
 
 export const MOCK_ROWS: ScreeningResultRow[] = getScreeningRowsForCase(0);
@@ -223,7 +210,7 @@ export function MatchStringTiles({ tiles, className }: { tiles: string[]; classN
           <span
             key={`${t}-${i}`}
             title={t}
-            className="inline-flex h-[22px] min-w-[22px] items-center justify-center rounded border border-solid px-0.5 text-[10px] font-semibold leading-none"
+            className="inline-flex h-[22px] w-fit min-w-[22px] shrink-0 items-center justify-center whitespace-nowrap rounded border border-solid px-1 text-[10px] font-semibold leading-none"
             style={{
               backgroundColor: s.bg,
               color: s.fg,
@@ -564,10 +551,10 @@ interface ScreeningResultsTableProps {
 }
 
 const statusPillShellClass =
-  "inline-flex max-w-full items-center gap-1.5 rounded-full pl-1.5 pr-2 py-1 transition-colors duration-200 ease-out";
+  "inline-flex w-fit max-w-none shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full pl-1.5 pr-2 py-1 transition-colors duration-200 ease-out";
 
 const statusPillLabelClass =
-  "min-w-0 font-['Noto_Sans:SemiBold',sans-serif] text-[11px] leading-snug break-words sm:text-[12px]";
+  "shrink-0 whitespace-nowrap font-['Noto_Sans:SemiBold',sans-serif] text-[11px] leading-none sm:text-[12px]";
 
 function safeStatusPill(label = "Safe") {
   return (
@@ -586,13 +573,21 @@ function safeStatusPill(label = "Safe") {
 }
 
 function reviewerLabelForRow(row: ScreeningTableDisplayRow): string {
-  if (isLevel2ReviewedStatus(row.status) || row.displayStatus === "Confirmed Safe") {
+  if (isLevel2ReviewedRow(row) || row.displayStatus === "Confirmed Safe") {
     return row.decisionReviewer ?? LEVEL2_ANALYST_REVIEWER;
   }
-  if (isLevel1ClearedRow(row) || row.displayStatus === "Safe") {
+  if (isLevel1ConfirmedRow(row)) {
     return row.level1Reviewer ?? "";
   }
   return "";
+}
+
+function mapLevel1ConfirmedDisplayRow(r: ScreeningResultRow): ScreeningTableDisplayRow {
+  return {
+    ...r,
+    readOnlyHistory: true,
+    ...(r.status === "Confirmed Safe" ? { displayStatus: "Confirmed Safe" as const } : {}),
+  };
 }
 
 function mapLevel2ReviewedDisplayRow(r: ScreeningResultRow): ScreeningTableDisplayRow {
@@ -613,11 +608,11 @@ const STATUS_PILL_STYLES: Record<
     dot: "bg-[#523eb9]",
     text: "text-[var(--screening-pill-new-label)]",
   },
-  Escalated: {
-    border: "border-[#ffcc80]",
-    bg: "bg-[#fff4e8]",
-    dot: "bg-[#ef6c00]",
-    text: "text-[#e65100]",
+  "Confirmed Safe": {
+    border: "border-[#a5d6a7]",
+    bg: "bg-[#e8f4ea]",
+    dot: "bg-[#2e7d32]",
+    text: "text-[#2d6a3e]",
   },
   Escalate: {
     border: "border-[#ffcc80]",
@@ -649,12 +644,6 @@ const STATUS_PILL_STYLES: Record<
     dot: "bg-[#8e24aa]",
     text: "text-[#6a1b9a]",
   },
-  "Confirmed Hit": {
-    border: "border-[#ef9a9a]",
-    bg: "bg-[#fdeaea]",
-    dot: "bg-[#c62828]",
-    text: "text-[#9e2a2a]",
-  },
   Safe: {
     border: "border-[#a5d6a7]",
     bg: "bg-[#e8f4ea]",
@@ -680,7 +669,7 @@ function statusPill(status: ScreeningRowStatus) {
       </span>
     );
   }
-  const style = STATUS_PILL_STYLES[status] ?? STATUS_PILL_STYLES.Escalated;
+  const style = STATUS_PILL_STYLES[status] ?? STATUS_PILL_STYLES.Escalate;
   return (
     <span
       className={cn(
@@ -707,7 +696,11 @@ function buildLevel1DisplayRows(
   if (!showReviewHistory) return active;
   const history = rows
     .filter((r) => r.status !== "New")
-    .map((r): ScreeningTableDisplayRow => ({ ...r, readOnlyHistory: true }));
+    .map((r): ScreeningTableDisplayRow => ({
+      ...r,
+      readOnlyHistory: true,
+      ...(r.status === "Confirmed Safe" ? { displayStatus: "Confirmed Safe" as const } : {}),
+    }));
   return [...active, ...history];
 }
 
@@ -716,38 +709,51 @@ function buildLevel2DisplayRows(
   showReviewHistory: boolean,
   caseComplete: boolean,
 ): ScreeningTableDisplayRow[] {
-  const mapRow = (r: ScreeningResultRow): ScreeningTableDisplayRow => {
-    if (r.status === "New") {
-      return { ...r, readOnlyHistory: true, displayStatus: "Safe" };
-    }
-    if (isLevel2ReviewedStatus(r.status)) {
-      return mapLevel2ReviewedDisplayRow(r);
-    }
+  const mapHistoryRow = (r: ScreeningResultRow): ScreeningTableDisplayRow => {
+    if (isLevel2ReviewedRow(r)) return mapLevel2ReviewedDisplayRow(r);
+    if (isLevel1ConfirmedRow(r)) return mapLevel1ConfirmedDisplayRow(r);
     return { ...r, readOnlyHistory: true };
   };
 
   if (caseComplete) {
-    return rows.map(mapRow);
+    return rows
+      .filter((r) => r.status !== "New")
+      .map(mapHistoryRow);
   }
 
-  const active = rows.filter((r) => r.status === "Escalated");
+  const active = rows.filter((r) => isLevel1InProcessStatus(r.status));
   if (!showReviewHistory) return active;
 
-  const l1History = rows.filter((r) => r.status === "New").map(mapRow);
-  const l2History = rows
-    .filter((r) => isLevel2ReviewedStatus(r.status))
-    .map(mapLevel2ReviewedDisplayRow);
-  return [...active, ...l1History, ...l2History];
+  const history = rows
+    .filter((r) => isLevel1ConfirmedRow(r) || isLevel2ReviewedRow(r))
+    .map(mapHistoryRow);
+  return [...active, ...history];
 }
 
-/** True when the case work queue is cleared (L1: no "New"; L2: no "Escalated"). */
+/** Case has screening results waiting in the Level 2 queue (L1 in-process). */
+export function caseHasLevel2QueueWork(rows: ScreeningResultRow[]): boolean {
+  return rows.some((r) => isLevel1InProcessStatus(r.status));
+}
+
+/** Case had Level 2 queue work and every in-process row has been cleared by L2. */
+export function caseIsLevel2Done(rows: ScreeningResultRow[]): boolean {
+  if (caseHasLevel2QueueWork(rows)) return false;
+  return rows.some((r) => isLevel2ReviewedRow(r));
+}
+
+/** Any Level 2 queue activity on the case (in-process or L2-reviewed). */
+export function caseHasLevel2Activity(rows: ScreeningResultRow[]): boolean {
+  return rows.some((r) => isLevel1InProcessStatus(r.status) || isLevel2ReviewedRow(r));
+}
+
+/** True when the case work queue is cleared (L1: no "New"; L2: no L1 in-process rows). */
 export function isCaseReviewComplete(
   rows: ScreeningResultRow[],
   flowVariant: "level-1" | "level-2" = "level-1",
 ): boolean {
   if (rows.length === 0) return false;
   if (flowVariant === "level-2") {
-    return rows.every((r) => r.status !== "Escalated");
+    return !caseHasLevel2QueueWork(rows);
   }
   return rows.every((r) => r.status !== "New");
 }
@@ -834,13 +840,13 @@ export function ScreeningResultsTable({
 
   const hasReviewHistory = useMemo(() => {
     if (isLevel2) {
-      return rows.some((r) => r.status === "New" || isLevel2ReviewedStatus(r.status));
+      return rows.some((r) => isLevel1ConfirmedRow(r) || isLevel2ReviewedRow(r));
     }
     return rows.some((r) => r.status !== "New");
   }, [isLevel2, rows]);
 
   const level2ActiveRows = useMemo(
-    () => (isLevel2 ? rows.filter((r) => r.status === "Escalated") : []),
+    () => (isLevel2 ? rows.filter((r) => isLevel1InProcessStatus(r.status)) : []),
     [isLevel2, rows],
   );
 
@@ -955,7 +961,7 @@ export function ScreeningResultsTable({
       sortedRows
         .filter((r) =>
           isLevel2
-            ? !r.readOnlyHistory && r.status === "Escalated"
+            ? !r.readOnlyHistory && isLevel1InProcessStatus(r.status)
             : r.status === "New",
         )
         .map((r) => r.id),
@@ -1000,14 +1006,14 @@ export function ScreeningResultsTable({
 
   const reviewedCount = useMemo(() => {
     if (isLevel2) {
-      return rows.filter((r) => isLevel2ReviewedStatus(r.status)).length;
+      return rows.filter((r) => isLevel2ReviewedRow(r)).length;
     }
     return rows.filter((r) => r.status !== "New").length;
   }, [isLevel2, rows]);
   const totalCount = useMemo(() => {
     if (isLevel2) {
       return rows.filter(
-        (r) => r.status === "Escalated" || isLevel2ReviewedStatus(r.status),
+        (r) => isLevel1InProcessStatus(r.status) || isLevel2ReviewedRow(r),
       ).length;
     }
     return rows.length;
@@ -1019,7 +1025,7 @@ export function ScreeningResultsTable({
   const actionableRows = useMemo(
     () =>
       sortedRows.filter((r) =>
-        isLevel2 ? !r.readOnlyHistory && r.status === "Escalated" : r.status === "New",
+        isLevel2 ? !r.readOnlyHistory && isLevel1InProcessStatus(r.status) : r.status === "New",
       ),
     [sortedRows, isLevel2],
   );
@@ -1065,18 +1071,14 @@ export function ScreeningResultsTable({
       key: "reviewer",
       label: "Reviewer",
       sortKey: "reviewer",
-      colClassName: "w-[8.5rem]",
-      cellClassName: "min-w-0 truncate text-[#464c59] dark:text-[#9fadbc] whitespace-nowrap",
+      headerClassName: "whitespace-nowrap",
+      cellClassName: "text-[#464c59] dark:text-[#9fadbc] whitespace-nowrap",
       render: (row) => {
         const reviewer = reviewerLabelForRow(row);
         if (!reviewer) {
           return <span className="text-[#949baa] dark:text-[#6a7285]">—</span>;
         }
-        return (
-          <span className="truncate" title={reviewer}>
-            {reviewer}
-          </span>
-        );
+        return reviewer;
       },
     }),
     [],
@@ -1088,7 +1090,8 @@ export function ScreeningResultsTable({
         key: "status",
         label: "Status",
         sortKey: "status",
-        cellClassName: "overflow-hidden",
+        headerClassName: "whitespace-nowrap",
+        cellClassName: "whitespace-nowrap align-middle",
         render: (row) => {
           if (row.displayStatus === "Confirmed Safe") return safeStatusPill("Confirmed Safe");
           if (row.displayStatus === "Safe") return safeStatusPill();
@@ -1100,13 +1103,15 @@ export function ScreeningResultsTable({
         key: "name",
         label: "Name",
         sortKey: "name",
-        cellClassName: "min-w-0 truncate text-[#23262c] dark:text-[#b6c2cf]",
+        headerClassName: "whitespace-nowrap",
+        cellClassName: "text-[#23262c] dark:text-[#b6c2cf] whitespace-nowrap",
         render: (row) => row.name,
       },
       {
         key: "dob",
         label: "Date of Birth",
         sortKey: "dob",
+        headerClassName: "whitespace-nowrap",
         cellClassName: "text-[#464c59] dark:text-[#9fadbc] whitespace-nowrap",
         render: (row) => row.dob,
       },
@@ -1114,6 +1119,7 @@ export function ScreeningResultsTable({
         key: "matchAge",
         label: "Match Age",
         sortKey: "matchAge",
+        headerClassName: "whitespace-nowrap",
         cellClassName: "whitespace-nowrap",
         render: (row) => (
           <span className="inline-flex items-center gap-2 text-[#464c59] dark:text-[#9fadbc]">
@@ -1126,6 +1132,7 @@ export function ScreeningResultsTable({
         key: "matchScore",
         label: "Match Score",
         sortKey: "matchScore",
+        headerClassName: "whitespace-nowrap",
         cellClassName: "font-['Noto_Sans:SemiBold',sans-serif] font-semibold tabular-nums whitespace-nowrap",
         render: (row) => (
           <span
@@ -1144,18 +1151,21 @@ export function ScreeningResultsTable({
       {
         key: "listCategory",
         label: "List Category",
-        cellClassName: "min-w-0 truncate text-[#464c59] dark:text-[#9fadbc]",
+        headerClassName: "whitespace-nowrap",
+        cellClassName: "text-[#464c59] dark:text-[#9fadbc] whitespace-nowrap",
         render: (row) => getListProfileSummaryForRow(row).listCategory,
       },
       {
         key: "listId",
         label: "List ID",
+        headerClassName: "whitespace-nowrap",
         cellClassName: "text-[#464c59] dark:text-[#9fadbc] whitespace-nowrap",
         render: (row) => getListProfileSummaryForRow(row).listId,
       },
       {
         key: "listProfileId",
         label: "List Profile ID",
+        headerClassName: "whitespace-nowrap",
         cellClassName: "text-[#464c59] dark:text-[#9fadbc] tabular-nums whitespace-nowrap",
         render: (row) => getListProfileSummaryForRow(row).listProfileId,
       },
@@ -1176,9 +1186,18 @@ export function ScreeningResultsTable({
           ? "No screening results to display."
           : searchQuery.trim()
             ? "No results match your search."
-            : !isLevel2 && rows.some((r) => r.status !== "New") && !effectiveShowReviewHistory
-              ? "All screening results have been reviewed. Show review history to see completed items."
-              : statusFilters.size > 0
+            : isLevel2 &&
+                level2ActiveRows.length === 0 &&
+                !effectiveShowReviewHistory &&
+                hasReviewHistory
+              ? "No results awaiting Level 2 review. Show review history to see Level 1 decisions."
+              : isLevel2 &&
+                  level2ActiveRows.length === 0 &&
+                  !hasReviewHistory
+                ? "No results awaiting Level 2 review. Level 1 must move matches out of New before they appear here."
+              : !isLevel2 && rows.some((r) => r.status !== "New") && !effectiveShowReviewHistory
+                ? "All screening results have been reviewed. Show review history to see completed items."
+                : statusFilters.size > 0
                 ? "No results match the current filter."
                 : "No results to display."}
       </p>
@@ -1317,7 +1336,7 @@ export function ScreeningResultsTable({
                               })
                             }
                             className={cn(
-                              "cursor-pointer rounded-[4px] px-3.5 py-1.5 text-[13px] font-['Noto_Sans:SemiBold',sans-serif] font-semibold transition-all duration-200 ease-out border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/40 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#22272b]",
+                              "inline-flex w-fit shrink-0 cursor-pointer whitespace-nowrap rounded-[4px] px-3.5 py-1.5 text-[13px] font-['Noto_Sans:SemiBold',sans-serif] font-semibold transition-all duration-200 ease-out border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/40 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#22272b]",
                               active
                                 ? "bg-[#efeef9] border-[#523eb9] text-[#523eb9] hover:bg-[#e4dff3] hover:border-[#4334a3] dark:bg-[#2a2540] dark:border-[#7c6bc4] dark:text-[#dcd7e8] dark:hover:bg-[#352f4d] dark:hover:border-[#9b8ed4]"
                                 : "bg-white dark:bg-[#22272b] border-[#cfd2d9] dark:border-[#38414a] text-[#23262c] dark:text-[#b6c2cf] hover:border-[#949baa] hover:bg-[#f5f6f8] dark:hover:border-[#5c6773] dark:hover:bg-[#2c333a]",
@@ -1396,11 +1415,12 @@ export function ScreeningResultsTable({
               columns={screeningColumns}
               caption={`${title}, ${sortedRows.length} ${sortedRows.length === 1 ? "row" : "rows"}${statusFilters.size > 0 ? `, filtered by ${[...statusFilters].sort((a, b) => a.localeCompare(b)).join(", ")}` : ""}`}
               className="min-h-0 min-w-0 flex-1"
-              minWidth="min-w-[960px]"
+              tableLayout="auto"
+              minWidth="w-max min-w-full"
               showExpandAll={false}
               isRowExpandable={(row) =>
                 isLevel2
-                  ? !row.readOnlyHistory && row.status === "Escalated"
+                  ? !row.readOnlyHistory && isLevel1InProcessStatus(row.status)
                   : row.status === "New"
               }
               expandedIds={expandedIds}
@@ -1414,7 +1434,7 @@ export function ScreeningResultsTable({
                 selectedIds,
                 isSelectable: (row) =>
                   isLevel2
-                    ? !row.readOnlyHistory && row.status === "Escalated"
+                    ? !row.readOnlyHistory && isLevel1InProcessStatus(row.status)
                     : row.status === "New",
                 onToggleRow: toggleRowSelect,
                 onHeaderSelectAll: onHeaderSelectAllChange,

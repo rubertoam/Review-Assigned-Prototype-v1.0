@@ -3,22 +3,18 @@ import { ChevronLeft } from "lucide-react";
 import { AceTabs, aceTabButtonId } from "./ui/ace-tabs";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { getListProfileForRow } from "../lib/listProfileData";
+import { LIST_PROFILE_TABS, type ListProfileTabId } from "../lib/listProfileTabs";
 import { cn } from "./ui/utils";
 import type { ScreeningResultRow } from "./ScreeningResultsTable";
-import { ListProfileDataTableView, ListProfileGeneralTable } from "./ListProfileTabContent";
+import {
+  ListProfileAllTabView,
+  ListProfileDataTableView,
+  ListProfileGeneralTable,
+} from "./ListProfileTabContent";
 
 const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 
-export const LIST_PROFILE_TABS = [
-  { id: "general", label: "General" },
-  { id: "addresses", label: "Addresses" },
-  { id: "dates", label: "Dates" },
-  { id: "id-numbers", label: "ID Numbers" },
-  { id: "person", label: "Person" },
-  { id: "tracking", label: "Tracking Information" },
-] as const;
-
-export type ListProfileTabId = (typeof LIST_PROFILE_TABS)[number]["id"];
+export { LIST_PROFILE_TABS, type ListProfileTabId } from "../lib/listProfileTabs";
 
 export interface ListProfilePanelProps {
   row: ScreeningResultRow;
@@ -85,6 +81,7 @@ export function ListProfilePanel({ row, onBack }: ListProfilePanelProps) {
         {activeTab === "tracking" ? (
           <ListProfileDataTableView table={profile.tracking} caption="Tracking information" />
         ) : null}
+        {activeTab === "all" ? <ListProfileAllTabView profile={profile} /> : null}
         <p className="sr-only">Selected match: {row.name}</p>
       </div>
     </div>

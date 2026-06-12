@@ -17,7 +17,10 @@ export function OverdueWarningIcon({ className = "size-4 text-[10px]" }: { class
   );
 }
 
-const profileBadgeClass = "self-center";
+const profileBadgeClass = cn(
+  "max-w-none shrink-0 self-center",
+  "[&>span]:max-w-none [&>span]:overflow-visible [&>span]:whitespace-nowrap",
+);
 
 export function ClientProfileMetaBadge({ children }: { children: ReactNode }) {
   return (
@@ -34,7 +37,7 @@ export function ClientProfileOverdueBadge() {
       className={cn(
         profileBadgeClass,
         "border border-[var(--screening-pill-escalated-dot)] bg-[var(--ace-warning-50)] text-[var(--screening-pill-escalated-label)]",
-        "[&>span]:inline-flex [&>span]:items-center [&>span]:gap-1.5",
+        "[&>span]:inline-flex [&>span]:items-center [&>span]:gap-1.5 [&>span]:whitespace-nowrap",
       )}
     >
       <OverdueWarningIcon className="size-3 text-[8px]" />

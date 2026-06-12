@@ -11,6 +11,8 @@ import {
 } from "react";
 import { MoreVertical } from "lucide-react";
 import { AllCasesClearedState } from "../../components/AllCasesClearedState";
+import { CaseListLevel2TodoEmptyState } from "../../components/CaseListLevel2TodoEmptyState";
+import { Level2AwaitingLevel1State } from "../../components/Level2AwaitingLevel1State";
 import { CaseListSection } from "../../components/CaseListSection";
 import { ThemeProvider } from "../../context/ThemeContext";
 import { aceAccordionFixedHeaderClass } from "../../lib/aceAccordion";
@@ -43,14 +45,19 @@ import {
 } from "../../components/ui/dialog";
 import {
   ScreeningResultsTable,
+  caseHasLevel2Activity,
+  caseHasLevel2QueueWork,
+  caseIsLevel2Done,
   getScreeningRowsForCase,
   isCaseReviewComplete,
-  isLevel2ReviewedStatus,
+  isLevel2ReviewedRow,
   LEVEL2_ANALYST_REVIEWER,
   screeningNewPillSurfaceClass,
   type ScreeningResultRow,
   type ScreeningRowStatus,
 } from "../../components/ScreeningResultsTable";
+import { isLevel1InProcessStatus } from "../../lib/reviewDecisionConfig";
+import { useScreeningRowsByCase } from "../../lib/screeningState";
 import { cn } from "../../components/ui/utils";
 import { ReviewDrawer } from "../../components/ReviewDrawer";
 import { AceSidebar } from "@ace-ds/components/organisms/AceSidebar/AceSidebar";
@@ -408,28 +415,23 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
   }, [interactionPicklist]);
 
   const caseRowsForIndex = useCallback(
-    (index: number) =>
-      screeningRowsByCase[index] ?? getScreeningRowsForCase(index, "level-2"),
+    (index: number) => screeningRowsByCase[index] ?? getScreeningRowsForCase(index),
     [screeningRowsByCase],
-  );
-
-  const isCaseLevel2Complete = useCallback(
-    (index: number) => isCaseReviewComplete(caseRowsForIndex(index), "level-2"),
-    [caseRowsForIndex],
   );
 
   const { pendingRows, doneRows } = useMemo(() => {
     const pending: CaseListRow[] = [];
     const done: CaseListRow[] = [];
     filteredRows.forEach((row) => {
-      if (isCaseLevel2Complete(row.index)) {
+      const caseRows = caseRowsForIndex(row.index);
+      if (caseIsLevel2Done(caseRows)) {
         done.push(row);
-      } else {
+      } else if (caseHasLevel2QueueWork(caseRows)) {
         pending.push(row);
       }
     });
     return { pendingRows: pending, doneRows: done };
-  }, [filteredRows, isCaseLevel2Complete]);
+  }, [filteredRows, caseRowsForIndex]);
 
   const navigableRows = useMemo(() => {
     const showDone = doneSectionExpanded || pendingRows.length === 0;
@@ -446,24 +448,24 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
     () =>
       casesData.map((_, i) => {
         const rows = caseRowsForIndex(i);
-        const done = rows.filter((r) => isLevel2ReviewedStatus(r.status)).length;
-        const escalated = rows.filter((r) => r.status === "Escalated").length;
-        return { done, total: done + escalated };
+        const done = rows.filter((r) => isLevel2ReviewedRow(r)).length;
+        const inQueue = rows.filter((r) => isLevel1InProcessStatus(r.status)).length;
+        return { done, total: done + inQueue };
       }),
     [caseRowsForIndex],
   );
 
   useEffect(() => {
-    wasSelectedCaseCompleteRef.current = isCaseLevel2Complete(selectedCaseIndex);
-  }, [selectedCaseIndex, isCaseLevel2Complete]);
+    wasSelectedCaseCompleteRef.current = caseIsLevel2Done(caseRowsForIndex(selectedCaseIndex));
+  }, [selectedCaseIndex, caseRowsForIndex]);
 
   useEffect(() => {
-    const complete = isCaseLevel2Complete(selectedCaseIndex);
+    const complete = caseIsLevel2Done(caseRowsForIndex(selectedCaseIndex));
     if (complete && !wasSelectedCaseCompleteRef.current && pendingRows.length > 0) {
       onSelectCase(pendingRows[0].index);
     }
     wasSelectedCaseCompleteRef.current = complete;
-  }, [screeningRowsByCase, selectedCaseIndex, pendingRows, onSelectCase, isCaseLevel2Complete]);
+  }, [screeningRowsByCase, selectedCaseIndex, pendingRows, onSelectCase, caseRowsForIndex]);
 
   useEffect(() => {
     if (navigableRows.some((r) => r.index === selectedCaseIndex)) return;
@@ -531,7 +533,7 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
               </p>
             </div>
           </div>
-          {caseItem.name === "John Smith" && !isCaseLevel2Complete(index) ? (
+          {caseItem.name === "John Smith" && caseHasLevel2QueueWork(caseRowsForIndex(index)) ? (
             <span className="shrink-0" title="Overdue warning">
               <OverdueWarningIcon />
               <span className="sr-only">Overdue warning</span>
@@ -621,7 +623,12 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
         </div>
       </div>
       <div className="flex flex-col">
-        <CaseListSection title="To Do" count={pendingRows.length} collapsible={false}>
+        <CaseListSection
+          title="To Do"
+          count={pendingRows.length}
+          collapsible={false}
+          emptyContent={<CaseListLevel2TodoEmptyState />}
+        >
           {pendingRows.map(({ item, index }) => renderCaseRow(item, index))}
         </CaseListSection>
         <CaseListSection
@@ -645,6 +652,7 @@ interface DetailPanelProps {
   screeningSelectedIds: Set<string>;
   onScreeningSelectedIdsChange: Dispatch<SetStateAction<Set<string>>>;
   allCasesCleared: boolean;
+  awaitingLevel1Work: boolean;
 }
 
 function DetailPanel({
@@ -654,6 +662,7 @@ function DetailPanel({
   screeningSelectedIds,
   onScreeningSelectedIdsChange,
   allCasesCleared,
+  awaitingLevel1Work,
 }: DetailPanelProps) {
   const [clientExpanded, setClientExpanded] = useState(false);
   const [caseActionModal, setCaseActionModal] = useState<
@@ -672,6 +681,14 @@ function DetailPanel({
         : caseActionModal === "reports"
           ? "Reports"
           : "";
+
+  if (awaitingLevel1Work) {
+    return (
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <Level2AwaitingLevel1State />
+      </div>
+    );
+  }
 
   if (allCasesCleared) {
     return (
@@ -951,43 +968,40 @@ function TaskBar({
 }
 
 
-function buildInitialLevel2ScreeningRows(): Record<number, ScreeningResultRow[]> {
-  const out: Record<number, ScreeningResultRow[]> = {};
-  casesData.forEach((_, index) => {
-    out[index] = getScreeningRowsForCase(index, "level-2");
-  });
-  return out;
-}
-
 export function Level2ReviewInterface() {
   const [sidebarPinned, setSidebarPinned] = useState(true);
   const [sidebarPeek, setSidebarPeek] = useState(false);
   const [selectedCaseIndex, setSelectedCaseIndex] = useState(0);
   const [isReviewDrawerOpen, setIsReviewDrawerOpen] = useState(false);
   const [screeningSelectedIds, setScreeningSelectedIds] = useState<Set<string>>(() => new Set());
-  const [screeningRowsByCase, setScreeningRowsByCase] = useState(buildInitialLevel2ScreeningRows);
+  const [screeningRowsByCase, setScreeningRowsByCase] = useScreeningRowsByCase();
 
   const screeningRows = useMemo(
-    () =>
-      screeningRowsByCase[selectedCaseIndex] ??
-      getScreeningRowsForCase(selectedCaseIndex, "level-2"),
+    () => screeningRowsByCase[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex),
     [screeningRowsByCase, selectedCaseIndex],
   );
 
   const actionableScreeningCount = useMemo(
-    () => screeningRows.filter((row) => row.status === "Escalated").length,
+    () => screeningRows.filter((row) => isLevel1InProcessStatus(row.status)).length,
     [screeningRows],
   );
 
-  const allCasesCleared = useMemo(
+  const awaitingLevel1Work = useMemo(
     () =>
-      casesData.every((_, index) => {
-        const rows =
-          screeningRowsByCase[index] ?? getScreeningRowsForCase(index, "level-2");
-        return isCaseReviewComplete(rows, "level-2");
+      !casesData.some((_, index) => {
+        const rows = screeningRowsByCase[index] ?? getScreeningRowsForCase(index);
+        return caseHasLevel2Activity(rows);
       }),
     [screeningRowsByCase],
   );
+
+  const allCasesCleared = useMemo(() => {
+    if (awaitingLevel1Work) return false;
+    return casesData.every((_, index) => {
+      const rows = screeningRowsByCase[index] ?? getScreeningRowsForCase(index);
+      return !caseHasLevel2QueueWork(rows);
+    });
+  }, [screeningRowsByCase, awaitingLevel1Work]);
 
   const handleShowReview = useCallback(() => {
     setIsReviewDrawerOpen((open) => !open);
@@ -997,7 +1011,7 @@ export function Level2ReviewInterface() {
     (status: string, reason: string) => {
       setScreeningRowsByCase((prev) => {
         const current =
-          prev[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex, "level-2");
+          prev[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
         return {
           ...prev,
           [selectedCaseIndex]: current.map((row) =>
@@ -1014,7 +1028,7 @@ export function Level2ReviewInterface() {
       });
       setScreeningSelectedIds(new Set());
     },
-    [selectedCaseIndex, screeningSelectedIds],
+    [selectedCaseIndex, screeningSelectedIds, setScreeningRowsByCase],
   );
 
   useEffect(() => {
@@ -1113,9 +1127,10 @@ export function Level2ReviewInterface() {
                 screeningSelectedIds={screeningSelectedIds}
                 onScreeningSelectedIdsChange={setScreeningSelectedIds}
                 allCasesCleared={allCasesCleared}
+                awaitingLevel1Work={awaitingLevel1Work}
               />
             </div>
-            {!allCasesCleared ? (
+            {!allCasesCleared && !awaitingLevel1Work ? (
               <TaskBar
                 onShowReview={handleShowReview}
                 isReviewOpen={isReviewDrawerOpen}

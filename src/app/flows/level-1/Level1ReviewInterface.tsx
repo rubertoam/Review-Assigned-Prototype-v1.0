@@ -45,9 +45,11 @@ import {
   ScreeningResultsTable,
   getScreeningRowsForCase,
   isCaseScreeningComplete,
+  level1ReviewerForCaseIndex,
   screeningNewPillSurfaceClass,
   type ScreeningResultRow,
 } from "../../components/ScreeningResultsTable";
+import { useScreeningRowsByCase } from "../../lib/screeningState";
 import { cn } from "../../components/ui/utils";
 import { ReviewDrawer } from "../../components/ReviewDrawer";
 import type { Level1ScreeningStatus } from "../../lib/reviewDecisionConfig";
@@ -406,8 +408,7 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
   }, [interactionPicklist]);
 
   const caseRowsForIndex = useCallback(
-    (index: number) =>
-      screeningRowsByCase[index] ?? getScreeningRowsForCase(index, "level-1"),
+    (index: number) => screeningRowsByCase[index] ?? getScreeningRowsForCase(index),
     [screeningRowsByCase],
   );
 
@@ -941,26 +942,16 @@ function TaskBar({
   );
 }
 
-function buildInitialLevel1ScreeningRows(): Record<number, ScreeningResultRow[]> {
-  const out: Record<number, ScreeningResultRow[]> = {};
-  casesData.forEach((_, index) => {
-    out[index] = getScreeningRowsForCase(index, "level-1");
-  });
-  return out;
-}
-
 export function Level1ReviewInterface() {
   const [sidebarPinned, setSidebarPinned] = useState(true);
   const [sidebarPeek, setSidebarPeek] = useState(false);
   const [selectedCaseIndex, setSelectedCaseIndex] = useState(0);
   const [isReviewDrawerOpen, setIsReviewDrawerOpen] = useState(false);
   const [screeningSelectedIds, setScreeningSelectedIds] = useState<Set<string>>(() => new Set());
-  const [screeningRowsByCase, setScreeningRowsByCase] = useState(buildInitialLevel1ScreeningRows);
+  const [screeningRowsByCase, setScreeningRowsByCase] = useScreeningRowsByCase();
 
   const screeningRows = useMemo(
-    () =>
-      screeningRowsByCase[selectedCaseIndex] ??
-      getScreeningRowsForCase(selectedCaseIndex, "level-1"),
+    () => screeningRowsByCase[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex),
     [screeningRowsByCase, selectedCaseIndex],
   );
 
@@ -972,8 +963,7 @@ export function Level1ReviewInterface() {
   const allCasesCleared = useMemo(
     () =>
       casesData.every((_, index) => {
-        const rows =
-          screeningRowsByCase[index] ?? getScreeningRowsForCase(index, "level-1");
+        const rows = screeningRowsByCase[index] ?? getScreeningRowsForCase(index);
         return isCaseScreeningComplete(rows);
       }),
     [screeningRowsByCase],
@@ -984,22 +974,27 @@ export function Level1ReviewInterface() {
   }, []);
 
   const handleSubmitDecision = useCallback(
-    (status: string, _reason: string) => {
+    (status: string, reason: string) => {
       setScreeningRowsByCase((prev) => {
         const current =
-          prev[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex, "level-1");
+          prev[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
         return {
           ...prev,
           [selectedCaseIndex]: current.map((row) =>
             screeningSelectedIds.has(row.id)
-              ? { ...row, status: status as Level1ScreeningStatus }
+              ? {
+                  ...row,
+                  status: status as Level1ScreeningStatus,
+                  level1Reason: reason,
+                  level1Reviewer: level1ReviewerForCaseIndex(selectedCaseIndex),
+                }
               : row,
           ),
         };
       });
       setScreeningSelectedIds(new Set());
     },
-    [selectedCaseIndex, screeningSelectedIds],
+    [selectedCaseIndex, screeningSelectedIds, setScreeningRowsByCase],
   );
 
   useEffect(() => {
