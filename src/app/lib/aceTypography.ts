@@ -4,6 +4,7 @@ export function aceTypography(token: string) {
 }
 
 export const ACE_TYPE = {
+  h2SemiBold: "--ace-type-heading-h2-semi-bold",
   h6Bold: "--ace-type-heading-h6-bold",
   h6SmallBold: "--ace-type-heading-h6-small-bold",
   h6SmallSemiBold: "--ace-type-heading-h6-small-semi-bold",

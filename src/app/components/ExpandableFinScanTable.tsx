@@ -375,13 +375,10 @@ export function ExpandableFinScanTable<T extends { id: string }>({
                   </td>
                 ))}
                 {trailingColumn ? (
-                  <td
-                    className={cn(
-                      "w-10 px-1 align-middle",
-                      isCompact ? "py-1.5" : "py-3",
-                    )}
-                  >
-                    {trailingColumn.render(row)}
+                  <td className="h-px w-10 py-0 pl-0 pr-3 align-middle">
+                    <div className="flex h-full min-h-10 w-full items-center justify-center">
+                      {trailingColumn.render(row)}
+                    </div>
                   </td>
                 ) : null}
               </>

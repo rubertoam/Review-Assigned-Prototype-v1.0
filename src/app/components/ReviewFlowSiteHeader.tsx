@@ -1,10 +1,5 @@
-import { useMemo } from "react";
 import type { FinScanProfileAvatar } from "@ace-ds/lib/finscanProfileAvatars";
 import { AceSiteHeader } from "@ace-ds/components/organisms/AceSiteHeader/AceSiteHeader";
-import {
-  AceDropdownMenu,
-  type AceDropdownMenuEntry,
-} from "@ace-ds/components/molecules/AceDropdownMenu/AceDropdownMenu";
 import { useTheme } from "../context/ThemeContext";
 import { USER_FLOWS } from "../flows/flowTypes";
 import { useUserFlow } from "../flows/FlowContext";
@@ -16,6 +11,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuToggleItem,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
@@ -31,38 +29,9 @@ const profileTriggerClass = cn(
   "data-[state=open]:bg-[var(--ace-site-header-nav-hover)]",
 );
 
-function FlowSwitcher() {
-  const { flowId, currentFlow, setFlowId } = useUserFlow();
-
-  const flowMenuItems = useMemo(
-    (): AceDropdownMenuEntry[] =>
-      USER_FLOWS.map(
-        (flow): AceDropdownMenuEntry => ({
-          type: "item",
-          id: flow.id,
-          label: flow.label,
-          selected: flow.id === flowId,
-          onSelect: () => setFlowId(flow.id),
-        }),
-      ),
-    [flowId, setFlowId],
-  );
-
-  return (
-    <AceDropdownMenu
-      triggerLabel={currentFlow.label}
-      items={flowMenuItems}
-      triggerMode="field"
-      size="sm"
-      align="start"
-      panelWidth="default"
-      className="w-auto min-w-0 max-w-[8.5rem]"
-    />
-  );
-}
-
 function ProfileMenuDropdown({ profile }: { profile: FinScanProfileAvatar }) {
   const { isDark, setIsDark } = useTheme();
+  const { flowId, setFlowId } = useUserFlow();
 
   return (
     <DropdownMenu modal={false}>
@@ -87,6 +56,15 @@ function ProfileMenuDropdown({ profile }: { profile: FinScanProfileAvatar }) {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={4}>
+        <DropdownMenuLabel>Review level</DropdownMenuLabel>
+        <DropdownMenuRadioGroup value={flowId} onValueChange={(value) => setFlowId(value as typeof flowId)}>
+          {USER_FLOWS.map((flow) => (
+            <DropdownMenuRadioItem key={flow.id} value={flow.id}>
+              {flow.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
         <DropdownMenuLabel>Appearance</DropdownMenuLabel>
         <DropdownMenuToggleItem
           checked={isDark}
@@ -112,7 +90,7 @@ export function ReviewFlowSiteHeader() {
         showProfile={false}
         trailing={<ProfileMenuDropdown profile={profile} />}
       />
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex h-[var(--ace-site-header-height)] items-center justify-center gap-2">
+      <div className="pointer-events-none absolute inset-x-0 top-0 flex h-[var(--ace-site-header-height)] items-center justify-center">
         <span
           className={cn(
             aceTypography(ACE_TYPE.captionBold),
@@ -122,9 +100,6 @@ export function ReviewFlowSiteHeader() {
         >
           UX Concept
         </span>
-        <div className="pointer-events-auto">
-          <FlowSwitcher />
-        </div>
       </div>
     </div>
   );

@@ -383,16 +383,28 @@ export type ListProfileSummary = {
   listCategory: string;
   listId: string;
   listProfileId: string;
+  country: string;
 };
+
+function listCountryForCase(caseIndex: number, rowIndex: number): string {
+  const ctx = CASE_CLIENT_CONTEXT[Math.min(caseIndex, CASE_CLIENT_CONTEXT.length - 1)];
+  if (caseIndex === 0) {
+    const countries = ["United States", "United Kingdom", "Canada", "Australia"];
+    return countries[rowIndex % countries.length] ?? "United States";
+  }
+  return ctx.country;
+}
 
 /** List metadata for screening table columns (aligned with General tab fields). */
 export function getListProfileSummaryForRow(row: ScreeningResultRow): ListProfileSummary {
   const { caseIndex, rowIndex } = parseScreeningRowId(row.id);
+  const country = listCountryForCase(caseIndex, rowIndex);
   if (caseIndex === 0) {
     return {
       listCategory: "LSEG - World Check",
       listId: "WC",
       listProfileId: String(2892 + rowIndex),
+      country,
     };
   }
 
@@ -401,6 +413,7 @@ export function getListProfileSummaryForRow(row: ScreeningResultRow): ListProfil
     listCategory: ctx.listName,
     listId: ctx.listId,
     listProfileId: String(2100 + caseIndex * 100 + rowIndex),
+    country,
   };
 }
 

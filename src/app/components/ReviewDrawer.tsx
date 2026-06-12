@@ -1,11 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { History } from "lucide-react";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
-import {
-  CompleteCaseConfirmDialog,
-  shouldSkipCompleteCaseDialog,
-  setSkipCompleteCaseDialog,
-} from "./CompleteCaseConfirmDialog";
 import { DecisionPrimaryDropdown } from "./DecisionPrimaryDropdown";
 import {
   LEVEL1_DECISION_STATUSES,
@@ -37,8 +32,6 @@ export interface ReviewDrawerProps {
   onClose: () => void;
   flowVariant: "level-1" | "level-2";
   selectedCount: number;
-  /** Actionable screening rows in the current case (L1: New; L2: L1 in-process). */
-  actionableRowCount?: number;
   onSubmit?: (status: string, reason: string) => void;
 }
 
@@ -47,7 +40,6 @@ export function ReviewDrawer({
   onClose,
   flowVariant,
   selectedCount,
-  actionableRowCount = 0,
   onSubmit,
 }: ReviewDrawerProps) {
   const [decisionExpanded, setDecisionExpanded] = useState(true);
@@ -56,12 +48,6 @@ export function ReviewDrawer({
   const [matchHistoryOpen, setMatchHistoryOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
-  const [completeCaseDialogOpen, setCompleteCaseDialogOpen] = useState(false);
-  const [dontShowCompleteCaseDialog, setDontShowCompleteCaseDialog] = useState(false);
-  const [pendingSubmit, setPendingSubmit] = useState<{
-    status: string;
-    reason: string;
-  } | null>(null);
 
   const statusOptions = useMemo(
     () => (flowVariant === "level-1" ? LEVEL1_DECISION_STATUSES : LEVEL2_DECISION_STATUSES),
@@ -78,9 +64,6 @@ export function ReviewDrawer({
       setMatchHistoryOpen(false);
       setSelectedStatus(null);
       setSelectedReason(null);
-      setCompleteCaseDialogOpen(false);
-      setPendingSubmit(null);
-      setDontShowCompleteCaseDialog(false);
     }
   }, [isOpen]);
 
@@ -103,44 +86,11 @@ export function ReviewDrawer({
   const canSubmit =
     selectedCount > 0 && selectedStatus !== null && selectedReason !== null;
 
-  const isClearingAllResults =
-    actionableRowCount > 0 && selectedCount === actionableRowCount;
-
-  const finalizeSubmit = useCallback(
-    (status: string, reason: string) => {
-      onSubmit?.(status, reason);
-      setSelectedStatus(null);
-      setSelectedReason(null);
-    },
-    [onSubmit],
-  );
-
   const handleSubmit = () => {
     if (!canSubmit || !selectedStatus || !selectedReason) return;
-    if (isClearingAllResults && !shouldSkipCompleteCaseDialog()) {
-      setPendingSubmit({ status: selectedStatus, reason: selectedReason });
-      setCompleteCaseDialogOpen(true);
-      return;
-    }
-    finalizeSubmit(selectedStatus, selectedReason);
-  };
-
-  const handleConfirmCompleteCase = () => {
-    if (dontShowCompleteCaseDialog) {
-      setSkipCompleteCaseDialog(true);
-    }
-    if (pendingSubmit) {
-      finalizeSubmit(pendingSubmit.status, pendingSubmit.reason);
-    }
-    setPendingSubmit(null);
-    setCompleteCaseDialogOpen(false);
-    setDontShowCompleteCaseDialog(false);
-  };
-
-  const handleCancelCompleteCase = () => {
-    setPendingSubmit(null);
-    setCompleteCaseDialogOpen(false);
-    setDontShowCompleteCaseDialog(false);
+    onSubmit?.(selectedStatus, selectedReason);
+    setSelectedStatus(null);
+    setSelectedReason(null);
   };
 
   return (
@@ -329,14 +279,6 @@ export function ReviewDrawer({
           </div>
         </div>
       </div>
-
-      <CompleteCaseConfirmDialog
-        open={completeCaseDialogOpen}
-        dontShowAgain={dontShowCompleteCaseDialog}
-        onDontShowAgainChange={setDontShowCompleteCaseDialog}
-        onConfirm={handleConfirmCompleteCase}
-        onCancel={handleCancelCompleteCase}
-      />
 
       <Dialog open={isOpen && matchHistoryOpen} onOpenChange={setMatchHistoryOpen}>
         <DialogContent className="max-w-lg gap-0 overflow-hidden rounded-[var(--radius-sm)] border-[var(--screening-border-strong)] bg-[var(--screening-surface)] p-0 sm:max-w-lg">

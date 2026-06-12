@@ -7,7 +7,7 @@ export const SKIP_COMPLETE_CASE_DIALOG_KEY = "finscan-review-assigned-skip-compl
 
 export function shouldSkipCompleteCaseDialog(): boolean {
   try {
-    return localStorage.getItem(SKIP_COMPLETE_CASE_DIALOG_KEY) === "true";
+    return sessionStorage.getItem(SKIP_COMPLETE_CASE_DIALOG_KEY) === "true";
   } catch {
     return false;
   }
@@ -16,9 +16,9 @@ export function shouldSkipCompleteCaseDialog(): boolean {
 export function setSkipCompleteCaseDialog(skip: boolean) {
   try {
     if (skip) {
-      localStorage.setItem(SKIP_COMPLETE_CASE_DIALOG_KEY, "true");
+      sessionStorage.setItem(SKIP_COMPLETE_CASE_DIALOG_KEY, "true");
     } else {
-      localStorage.removeItem(SKIP_COMPLETE_CASE_DIALOG_KEY);
+      sessionStorage.removeItem(SKIP_COMPLETE_CASE_DIALOG_KEY);
     }
   } catch {
     /* storage unavailable */

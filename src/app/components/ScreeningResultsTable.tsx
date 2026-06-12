@@ -7,19 +7,18 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { Check, Eye, EyeOff, List } from "lucide-react";
+import { Check, Eye, EyeOff, MoreVertical } from "lucide-react";
 import { AceInputField } from "@ace-ds/components/atoms/AceInputField";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
-import { MatchSimulatorContent } from "./MatchSimulatorDrawerContent";
 import { aceAccordionFixedHeaderClass } from "../lib/aceAccordion";
 import { aceDropShadowXsClass } from "../lib/aceShadow";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { cn } from "./ui/utils";
 import {
-  isLevel1ConfirmedStatus,
-  isLevel1InProcessStatus,
   LEVEL1_STATUS_DISPLAY_ORDER,
   LEVEL2_DECISION_STATUSES,
+  isLevel1ConfirmedStatus,
+  isLevel1InProcessStatus,
   type Level1ScreeningStatus,
   type Level2DecisionStatus,
 } from "../lib/reviewDecisionConfig";
@@ -30,12 +29,42 @@ import {
   type FinScanTableColumn,
 } from "./ExpandableFinScanTable";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 import { getListProfileSummaryForRow } from "../lib/listProfileData";
+import {
+  caseActionsMenuIconClass,
+  screeningRowActionsMenuContentClass,
+  screeningRowActionsMenuItemClass,
+  screeningRowActionsMenuTriggerClass,
+} from "../lib/caseActionsMenuStyles";
 import { ListProfilePanel } from "./ListProfilePanel";
+import { MatchSimulatorPanel } from "./MatchSimulatorPanel";
+import { ScreeningDrilldownPlaceholderPanel } from "./ScreeningDrilldownPlaceholderPanel";
 
 export { easeAccordion, durationAccordion } from "./ExpandableFinScanTable";
 
 const LIST_PROFILE_ANIMATION_MS = 420;
+
+const ROW_DRILLDOWN_VIEWS = [
+  "screening-history",
+  "documents",
+  "list-profile",
+  "match-simulator",
+] as const;
+
+type RowDrilldownView = (typeof ROW_DRILLDOWN_VIEWS)[number];
+
+const ROW_DRILLDOWN_TRANSLATE: Record<RowDrilldownView, string> = {
+  "screening-history": "-translate-x-[20%]",
+  documents: "-translate-x-[40%]",
+  "list-profile": "-translate-x-[60%]",
+  "match-simulator": "-translate-x-[80%]",
+};
 
 /** Level 1 decision outcomes plus Level 2 terminal statuses. */
 export type ScreeningRowStatus = Level1ScreeningStatus | Level2DecisionStatus;
@@ -181,9 +210,34 @@ export function level1ReviewerForCaseIndex(caseIndex: number): string {
   return level1ReviewerForCase(caseIndex);
 }
 
+/** Status label as shown in the table status column (used for dynamic filter chips). */
+export function tableStatusLabel(row: ScreeningTableDisplayRow): string {
+  if (row.displayStatus === "Confirmed Safe") return "Confirmed Safe";
+  if (row.displayStatus === "Safe") return "Safe";
+  return row.status;
+}
+
+const STATUS_FILTER_DISPLAY_ORDER: readonly string[] = [
+  ...LEVEL1_STATUS_DISPLAY_ORDER,
+  ...LEVEL2_DECISION_STATUSES.filter((status) => status === "False Positive"),
+];
+
+/** True when the current selection will clear all remaining actionable rows for the case. */
+export function willCompleteCaseOnSubmit(
+  rows: ScreeningResultRow[],
+  selectedIds: Set<string>,
+  flowVariant: "level-1" | "level-2",
+): boolean {
+  const pending =
+    flowVariant === "level-1"
+      ? rows.filter((row) => row.status === "New")
+      : rows.filter((row) => isLevel1InProcessStatus(row.status));
+  return pending.length > 0 && pending.every((row) => selectedIds.has(row.id));
+}
+
 export const MOCK_ROWS: ScreeningResultRow[] = getScreeningRowsForCase(0);
 
-type SortKey = "name" | "dob" | "matchAge" | "matchScore" | "status" | "reviewer";
+type SortKey = "name" | "country" | "dob" | "matchAge" | "matchScore" | "status" | "reviewer";
 type SortDir = "asc" | "desc";
 
 export function scoreIsHighRisk(score: number): boolean {
@@ -201,7 +255,20 @@ export function tileSoftStyle(code: string): { bg: string; fg: string; border: s
 }
 
 /** Match-string tiles — same markup as the screening results table column. */
-export function MatchStringTiles({ tiles, className }: { tiles: string[]; className?: string }) {
+export function MatchStringTiles({
+  tiles,
+  className,
+  size = "default",
+}: {
+  tiles: string[];
+  className?: string;
+  size?: "default" | "lg";
+}) {
+  const tileSizeClass =
+    size === "lg"
+      ? "h-[28px] min-w-[28px] px-1.5 text-[12.5px]"
+      : "h-[22px] min-w-[22px] px-1 text-[10px]";
+
   return (
     <div className={cn("flex flex-wrap items-center gap-1", className)}>
       {tiles.map((t, i) => {
@@ -210,7 +277,10 @@ export function MatchStringTiles({ tiles, className }: { tiles: string[]; classN
           <span
             key={`${t}-${i}`}
             title={t}
-            className="inline-flex h-[22px] w-fit min-w-[22px] shrink-0 items-center justify-center whitespace-nowrap rounded border border-solid px-1 text-[10px] font-semibold leading-none"
+            className={cn(
+              "inline-flex w-fit shrink-0 items-center justify-center whitespace-nowrap rounded border border-solid font-semibold leading-none",
+              tileSizeClass,
+            )}
             style={{
               backgroundColor: s.bg,
               color: s.fg,
@@ -225,10 +295,8 @@ export function MatchStringTiles({ tiles, className }: { tiles: string[]; classN
   );
 }
 
-function ageDotClass(tone: ScreeningResultRow["matchAgeTone"]): string {
-  if (tone === "fresh") return "bg-[#2e7d32]";
-  if (tone === "warn") return "bg-[#ef6c00]";
-  return "bg-[#c62828]";
+function showMatchAgeStaleIndicator(tone: ScreeningResultRow["matchAgeTone"]): boolean {
+  return tone === "stale";
 }
 
 function parseAgeForSort(label: string): number {
@@ -747,6 +815,60 @@ export function caseHasLevel2Activity(rows: ScreeningResultRow[]): boolean {
 }
 
 /** True when the case work queue is cleared (L1: no "New"; L2: no L1 in-process rows). */
+function ScreeningRowActionsMenu({
+  row,
+  onOpenDrilldown,
+}: {
+  row: ScreeningTableDisplayRow;
+  onOpenDrilldown: (row: ScreeningTableDisplayRow, view: RowDrilldownView) => void;
+}) {
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Actions for ${row.name}`}
+          onClick={(e) => e.stopPropagation()}
+          className={screeningRowActionsMenuTriggerClass}
+        >
+          <MoreVertical className={caseActionsMenuIconClass} strokeWidth={2} aria-hidden />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        variant="compact"
+        className={screeningRowActionsMenuContentClass}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <DropdownMenuItem
+          className={screeningRowActionsMenuItemClass}
+          onSelect={() => onOpenDrilldown(row, "screening-history")}
+        >
+          Screening History
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className={screeningRowActionsMenuItemClass}
+          onSelect={() => onOpenDrilldown(row, "documents")}
+        >
+          Documents
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className={screeningRowActionsMenuItemClass}
+          onSelect={() => onOpenDrilldown(row, "list-profile")}
+        >
+          List Profile
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className={screeningRowActionsMenuItemClass}
+          onSelect={() => onOpenDrilldown(row, "match-simulator")}
+        >
+          Match Simulator
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function isCaseReviewComplete(
   rows: ScreeningResultRow[],
   flowVariant: "level-1" | "level-2" = "level-1",
@@ -772,16 +894,16 @@ export function ScreeningResultsTable({
   onSelectedIdsChange,
 }: ScreeningResultsTableProps) {
   const isLevel2 = flowVariant === "level-2";
-  /** Empty set = no filter (show all). Otherwise rows must match one of the selected statuses. */
-  const [statusFilters, setStatusFilters] = useState<Set<ScreeningRowStatus>>(() => new Set());
+  /** Empty set = no filter (show all). Otherwise rows must match one of the selected status labels. */
+  const [statusFilters, setStatusFilters] = useState<Set<string>>(() => new Set());
   const [showReviewHistory, setShowReviewHistory] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [listProfileRow, setListProfileRow] = useState<ScreeningTableDisplayRow | null>(null);
-  const [listProfileVisible, setListProfileVisible] = useState(false);
-  const listProfileCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [drilldownRow, setDrilldownRow] = useState<ScreeningTableDisplayRow | null>(null);
+  const [drilldownView, setDrilldownView] = useState<RowDrilldownView | null>(null);
+  const [drilldownVisible, setDrilldownVisible] = useState(false);
+  const drilldownCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(() => new Set());
   const isSelectionControlled =
     selectedIdsProp !== undefined && onSelectedIdsChange !== undefined;
@@ -798,45 +920,81 @@ export function ScreeningResultsTable({
   );
   const [sectionCollapsed, setSectionCollapsed] = useState(false);
 
-  const clearListProfileCloseTimer = useCallback(() => {
-    if (listProfileCloseTimerRef.current !== null) {
-      clearTimeout(listProfileCloseTimerRef.current);
-      listProfileCloseTimerRef.current = null;
+  const clearDrilldownCloseTimer = useCallback(() => {
+    if (drilldownCloseTimerRef.current !== null) {
+      clearTimeout(drilldownCloseTimerRef.current);
+      drilldownCloseTimerRef.current = null;
     }
   }, []);
 
-  const openListProfile = useCallback(
-    (row: ScreeningTableDisplayRow) => {
-      clearListProfileCloseTimer();
-      setListProfileRow(row);
-      requestAnimationFrame(() => setListProfileVisible(true));
+  const openRowDrilldown = useCallback(
+    (row: ScreeningTableDisplayRow, view: RowDrilldownView) => {
+      clearDrilldownCloseTimer();
+      setDrilldownRow(row);
+      setDrilldownView(view);
+      requestAnimationFrame(() => setDrilldownVisible(true));
     },
-    [clearListProfileCloseTimer],
+    [clearDrilldownCloseTimer],
   );
 
-  const closeListProfile = useCallback(() => {
-    clearListProfileCloseTimer();
-    setListProfileVisible(false);
-    listProfileCloseTimerRef.current = setTimeout(() => {
-      listProfileCloseTimerRef.current = null;
-      setListProfileRow(null);
+  const closeRowDrilldown = useCallback(() => {
+    clearDrilldownCloseTimer();
+    setDrilldownVisible(false);
+    drilldownCloseTimerRef.current = setTimeout(() => {
+      drilldownCloseTimerRef.current = null;
+      setDrilldownRow(null);
+      setDrilldownView(null);
     }, LIST_PROFILE_ANIMATION_MS);
-  }, [clearListProfileCloseTimer]);
+  }, [clearDrilldownCloseTimer]);
 
-  useEffect(() => () => clearListProfileCloseTimer(), [clearListProfileCloseTimer]);
+  useEffect(() => () => clearDrilldownCloseTimer(), [clearDrilldownCloseTimer]);
 
   const isCaseComplete = useMemo(
     () => isCaseReviewComplete(rows, flowVariant),
     [rows, flowVariant],
   );
 
+  /** Stable per case — row ids do not change when statuses update after review submit. */
+  const caseRowIdsKey = useMemo(
+    () => rows.map((r) => r.id).sort().join("\0"),
+    [rows],
+  );
+
   useEffect(() => {
     setShowReviewHistory(false);
+    setStatusFilters(new Set());
     setSearchQuery("");
-    clearListProfileCloseTimer();
-    setListProfileVisible(false);
-    setListProfileRow(null);
-  }, [rows, clearListProfileCloseTimer]);
+    clearDrilldownCloseTimer();
+    setDrilldownVisible(false);
+    setDrilldownRow(null);
+    setDrilldownView(null);
+
+    if (isCaseReviewComplete(rows, flowVariant)) return;
+    if (isLevel2) {
+      const withHistory = buildLevel2DisplayRows(rows, true, false);
+      const labelCount = new Set(withHistory.map(tableStatusLabel)).size;
+      if (labelCount > 1) {
+        setShowReviewHistory(true);
+      }
+      return;
+    }
+    const hasNew = rows.some((r) => r.status === "New");
+    const hasReviewed = rows.some((r) => r.status !== "New");
+    if (hasNew && hasReviewed) {
+      setShowReviewHistory(true);
+    }
+  }, [caseRowIdsKey, clearDrilldownCloseTimer, flowVariant, isLevel2, rows]);
+
+  useEffect(() => {
+    if (isCaseComplete) return;
+    const withHistoryRows = isLevel2
+      ? buildLevel2DisplayRows(rows, true, false)
+      : buildLevel1DisplayRows(rows, true);
+    const labelCount = new Set(withHistoryRows.map(tableStatusLabel)).size;
+    if (labelCount > 1) {
+      setShowReviewHistory(true);
+    }
+  }, [rows, isLevel2, isCaseComplete]);
 
   const hasReviewHistory = useMemo(() => {
     if (isLevel2) {
@@ -860,21 +1018,43 @@ export function ScreeningResultsTable({
 
   const showReviewHistoryToggle = !isCaseComplete;
 
-  // Chips = one per status in the current table view. Multi-select: OR semantics. Empty selection = show all rows.
+  // Chips = one per status label in the current table view. Multi-select: OR semantics. Empty selection = show all rows.
   const statusChips = useMemo(() => {
-    if (isLevel2) return [];
-    const set = new Set<ScreeningRowStatus>();
-    baseRows.forEach((r) => set.add(r.status));
-    return LEVEL1_STATUS_DISPLAY_ORDER.filter((status) => set.has(status));
-  }, [isLevel2, baseRows]);
+    const set = new Set<string>();
+    baseRows.forEach((row) => set.add(tableStatusLabel(row)));
+    const ordered = STATUS_FILTER_DISPLAY_ORDER.filter((status) => set.has(status));
+    const extras = [...set].filter((status) => !STATUS_FILTER_DISPLAY_ORDER.includes(status)).sort();
+    return [...ordered, ...extras];
+  }, [baseRows]);
 
   const historyToggleDisabled = !hasReviewHistory && !showReviewHistory;
 
+  const showStatusFilter = statusChips.length > 1 || statusFilters.size > 0;
+
+  const toggleStatusFilter = useCallback(
+    (status: string) => {
+      setStatusFilters((prev) => {
+        const next = new Set(prev);
+        if (next.has(status)) next.delete(status);
+        else next.add(status);
+        return next;
+      });
+      if (status === "New") return;
+      if (isLevel2) {
+        if (!isLevel1InProcessStatus(status)) {
+          setShowReviewHistory(true);
+        }
+      } else {
+        setShowReviewHistory(true);
+      }
+    },
+    [isLevel2],
+  );
+
   useEffect(() => {
-    if (isLevel2) return;
     setStatusFilters((prev) => {
-      const allowed = new Set<ScreeningRowStatus>(statusChips);
-      const next = new Set<ScreeningRowStatus>();
+      const allowed = new Set<string>(statusChips);
+      const next = new Set<string>();
       prev.forEach((status) => {
         if (allowed.has(status)) next.add(status);
       });
@@ -883,13 +1063,12 @@ export function ScreeningResultsTable({
       }
       return next;
     });
-  }, [isLevel2, statusChips]);
+  }, [statusChips]);
 
   const filteredRows = useMemo(() => {
-    if (isLevel2) return baseRows;
     if (statusFilters.size === 0) return baseRows;
-    return baseRows.filter((r) => statusFilters.has(r.status));
-  }, [isLevel2, baseRows, statusFilters]);
+    return baseRows.filter((row) => statusFilters.has(tableStatusLabel(row)));
+  }, [baseRows, statusFilters]);
 
   const searchFilteredRows = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -910,6 +1089,7 @@ export function ScreeningResultsTable({
         listSummary.listCategory,
         listSummary.listId,
         listSummary.listProfileId,
+        listSummary.country,
         ...row.matchTiles,
       ]
         .join(" ")
@@ -927,6 +1107,11 @@ export function ScreeningResultsTable({
       switch (sortKey) {
         case "name":
           cmp = a.name.localeCompare(b.name);
+          break;
+        case "country":
+          cmp = getListProfileSummaryForRow(a).country.localeCompare(
+            getListProfileSummaryForRow(b).country,
+          );
           break;
         case "dob":
           cmp = a.dob.localeCompare(b.dob);
@@ -967,13 +1152,6 @@ export function ScreeningResultsTable({
         .map((r) => r.id),
     );
     setSelectedIds((prev) => {
-      const next = new Set<string>();
-      prev.forEach((id) => {
-        if (allowActionable.has(id)) next.add(id);
-      });
-      return next;
-    });
-    setExpandedIds((prev) => {
       const next = new Set<string>();
       prev.forEach((id) => {
         if (allowActionable.has(id)) next.add(id);
@@ -1108,6 +1286,14 @@ export function ScreeningResultsTable({
         render: (row) => row.name,
       },
       {
+        key: "country",
+        label: "Country",
+        sortKey: "country",
+        headerClassName: "whitespace-nowrap",
+        cellClassName: "text-[#464c59] dark:text-[#9fadbc] whitespace-nowrap",
+        render: (row) => getListProfileSummaryForRow(row).country,
+      },
+      {
         key: "dob",
         label: "Date of Birth",
         sortKey: "dob",
@@ -1123,7 +1309,9 @@ export function ScreeningResultsTable({
         cellClassName: "whitespace-nowrap",
         render: (row) => (
           <span className="inline-flex items-center gap-2 text-[#464c59] dark:text-[#9fadbc]">
-            <span className={cn("size-2 shrink-0 rounded-full", ageDotClass(row.matchAgeTone))} />
+            {showMatchAgeStaleIndicator(row.matchAgeTone) ? (
+              <span className="size-2 shrink-0 rounded-full bg-[#c62828]" aria-hidden />
+            ) : null}
             {row.matchAgeLabel}
           </span>
         ),
@@ -1149,18 +1337,18 @@ export function ScreeningResultsTable({
         ),
       },
       {
-        key: "listCategory",
-        label: "List Category",
-        headerClassName: "whitespace-nowrap",
-        cellClassName: "text-[#464c59] dark:text-[#9fadbc] whitespace-nowrap",
-        render: (row) => getListProfileSummaryForRow(row).listCategory,
-      },
-      {
         key: "listId",
         label: "List ID",
         headerClassName: "whitespace-nowrap",
         cellClassName: "text-[#464c59] dark:text-[#9fadbc] whitespace-nowrap",
         render: (row) => getListProfileSummaryForRow(row).listId,
+      },
+      {
+        key: "listCategory",
+        label: "List Category",
+        headerClassName: "whitespace-nowrap",
+        cellClassName: "text-[#464c59] dark:text-[#9fadbc] whitespace-nowrap",
+        render: (row) => getListProfileSummaryForRow(row).listCategory,
       },
       {
         key: "listProfileId",
@@ -1300,19 +1488,23 @@ export function ScreeningResultsTable({
             <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
               <div
                 className={cn(
-                  "flex h-full w-[200%] shrink-0 transition-transform will-change-transform",
+                  "flex h-full w-[500%] shrink-0 transition-transform will-change-transform",
                   durationAccordion,
                   easeAccordion,
-                  listProfileVisible ? "-translate-x-1/2" : "translate-x-0",
+                  !drilldownVisible
+                    ? "translate-x-0"
+                    : drilldownView
+                      ? ROW_DRILLDOWN_TRANSLATE[drilldownView]
+                      : "translate-x-0",
                 )}
               >
                 <div
-                  className="flex h-full min-h-0 w-1/2 min-w-0 flex-col overflow-hidden"
-                  aria-hidden={listProfileVisible}
+                  className="flex h-full min-h-0 w-1/5 min-w-0 flex-col overflow-hidden"
+                  aria-hidden={drilldownVisible}
                 >
             <div className="shrink-0 border-b border-[#cfd2d9] dark:border-[#38414a] bg-[#fafafb] dark:bg-[#1d2125] px-4 py-3">
               <div className="flex flex-nowrap items-center justify-between gap-3">
-                {!isLevel2 && statusChips.length > 1 ? (
+                {showStatusFilter ? (
                   <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                     <span
                       className="font-['Noto_Sans:SemiBold',sans-serif] text-[14px] text-[#23262c] dark:text-[#b6c2cf] shrink-0"
@@ -1327,14 +1519,7 @@ export function ScreeningResultsTable({
                           <button
                             key={st}
                             type="button"
-                            onClick={() =>
-                              setStatusFilters((prev) => {
-                                const next = new Set(prev);
-                                if (next.has(st)) next.delete(st);
-                                else next.add(st);
-                                return next;
-                              })
-                            }
+                            onClick={() => toggleStatusFilter(st)}
                             className={cn(
                               "inline-flex w-fit shrink-0 cursor-pointer whitespace-nowrap rounded-[4px] px-3.5 py-1.5 text-[13px] font-['Noto_Sans:SemiBold',sans-serif] font-semibold transition-all duration-200 ease-out border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/40 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#22272b]",
                               active
@@ -1363,10 +1548,10 @@ export function ScreeningResultsTable({
                             aria-expanded={showReviewHistory}
                             aria-label={
                               historyToggleDisabled
-                                ? "Show review history"
+                                ? "There is no history to show"
                                 : showReviewHistory
-                                  ? "Hide review history"
-                                  : "Show review history"
+                                  ? "Hide"
+                                  : "Show"
                             }
                             onClick={() => setShowReviewHistory((o) => !o)}
                             className={cn(
@@ -1394,7 +1579,9 @@ export function ScreeningResultsTable({
                       >
                         {historyToggleDisabled
                           ? "There is no history to show."
-                          : "Show review history"}
+                          : showReviewHistory
+                            ? "Hide"
+                            : "Show"}
                       </TooltipContent>
                     </Tooltip>
                   ) : null}
@@ -1417,14 +1604,8 @@ export function ScreeningResultsTable({
               className="min-h-0 min-w-0 flex-1"
               tableLayout="auto"
               minWidth="min-w-full"
+              expandable={false}
               showExpandAll={false}
-              isRowExpandable={(row) =>
-                isLevel2
-                  ? !row.readOnlyHistory && isLevel1InProcessStatus(row.status)
-                  : row.status === "New"
-              }
-              expandedIds={expandedIds}
-              onExpandedIdsChange={setExpandedIds}
               sort={{
                 sortKey,
                 sortDir,
@@ -1443,22 +1624,7 @@ export function ScreeningResultsTable({
               }}
               trailingColumn={{
                 render: (row) => (
-                  <button
-                    type="button"
-                    aria-label={`View list profile for ${row.name}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openListProfile(row);
-                    }}
-                    className={cn(
-                      "inline-flex size-8 cursor-pointer items-center justify-center rounded-[4px] border border-[#cfd2d9] bg-white text-[#523eb9] transition-all duration-200 ease-out dark:border-[#38414a] dark:bg-[#22272b]",
-                      "opacity-0 pointer-events-none group-hover/row:pointer-events-auto group-hover/row:opacity-100",
-                      "hover:border-[#949baa] hover:bg-[#eff0f2] dark:hover:border-[#5c6773] dark:hover:bg-[#2c333a]",
-                      "focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/35 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#22272b]",
-                    )}
-                  >
-                    <List className="size-4 shrink-0" strokeWidth={2} aria-hidden />
-                  </button>
+                  <ScreeningRowActionsMenu row={row} onOpenDrilldown={openRowDrilldown} />
                 ),
               }}
               getRowClassName={(row) => {
@@ -1472,17 +1638,48 @@ export function ScreeningResultsTable({
                 );
               }}
               emptyState={sortedRows.length === 0 ? screeningEmptyState : undefined}
-              renderExpandedContent={(row) => (
-                <MatchSimulatorContent key={row.id} row={row} layout="inline" />
-              )}
             />
                 </div>
                 <div
-                  className="flex h-full min-h-0 w-1/2 min-w-0 flex-col overflow-hidden"
-                  aria-hidden={!listProfileVisible}
+                  className="flex h-full min-h-0 w-1/5 min-w-0 flex-col overflow-hidden"
+                  aria-hidden={!drilldownVisible || drilldownView !== "screening-history"}
                 >
-                  {listProfileRow ? (
-                    <ListProfilePanel row={listProfileRow} onBack={closeListProfile} />
+                  {drilldownRow && drilldownView === "screening-history" ? (
+                    <ScreeningDrilldownPlaceholderPanel
+                      row={drilldownRow}
+                      title="Screening History"
+                      description="Screening history for this match will appear here."
+                      onBack={closeRowDrilldown}
+                    />
+                  ) : null}
+                </div>
+                <div
+                  className="flex h-full min-h-0 w-1/5 min-w-0 flex-col overflow-hidden"
+                  aria-hidden={!drilldownVisible || drilldownView !== "documents"}
+                >
+                  {drilldownRow && drilldownView === "documents" ? (
+                    <ScreeningDrilldownPlaceholderPanel
+                      row={drilldownRow}
+                      title="Documents"
+                      description="Documents related to this match will appear here."
+                      onBack={closeRowDrilldown}
+                    />
+                  ) : null}
+                </div>
+                <div
+                  className="flex h-full min-h-0 w-1/5 min-w-0 flex-col overflow-hidden"
+                  aria-hidden={!drilldownVisible || drilldownView !== "list-profile"}
+                >
+                  {drilldownRow && drilldownView === "list-profile" ? (
+                    <ListProfilePanel row={drilldownRow} onBack={closeRowDrilldown} />
+                  ) : null}
+                </div>
+                <div
+                  className="flex h-full min-h-0 w-1/5 min-w-0 flex-col overflow-hidden"
+                  aria-hidden={!drilldownVisible || drilldownView !== "match-simulator"}
+                >
+                  {drilldownRow && drilldownView === "match-simulator" ? (
+                    <MatchSimulatorPanel row={drilldownRow} onBack={closeRowDrilldown} />
                   ) : null}
                 </div>
               </div>

@@ -10,12 +10,14 @@ import {
   type SetStateAction,
 } from "react";
 import { MoreVertical } from "lucide-react";
+import { caseActionsMenuIconClass, caseActionsMenuTriggerClass } from "../../lib/caseActionsMenuStyles";
 import { AllCasesClearedState } from "../../components/AllCasesClearedState";
 import { CaseListSection } from "../../components/CaseListSection";
 import { ThemeProvider } from "../../context/ThemeContext";
 import { aceAccordionFixedHeaderClass } from "../../lib/aceAccordion";
 import { aceDropShadowXsClass } from "../../lib/aceShadow";
 import { aceTypography, ACE_TYPE } from "../../lib/aceTypography";
+import { ReviewMetaTag } from "../../components/ReviewMetaTag";
 import { ReviewFlowSiteHeader } from "../../components/ReviewFlowSiteHeader";
 import {
   ClientProfileMetaBadge,
@@ -50,8 +52,17 @@ import {
   type ScreeningResultRow,
 } from "../../components/ScreeningResultsTable";
 import { useScreeningRowsByCase } from "../../lib/screeningState";
+import { useCompleteCaseSubmit } from "../../lib/useCompleteCaseSubmit";
+import {
+  CASE_INTERACTION_OPTIONS,
+  casesData,
+  clientProfileForCaseIndex,
+  riskBandPresentation,
+  type CaseInteractionPicklist,
+} from "../../lib/reviewCaseData";
 import { cn } from "../../components/ui/utils";
 import { ReviewDrawer } from "../../components/ReviewDrawer";
+import { SidebarNavCountBadge } from "../../components/SidebarNavCountBadge";
 import type { Level1ScreeningStatus } from "../../lib/reviewDecisionConfig";
 import { AceSidebar } from "@ace-ds/components/organisms/AceSidebar/AceSidebar";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
@@ -59,6 +70,7 @@ import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccor
 interface PageHeaderProps {
   isSidebarOpen: boolean;
   sidebarPinned: boolean;
+  levelLabel: string;
   onTriggerClick: () => void;
   onTriggerMouseEnter: () => void;
   onTriggerMouseLeave: () => void;
@@ -67,13 +79,14 @@ interface PageHeaderProps {
 function PageHeader({
   isSidebarOpen,
   sidebarPinned,
+  levelLabel,
   onTriggerClick,
   onTriggerMouseEnter,
   onTriggerMouseLeave,
 }: PageHeaderProps) {
   return (
     <div className="flex shrink-0 items-center justify-between border-b border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-4 py-3 md:px-8">
-      <div className="flex gap-5 items-center">
+      <div className="flex items-center gap-5">
         <button
           type="button"
           aria-expanded={isSidebarOpen}
@@ -91,9 +104,12 @@ function PageHeader({
             <path d={svgPaths.p3f53b460} fill="currentColor" />
           </svg>
         </button>
-        <p className={cn(aceTypography(ACE_TYPE.h6Bold), "leading-[1.65] text-[var(--screening-text-primary)]")}>
-          Review Assigned
-        </p>
+        <div className="flex items-center gap-2">
+          <p className={cn(aceTypography(ACE_TYPE.h6Bold), "leading-[1.65] text-[var(--screening-text-primary)]")}>
+            Review Assigned
+          </p>
+          <ReviewMetaTag>{levelLabel}</ReviewMetaTag>
+        </div>
       </div>
       <div className="flex gap-2 md:gap-4 items-center">
         <div className="bg-[#87b531] rounded-[100px] size-[8px] animate-pulse" />
@@ -105,7 +121,7 @@ function PageHeader({
   );
 }
 
-const SIDEBAR_ORGANIZATIONS = [{ id: "group-a", label: "Group A" }] as const;
+const SIDEBAR_ORGANIZATIONS = [{ id: "level-1-users", label: "Level 1 Users" }] as const;
 
 type SidebarNavItemConfig = {
   id: string;
@@ -115,54 +131,38 @@ type SidebarNavItemConfig = {
   badgeLabelClass: string;
 };
 
-const SIDEBAR_NAV_ITEMS: readonly SidebarNavItemConfig[] = [
+const SIDEBAR_NAV_ITEMS: readonly Omit<SidebarNavItemConfig, "count">[] = [
   {
     id: "sanction",
     label: "Sanction Matches",
-    count: 6,
     selectable: true,
     badgeLabelClass: "text-[#523eb9]",
   },
   {
     id: "pep",
     label: "PEP Screening",
-    count: 53,
     selectable: false,
     badgeLabelClass: "text-[#92278f]",
   },
   {
     id: "new-clients",
     label: "New Clients",
-    count: 27,
     selectable: false,
     badgeLabelClass: "text-[#87b531]",
   },
   {
     id: "financial",
     label: "Financial Crime",
-    count: 19,
     selectable: false,
     badgeLabelClass: "text-[#0672a3]",
   },
 ];
 
-function SidebarNavCountBadge({
-  count,
-  badgeLabelClass,
-}: Pick<SidebarNavItemConfig, "count" | "badgeLabelClass">) {
-  return (
-    <span
-      className={cn(
-        "mr-3 inline-flex shrink-0 items-center justify-end tabular-nums",
-        aceTypography(ACE_TYPE.captionBold),
-        badgeLabelClass,
-      )}
-      aria-hidden
-    >
-      {count}
-    </span>
-  );
-}
+const STATIC_SIDEBAR_COUNTS: Record<string, number> = {
+  pep: 53,
+  "new-clients": 27,
+  financial: 19,
+};
 
 function ReviewSidebarNavRow({
   item,
@@ -214,13 +214,23 @@ function ReviewSidebarNavRow({
 
 interface ReviewSidebarProps {
   isOpen: boolean;
+  sanctionMatchCount: number;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
 }
 
-function ReviewSidebar({ isOpen, onMouseEnter, onMouseLeave }: ReviewSidebarProps) {
+function ReviewSidebar({ isOpen, sanctionMatchCount, onMouseEnter, onMouseLeave }: ReviewSidebarProps) {
   const [selectedOrgId, setSelectedOrgId] = useState<string>(SIDEBAR_ORGANIZATIONS[0].id);
   const [selectedNavId, setSelectedNavId] = useState<string>(SIDEBAR_NAV_ITEMS[0].id);
+
+  const navItems = useMemo(
+    (): SidebarNavItemConfig[] =>
+      SIDEBAR_NAV_ITEMS.map((item) => ({
+        ...item,
+        count: item.id === "sanction" ? sanctionMatchCount : (STATIC_SIDEBAR_COUNTS[item.id] ?? 0),
+      })),
+    [sanctionMatchCount],
+  );
 
   return (
     <div className="h-full shrink-0" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
@@ -234,7 +244,15 @@ function ReviewSidebar({ isOpen, onMouseEnter, onMouseLeave }: ReviewSidebarProp
         className="h-full"
       >
         <div className="flex flex-col gap-0">
-          {SIDEBAR_NAV_ITEMS.map((item) => (
+          <p
+            className={cn(
+              aceTypography(ACE_TYPE.p1SemiBold),
+              "px-3 pb-2 pt-1 text-[var(--screening-text-primary)]",
+            )}
+          >
+            Screening Rules
+          </p>
+          {navItems.map((item) => (
             <ReviewSidebarNavRow
               key={item.id}
               item={item}
@@ -246,130 +264,6 @@ function ReviewSidebar({ isOpen, onMouseEnter, onMouseLeave }: ReviewSidebarProp
       </AceSidebar>
     </div>
   );
-}
-
-const CASE_INTERACTION_OPTIONS = [
-  "Risk",
-  "Review Target",
-  "Organization",
-  "Individual",
-] as const;
-type CaseInteraction = (typeof CASE_INTERACTION_OPTIONS)[number];
-type CaseInteractionPicklist = "all" | CaseInteraction;
-
-const casesData = [
-  { name: "John Smith", results: 8, selected: true, interaction: "Individual" as const },
-  { name: "Mr. Jose A Gonzalez", results: 8, selected: false, interaction: "Review Target" as const },
-  { name: "Muammar Qadhafi", results: 7, selected: false, interaction: "Risk" as const },
-  { name: "Jane Doe", results: 5, selected: false, interaction: "Individual" as const },
-  { name: "Bank of Iran", results: 3, selected: false, isEntity: true, interaction: "Organization" as const },
-  { name: "Bank of Moscow", results: 2, selected: false, isEntity: true, interaction: "Organization" as const },
-] as const;
-
-type ClientRiskBand = "low" | "medium" | "high";
-
-interface ClientProfileFields {
-  countryLabel: string;
-  dob: string | null;
-  gender: string | null;
-  addressLines: readonly [string, string, string];
-  lastModified: string;
-  applicationLabel: string;
-  reviewTargetSummary: string;
-  reviewTargetOverdue: boolean;
-  riskBand: ClientRiskBand;
-  showIdVerified: boolean;
-}
-
-/** Per-case profile: aligned with `casesData` indices (0–5). */
-const CLIENT_PROFILES: readonly ClientProfileFields[] = [
-  {
-    countryLabel: "USA",
-    dob: "03/23/1978",
-    gender: "Male",
-    addressLines: ["3943 Allegheny Blvd.", "Pittsburgh, PA 15203", "USA"],
-    lastModified: "01 Oct 2025 16:44:14",
-    applicationLabel: "ISI Focus",
-    reviewTargetSummary: "Level 1",
-    reviewTargetOverdue: true,
-    riskBand: "low",
-    showIdVerified: true,
-  },
-  {
-    countryLabel: "USA",
-    dob: "04/11/1985",
-    gender: "Male",
-    addressLines: ["2200 Brickell Ave, Ste 400", "Miami, FL 33129", "USA"],
-    lastModified: "28 Sep 2025 09:12:03",
-    applicationLabel: "ISI Focus",
-    reviewTargetSummary: "Level 1",
-    reviewTargetOverdue: false,
-    riskBand: "low",
-    showIdVerified: true,
-  },
-  {
-    countryLabel: "LBY",
-    dob: "06/07/1942",
-    gender: "Male",
-    addressLines: ["Government District, Bab al-Azizia complex", "Tripoli, Tripoli District", "Libya"],
-    lastModified: "15 Sep 2025 11:30:44",
-    applicationLabel: "ISI Focus",
-    reviewTargetSummary: "Level 1",
-    reviewTargetOverdue: false,
-    riskBand: "high",
-    showIdVerified: true,
-  },
-  {
-    countryLabel: "USA",
-    dob: "09/14/1992",
-    gender: "Female",
-    addressLines: ["88 Beacon St, Unit 6B", "Boston, MA 02108", "USA"],
-    lastModified: "22 Aug 2025 14:05:47",
-    applicationLabel: "ISI Focus",
-    reviewTargetSummary: "Level 1",
-    reviewTargetOverdue: false,
-    riskBand: "medium",
-    showIdVerified: true,
-  },
-  {
-    countryLabel: "IRN",
-    dob: null,
-    gender: null,
-    addressLines: ["No. 328 Mirdamad Blvd, Valiasr Office Tower", "Tehran 19115", "Iran"],
-    lastModified: "10 Jul 2025 08:41:19",
-    applicationLabel: "ISI Focus",
-    reviewTargetSummary: "Level 1",
-    reviewTargetOverdue: false,
-    riskBand: "high",
-    showIdVerified: false,
-  },
-  {
-    countryLabel: "RUS",
-    dob: null,
-    gender: null,
-    addressLines: ["12 Neglinnaya St, Central Bank Annex", "Moscow 107031", "Russia"],
-    lastModified: "03 Jun 2025 17:22:11",
-    applicationLabel: "ISI Focus",
-    reviewTargetSummary: "Level 1",
-    reviewTargetOverdue: false,
-    riskBand: "high",
-    showIdVerified: false,
-  },
-];
-
-function clientProfileForCaseIndex(caseIndex: number): ClientProfileFields {
-  const i = Math.max(0, Math.min(caseIndex, CLIENT_PROFILES.length - 1));
-  return CLIENT_PROFILES[i];
-}
-
-function riskBandPresentation(band: ClientRiskBand): { box: string; text: string; label: string } {
-  if (band === "high") {
-    return { box: "bg-[#fdeaea] dark:bg-[#3d2f2f]", text: "text-[#9e2a2a] dark:text-[#f0b4b4]", label: "High Risk" };
-  }
-  if (band === "medium") {
-    return { box: "bg-[#fff4e8] dark:bg-[#3d3628]", text: "text-[#c2410c] dark:text-[#f0c090]", label: "Medium Risk" };
-  }
-  return { box: "bg-[#f8fbf1] dark:bg-[#2a302c]", text: "text-[#87b531]", label: "Low Risk" };
 }
 
 function MetaDot() {
@@ -496,6 +390,7 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
 
   const renderCaseRow = (caseItem: (typeof casesData)[number], index: number) => {
     const isEntity = "isEntity" in caseItem && caseItem.isEntity;
+    const clientId = clientProfileForCaseIndex(index).clientId;
     const { done, total } = caseReviewProgress[index] ?? { done: 0, total: 1 };
     const progressPct = total > 0 ? (done / total) * 100 : 0;
     return (
@@ -522,7 +417,7 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
                 {caseItem.name}
               </p>
               <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[#23262c] dark:text-[#b6c2cf] text-[10px] tracking-[0.2px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                {caseItem.results} results
+                {clientId} · {caseItem.results} results
               </p>
             </div>
           </div>
@@ -690,7 +585,12 @@ function DetailPanel({
         showMoreIcon={false}
         open={clientExpanded}
         onOpenChange={setClientExpanded}
-        title={selectedCase.name}
+        title={
+          <span className="inline-flex min-w-0 items-center gap-2">
+            <span className="truncate">{selectedCase.name}</span>
+            <ReviewMetaTag>{profile.clientId}</ReviewMetaTag>
+          </span>
+        }
         titleClassName={cn(
           aceTypography(ACE_TYPE.p1SemiBold),
           "text-[var(--screening-text-primary)]",
@@ -708,10 +608,10 @@ function DetailPanel({
                 <button
                   type="button"
                   aria-label="Case actions"
-                  className="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius-sm)] border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] text-[var(--screening-text-secondary)] transition-colors duration-200 ease-out hover:border-[var(--screening-border-hover)] hover:bg-[var(--screening-surface-hover)] hover:text-[var(--screening-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2"
+                  className={caseActionsMenuTriggerClass}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <MoreVertical className="size-4 shrink-0 rotate-90" strokeWidth={2} aria-hidden />
+                  <MoreVertical className={caseActionsMenuIconClass} strokeWidth={2} aria-hidden />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -785,7 +685,7 @@ function DetailPanel({
                     </svg>
                   </div>
                   <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[14px] text-[#23262c] dark:text-[#b6c2cf]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                    Client Active
+                    Client Active · {profile.clientId}
                   </p>
                 </div>
                 <div className="flex gap-2.5 items-center">
@@ -955,17 +855,21 @@ export function Level1ReviewInterface() {
     [screeningRowsByCase, selectedCaseIndex],
   );
 
-  const actionableScreeningCount = useMemo(
-    () => screeningRows.filter((row) => row.status === "New").length,
-    [screeningRows],
-  );
-
   const allCasesCleared = useMemo(
     () =>
       casesData.every((_, index) => {
         const rows = screeningRowsByCase[index] ?? getScreeningRowsForCase(index);
         return isCaseScreeningComplete(rows);
       }),
+    [screeningRowsByCase],
+  );
+
+  const pendingSanctionCount = useMemo(
+    () =>
+      casesData.reduce((count, _, index) => {
+        const rows = screeningRowsByCase[index] ?? getScreeningRowsForCase(index);
+        return isCaseScreeningComplete(rows) ? count : count + 1;
+      }, 0),
     [screeningRowsByCase],
   );
 
@@ -996,6 +900,13 @@ export function Level1ReviewInterface() {
     },
     [selectedCaseIndex, screeningSelectedIds, setScreeningRowsByCase],
   );
+
+  const { submitReviewDecision, completeCaseConfirmDialog } = useCompleteCaseSubmit({
+    rows: screeningRows,
+    selectedIds: screeningSelectedIds,
+    flowVariant: "level-1",
+    onSubmit: handleSubmitDecision,
+  });
 
   useEffect(() => {
     setScreeningSelectedIds(new Set());
@@ -1070,12 +981,18 @@ export function Level1ReviewInterface() {
       <PageHeader
         isSidebarOpen={sidebarOpen}
         sidebarPinned={sidebarPinned}
+        levelLabel="Level 1"
         onTriggerClick={handleTriggerClick}
         onTriggerMouseEnter={handleTriggerMouseEnter}
         onTriggerMouseLeave={handleTriggerMouseLeave}
       />
       <div className="flex flex-1 overflow-hidden">
-        <ReviewSidebar isOpen={sidebarOpen} onMouseEnter={handleSidebarMouseEnter} onMouseLeave={handleSidebarMouseLeave} />
+        <ReviewSidebar
+          isOpen={sidebarOpen}
+          sanctionMatchCount={pendingSanctionCount}
+          onMouseEnter={handleSidebarMouseEnter}
+          onMouseLeave={handleSidebarMouseLeave}
+        />
         <div className="flex flex-1 overflow-hidden">
           <div className="flex flex-col flex-1 min-h-0 overflow-hidden px-4 pb-4 gap-4">
             <div className="flex flex-1 min-h-0 overflow-hidden gap-4 pt-4">
@@ -1109,11 +1026,11 @@ export function Level1ReviewInterface() {
             onClose={() => setIsReviewDrawerOpen(false)}
             flowVariant="level-1"
             selectedCount={screeningSelectedIds.size}
-            actionableRowCount={actionableScreeningCount}
-            onSubmit={handleSubmitDecision}
+            onSubmit={submitReviewDecision}
           />
         </div>
       </div>
+      {completeCaseConfirmDialog}
     </div>
     </ThemeProvider>
   );

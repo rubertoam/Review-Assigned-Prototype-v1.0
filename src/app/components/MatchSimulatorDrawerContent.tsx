@@ -1,15 +1,8 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ChevronDown } from "lucide-react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "./ui/dropdown-menu";
 import { aceAccordionFixedHeaderClass } from "../lib/aceAccordion";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
-import type { ScreeningResultRow } from "./ScreeningResultsTable";
+import { AceTabs, aceTabButtonId } from "./ui/ace-tabs";import type { ScreeningResultRow } from "./ScreeningResultsTable";
 import {
   MatchStringTiles,
   SimulatorNamePatternsTable,
@@ -21,17 +14,15 @@ import {
   type ReferenceDataFieldRow,
 } from "./ScreeningResultsTable";
 import { cn } from "./ui/utils";
-import matchSimulatorIntro from "../../assets/match-simulator-intro.svg";
 
-const SIMULATOR_VIEWS = [
-  "Run Results",
-  "Reference Data",
-  "Edit Distance",
-  "Name Patterns",
+const SIMULATOR_VIEW_TABS = [
+  { id: "run-results", label: "Run Results" },
+  { id: "reference-data", label: "Reference Data" },
+  { id: "edit-distance", label: "Edit Distance" },
+  { id: "name-patterns", label: "Name Patterns" },
 ] as const;
 
-type SimulatorView = (typeof SIMULATOR_VIEWS)[number];
-
+type SimulatorView = (typeof SIMULATOR_VIEW_TABS)[number]["id"];
 type SimulatorPhase = "intro" | "results";
 
 function splitDisplayName(name: string): { given: string; family: string } {
@@ -361,50 +352,62 @@ const headerTitleClass =
 
 const noto = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 
-const simulatorViewTriggerClass = cn(
-  "inline-flex w-[12.5rem] shrink-0 items-center justify-between gap-[var(--space-2)] rounded-[var(--radius-sm)] border border-solid border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-[var(--ace-button-px-sm)] py-[var(--ace-button-py-sm)] text-xs font-semibold leading-[1.65] text-[var(--screening-text-primary)] outline-none transition-colors [font-family:var(--font-screening)]",
-  "hover:bg-[var(--screening-surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--screening-primary-ring-offset)]",
-  "data-[state=open]:bg-[var(--screening-surface-hover)] data-[state=open]:ring-2 data-[state=open]:ring-[var(--screening-primary-ring)] data-[state=open]:ring-offset-2 data-[state=open]:ring-offset-[var(--screening-primary-ring-offset)]",
-);
-
-function SimulatorViewDropdown({
-  view,
-  onViewChange,
-}: {
-  view: SimulatorView;
-  onViewChange: (view: SimulatorView) => void;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger className={simulatorViewTriggerClass}>
-        <span className="min-w-0 flex-1 truncate text-left">{view}</span>
-        <ChevronDown className="ml-auto size-4 shrink-0 opacity-70" aria-hidden />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        variant="primary"
-        align="start"
-        className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[var(--radix-dropdown-menu-trigger-width)] max-w-[var(--radix-dropdown-menu-trigger-width)]"
-      >
-        {SIMULATOR_VIEWS.map((option) => (
-          <DropdownMenuItem
-            key={option}
-            className={cn(
-              option === view &&
-                "bg-[var(--screening-surface-hover)] [&>span:first-child]:bg-[var(--ace-dropdown-menu-primary)]",
-            )}
-            onSelect={() => onViewChange(option)}
-          >
-            {option}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 interface MatchSimulatorContentProps {
   row: ScreeningResultRow;
   layout?: "modal" | "inline";
+}
+
+function MatchSummaryHeader({
+  row,
+  size = "default",
+  className,
+}: {
+  row: ScreeningResultRow;
+  size?: "default" | "lg";
+  className?: string;
+}) {
+  const scoreTextClass = size === "lg" ? "text-[17.5px]" : "text-[14px]";
+
+  return (
+    <div className={cn("flex flex-wrap items-center gap-3", className)}>
+      <span
+          className={cn(
+            "shrink-0 font-['Noto_Sans:SemiBold',sans-serif] tabular-nums",
+            scoreTextClass,
+            scoreIsHighRisk(row.matchScore)
+              ? "text-[#c62828] dark:text-[#f48a8a]"
+              : "text-[#23262c] dark:text-[#b6c2cf]",
+          )}
+          style={noto}
+        >
+          {row.matchScore}
+        </span>
+      <MatchStringTiles tiles={row.matchTiles} size={size === "lg" ? "lg" : "default"} />
+    </div>
+  );
+}
+
+function MatchSimulatorIdentityHeader({
+  row,
+  size = "default",
+}: {
+  row: ScreeningResultRow;
+  size?: "default" | "lg";
+}) {
+  return (
+    <div className="flex w-full flex-col items-center gap-2 text-center">
+      <h2
+        className={cn(
+          aceTypography(ACE_TYPE.h2SemiBold),
+          "text-[var(--screening-text-primary)]",
+        )}
+        style={noto}
+      >
+        {row.name}
+      </h2>
+      <MatchSummaryHeader row={row} size={size} className="justify-center" />
+    </div>
+  );
 }
 
 export function MatchSimulatorContent({
@@ -412,14 +415,14 @@ export function MatchSimulatorContent({
   layout = "inline",
 }: MatchSimulatorContentProps) {
   const [phase, setPhase] = useState<SimulatorPhase>("intro");
-  const [view, setView] = useState<SimulatorView>("Run Results");
+  const [view, setView] = useState<SimulatorView>("run-results");
+  const tabPrefix = useId();
   const isInline = layout === "inline";
 
   useEffect(() => {
     setPhase("intro");
-    setView("Run Results");
+    setView("run-results");
   }, [row.id]);
-
   const runRows = useMemo(() => buildSimulatorRunRows(row), [row]);
 
   return (
@@ -443,20 +446,11 @@ export function MatchSimulatorContent({
           isInline ? "gap-4 overflow-visible" : "min-h-0 flex-1 gap-6 overflow-hidden p-6",
         )}
       >
-        <div className="flex shrink-0 flex-wrap items-center gap-3">
-          <span
-            className={cn(
-              "shrink-0 font-['Noto_Sans:SemiBold',sans-serif] text-[14px] tabular-nums",
-              scoreIsHighRisk(row.matchScore)
-                ? "text-[#c62828] dark:text-[#f48a8a]"
-                : "text-[#23262c] dark:text-[#b6c2cf]",
-            )}
-            style={noto}
-          >
-            {row.matchScore}
-          </span>
-          <MatchStringTiles tiles={row.matchTiles} />
-        </div>
+        {isInline ? (
+          <MatchSimulatorIdentityHeader row={row} size={phase === "intro" ? "lg" : "default"} />
+        ) : phase !== "intro" ? (
+          <MatchSummaryHeader row={row} className="shrink-0 flex-wrap" />
+        ) : null}
 
         <div className={cn("flex flex-col", isInline ? "gap-4" : "min-h-0 flex-1")}>
         {phase === "intro" ? (
@@ -467,14 +461,9 @@ export function MatchSimulatorContent({
             )}
           >
             <div className="flex flex-col items-center gap-4">
-              <img
-                src={matchSimulatorIntro}
-                alt=""
-                className={cn(
-                  "max-w-full object-contain",
-                  isInline ? "h-[120px] w-[150px]" : "h-[199px] w-[248px]",
-                )}
-              />
+              {!isInline ? (
+                <MatchSummaryHeader row={row} size="lg" className="justify-center" />
+              ) : null}
               <p
                 className="font-['Noto_Sans:Bold',sans-serif] text-[14px] font-bold leading-[1.65] text-[#464c59] dark:text-[#9fadbc]"
                 style={noto}
@@ -501,23 +490,31 @@ export function MatchSimulatorContent({
               isInline ? "" : "min-h-0 flex-1 gap-5",
             )}
           >
-            <div className="shrink-0 self-start p-0.5">
-              <SimulatorViewDropdown view={view} onViewChange={setView} />
-            </div>
+            <AceTabs
+              items={[...SIMULATOR_VIEW_TABS]}
+              value={view}
+              onValueChange={(id) => setView(id as SimulatorView)}
+              idPrefix={tabPrefix}
+              aria-label="Match simulator result views"
+            />
 
-            <div className={cn(isInline ? "max-h-[420px] overflow-y-auto" : "min-h-0 flex-1 overflow-y-auto")}>
-              {view === "Run Results" ? (
+            <div
+              role="tabpanel"
+              id={`${tabPrefix}-panel-${view}`}
+              aria-labelledby={aceTabButtonId(tabPrefix, view)}
+              className={cn(isInline ? "max-h-[420px] overflow-y-auto" : "min-h-0 flex-1 overflow-y-auto")}
+            >
+              {view === "run-results" ? (
                 <SimulatorRunResultsTable rows={runRows} />
-              ) : view === "Reference Data" ? (
+              ) : view === "reference-data" ? (
                 <ReferenceDataView row={row} />
-              ) : view === "Edit Distance" ? (
+              ) : view === "edit-distance" ? (
                 <EditDistanceView />
-              ) : view === "Name Patterns" ? (
+              ) : view === "name-patterns" ? (
                 <NamePatternsView row={row} tableSize={isInline ? "compact" : "comfortable"} />
               ) : null}
             </div>
-          </section>
-        )}
+          </section>        )}
         </div>
 
         {phase === "results" ? (
