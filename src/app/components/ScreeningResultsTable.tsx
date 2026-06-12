@@ -1416,7 +1416,7 @@ export function ScreeningResultsTable({
               caption={`${title}, ${sortedRows.length} ${sortedRows.length === 1 ? "row" : "rows"}${statusFilters.size > 0 ? `, filtered by ${[...statusFilters].sort((a, b) => a.localeCompare(b)).join(", ")}` : ""}`}
               className="min-h-0 min-w-0 flex-1"
               tableLayout="auto"
-              minWidth="w-max min-w-full"
+              minWidth="min-w-full"
               showExpandAll={false}
               isRowExpandable={(row) =>
                 isLevel2

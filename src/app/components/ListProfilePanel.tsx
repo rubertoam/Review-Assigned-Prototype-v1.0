@@ -63,7 +63,7 @@ export function ListProfilePanel({ row, onBack }: ListProfilePanelProps) {
         role="tabpanel"
         id={`${tabPrefix}-panel-${activeTab}`}
         aria-labelledby={aceTabButtonId(tabPrefix, activeTab)}
-        className="min-h-[12rem] flex-1 overflow-y-auto bg-[var(--screening-surface)] px-4 py-6"
+        className="min-h-0 flex-1 overflow-y-auto bg-[var(--screening-surface)] px-4 py-6"
       >
         {activeTab === "general" ? <ListProfileGeneralTable fields={profile.general} /> : null}
         {activeTab === "addresses" ? (

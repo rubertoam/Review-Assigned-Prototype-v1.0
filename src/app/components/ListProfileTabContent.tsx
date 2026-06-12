@@ -96,46 +96,43 @@ export function ListProfileAllTabView({ profile }: { profile: ListProfileData })
   }, [allExpanded, sectionIds]);
 
   return (
-    <div className="flex flex-col gap-4">
-      {LIST_PROFILE_ACCORDION_TABS.map((section, index) => (
-        <AceAccordion
-          key={section.id}
-          title={section.label}
-          surface="white"
-          dropShadow={false}
-          showTag={false}
-          showAddIcon={false}
-          showDeleteIcon={false}
-          showEditIcon={false}
-          showMoreIcon={false}
-          open={openSections.has(section.id)}
-          onOpenChange={(open) => setSectionOpen(section.id, open)}
-          className={listProfileAccordionClass}
-          titleClassName={listProfileAccordionTitleClass}
-          headerTrailing={
-            index === 0 ? (
-              <button
-                type="button"
-                className={cn(
-                  aceTypography(ACE_TYPE.p1SemiBold),
-                  "shrink-0 cursor-pointer rounded-[var(--radius-sm)] border-0 bg-transparent p-0 text-[var(--screening-primary)] transition-colors",
-                  "hover:text-[var(--dialog-modal-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2",
-                )}
-                style={notoVar}
-                aria-label={allExpanded ? "Collapse all sections" : "Expand all sections"}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  toggleAllSections();
-                }}
-              >
-                {allExpanded ? "Collapse all" : "Expand all"}
-              </button>
-            ) : undefined
-          }
+    <div className="flex min-h-0 flex-col gap-4">
+      <div className="flex shrink-0 justify-end">
+        <button
+          type="button"
+          className={cn(
+            aceTypography(ACE_TYPE.p1SemiBold),
+            "shrink-0 cursor-pointer rounded-[var(--radius-sm)] border-0 bg-transparent p-0 text-[var(--screening-primary)] transition-colors",
+            "hover:text-[var(--dialog-modal-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2",
+          )}
+          style={notoVar}
+          aria-label={allExpanded ? "Collapse all sections" : "Expand all sections"}
+          onClick={toggleAllSections}
         >
-          {listProfileSectionContent(profile, section.id)}
-        </AceAccordion>
-      ))}
+          {allExpanded ? "Collapse all" : "Expand all"}
+        </button>
+      </div>
+      <div className="flex flex-col gap-4">
+        {LIST_PROFILE_ACCORDION_TABS.map((section) => (
+          <AceAccordion
+            key={section.id}
+            title={section.label}
+            surface="white"
+            dropShadow={false}
+            showTag={false}
+            showAddIcon={false}
+            showDeleteIcon={false}
+            showEditIcon={false}
+            showMoreIcon={false}
+            open={openSections.has(section.id)}
+            onOpenChange={(open) => setSectionOpen(section.id, open)}
+            className={listProfileAccordionClass}
+            titleClassName={listProfileAccordionTitleClass}
+          >
+            {listProfileSectionContent(profile, section.id)}
+          </AceAccordion>
+        ))}
+      </div>
     </div>
   );
 }

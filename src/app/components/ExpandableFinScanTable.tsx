@@ -415,16 +415,16 @@ export function ExpandableFinScanTable<T extends { id: string }>({
                   {rowCells}
                 </tr>
                 <tr className="border-b border-[#eff0f2] border-t-0 dark:border-[#333a42]">
-                  <td colSpan={colSpan} className="p-0 align-top">
+                  <td colSpan={colSpan} className="w-full p-0 align-top">
                     <div
                       className={cn(
-                        "grid overflow-hidden transition-[grid-template-rows]",
+                        "grid transition-[grid-template-rows]",
                         durationAccordion,
                         easeAccordion,
-                        expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                        expanded ? "grid-rows-[1fr] overflow-visible" : "grid-rows-[0fr] overflow-hidden",
                       )}
                     >
-                      <div className="min-h-0 overflow-hidden">
+                      <div className={expanded ? "overflow-visible" : "min-h-0 overflow-hidden"}>
                         <div
                           className={cn(
                             "bg-white dark:bg-[#1d2125]",
