@@ -968,33 +968,7 @@ export function ScreeningResultsTable({
     setDrilldownVisible(false);
     setDrilldownRow(null);
     setDrilldownView(null);
-
-    if (isCaseReviewComplete(rows, flowVariant)) return;
-    if (isLevel2) {
-      const withHistory = buildLevel2DisplayRows(rows, true, false);
-      const labelCount = new Set(withHistory.map(tableStatusLabel)).size;
-      if (labelCount > 1) {
-        setShowReviewHistory(true);
-      }
-      return;
-    }
-    const hasNew = rows.some((r) => r.status === "New");
-    const hasReviewed = rows.some((r) => r.status !== "New");
-    if (hasNew && hasReviewed) {
-      setShowReviewHistory(true);
-    }
-  }, [caseRowIdsKey, clearDrilldownCloseTimer, flowVariant, isLevel2, rows]);
-
-  useEffect(() => {
-    if (isCaseComplete) return;
-    const withHistoryRows = isLevel2
-      ? buildLevel2DisplayRows(rows, true, false)
-      : buildLevel1DisplayRows(rows, true);
-    const labelCount = new Set(withHistoryRows.map(tableStatusLabel)).size;
-    if (labelCount > 1) {
-      setShowReviewHistory(true);
-    }
-  }, [rows, isLevel2, isCaseComplete]);
+  }, [caseRowIdsKey, clearDrilldownCloseTimer]);
 
   const hasReviewHistory = useMemo(() => {
     if (isLevel2) {

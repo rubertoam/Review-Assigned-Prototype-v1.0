@@ -141,25 +141,19 @@ type SidebarNavItemConfig = {
 const SIDEBAR_NAV_ITEMS: readonly Omit<SidebarNavItemConfig, "count">[] = [
   {
     id: "sanction",
-    label: "Sanction Matches",
+    label: "Escalated Sanctions",
     selectable: true,
     badgeLabelClass: "text-[#523eb9]",
   },
   {
     id: "pep",
-    label: "PEP Screening",
+    label: "Escalated PEPs",
     selectable: false,
     badgeLabelClass: "text-[#92278f]",
   },
   {
-    id: "new-clients",
-    label: "New Clients",
-    selectable: false,
-    badgeLabelClass: "text-[#87b531]",
-  },
-  {
     id: "financial",
-    label: "Financial Crime",
+    label: "Escalated Financial Crime",
     selectable: false,
     badgeLabelClass: "text-[#0672a3]",
   },
@@ -167,13 +161,12 @@ const SIDEBAR_NAV_ITEMS: readonly Omit<SidebarNavItemConfig, "count">[] = [
 
 const STATIC_SIDEBAR_COUNTS: Record<string, number> = {
   pep: 18,
-  "new-clients": 11,
   financial: 8,
 };
 
 const REVIEW_QUERY_ITEMS = [
   { id: "assigned", label: "Assigned to Me", count: 5, badgeLabelClass: "text-[#523eb9]" },
-  { id: "escalated", label: "Escalated Reviews", count: 2, badgeLabelClass: "text-[#92278f]" },
+  { id: "escalated", label: "Escalations - New Clients", count: 2, badgeLabelClass: "text-[#92278f]" },
   { id: "overdue", label: "Overdue Items", count: 1, badgeLabelClass: "text-[#ef6c00]" },
 ] as const;
 
