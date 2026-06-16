@@ -44,7 +44,8 @@ import {
 } from "../lib/caseActionsMenuStyles";
 import { ListProfilePanel } from "./ListProfilePanel";
 import { MatchSimulatorPanel } from "./MatchSimulatorPanel";
-import { ScreeningDrilldownPlaceholderPanel } from "./ScreeningDrilldownPlaceholderPanel";
+import { DocumentsPanel } from "./DocumentsPanel";
+import { ScreeningHistoryPanel } from "./ScreeningHistoryPanel";
 
 export { easeAccordion, durationAccordion } from "./ExpandableFinScanTable";
 
@@ -1619,12 +1620,7 @@ export function ScreeningResultsTable({
                   aria-hidden={!drilldownVisible || drilldownView !== "screening-history"}
                 >
                   {drilldownRow && drilldownView === "screening-history" ? (
-                    <ScreeningDrilldownPlaceholderPanel
-                      row={drilldownRow}
-                      title="Screening History"
-                      description="Screening history for this match will appear here."
-                      onBack={closeRowDrilldown}
-                    />
+                    <ScreeningHistoryPanel row={drilldownRow} onBack={closeRowDrilldown} />
                   ) : null}
                 </div>
                 <div
@@ -1632,12 +1628,7 @@ export function ScreeningResultsTable({
                   aria-hidden={!drilldownVisible || drilldownView !== "documents"}
                 >
                   {drilldownRow && drilldownView === "documents" ? (
-                    <ScreeningDrilldownPlaceholderPanel
-                      row={drilldownRow}
-                      title="Documents"
-                      description="Documents related to this match will appear here."
-                      onBack={closeRowDrilldown}
-                    />
+                    <DocumentsPanel row={drilldownRow} onBack={closeRowDrilldown} />
                   ) : null}
                 </div>
                 <div
