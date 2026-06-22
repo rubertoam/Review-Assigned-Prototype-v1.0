@@ -9,11 +9,13 @@ import {
 } from "react";
 import { ArrowDown, ArrowDownUp, ArrowUp, ChevronDown, ChevronRight } from "lucide-react";
 import { Checkbox } from "./ui/checkbox";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { AceGridExpandPanel } from "./AceGridExpandPanel";
 import { cn } from "./ui/utils";
 
-/** Smooth open/close for accordions and expandable rows (Material-style deceleration). */
-export const easeAccordion = "[transition-timing-function:cubic-bezier(0.32,0.72,0,1)]";
-export const durationAccordion = "duration-[420ms]";
+/** Smooth open/close — same tokens as ACE `AceAccordion`. */
+export const easeAccordion = "[transition-timing-function:var(--ace-accordion-ease)]";
+export const durationAccordion = "duration-[var(--ace-accordion-duration)]";
 
 const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 
@@ -103,12 +105,20 @@ export type ExpandableFinScanTableProps<T extends { id: string }> = {
   tableLayout?: "fixed" | "auto";
   /** When false, hides horizontal scroll on the table wrapper (use with table-fixed + w-full). */
   scrollX?: boolean;
+  /** When false, vertical scroll is delegated to a parent (table grows to full content height). */
+  scrollY?: boolean;
   /** When false, rows do not expand (checkbox-only leading column if selection is set). */
   expandable?: boolean;
   /** Per-row expand control; non-expandable rows keep the column but hide the control. */
   isRowExpandable?: (row: T) => boolean;
+  expandedContentClassName?: string;
   expandedIds?: Set<string>;
   onExpandedIdsChange?: Dispatch<SetStateAction<Set<string>>>;
+  /** Optional hover labels for expand controls (e.g. screening list profile). */
+  expandTooltips?: {
+    expandRow: { open: string; close: string };
+    expandAll: { show: string; hide: string };
+  };
 };
 
 export function ExpandableFinScanTable<T extends { id: string }>({
@@ -130,8 +140,11 @@ export function ExpandableFinScanTable<T extends { id: string }>({
   tableClassName,
   tableLayout = "fixed",
   scrollX = true,
+  scrollY = true,
   expandedIds: expandedIdsProp,
   onExpandedIdsChange,
+  expandTooltips,
+  expandedContentClassName,
 }: ExpandableFinScanTableProps<T>) {
   const isCompact = density === "compact";
   const cellPad = isCompact ? "px-2 py-1.5" : "px-3 py-3";
@@ -188,10 +201,73 @@ export function ExpandableFinScanTable<T extends { id: string }>({
   const leadingColCount = (showExpandCol ? 1 : 0) + (showSelectionCol ? 1 : 0);
   const colSpan = leadingColCount + columns.length + (trailingColumn ? 1 : 0);
 
+  const renderExpandAllButton = () => {
+    const button = (
+      <button
+        type="button"
+        className={expandBtnClass}
+        aria-label={allVisibleExpanded ? "Collapse all rows" : "Expand all rows"}
+        onClick={toggleExpandAll}
+      >
+        {allVisibleExpanded ? (
+          <ChevronDown className={chevronClass} />
+        ) : (
+          <ChevronRight className={chevronClass} />
+        )}
+      </button>
+    );
+
+    if (!expandTooltips) return button;
+
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipContent side="top" hideArrow className="border border-[#cfd2d9] bg-white text-[#23262c] shadow-sm dark:border-[#38414a] dark:bg-[#22272b] dark:text-[#b6c2cf]">
+          {allVisibleExpanded ? expandTooltips.expandAll.hide : expandTooltips.expandAll.show}
+        </TooltipContent>
+      </Tooltip>
+    );
+  };
+
+  const renderExpandRowButton = (row: T, expanded: boolean, showControls: boolean) => {
+    const button = (
+      <button
+        type="button"
+        aria-expanded={expanded}
+        aria-label={expanded ? "Collapse row" : "Expand row"}
+        onClick={() => toggleExpanded(row.id)}
+        className={cn(
+          expandBtnClass,
+          expanded || showControls
+            ? "opacity-100"
+            : "opacity-0 pointer-events-none group-hover/row:opacity-100 group-hover/row:pointer-events-auto",
+        )}
+      >
+        {expanded ? (
+          <ChevronDown className={chevronClass} />
+        ) : (
+          <ChevronRight className={chevronClass} />
+        )}
+      </button>
+    );
+
+    if (!expandTooltips) return button;
+
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipContent side="top" hideArrow className="border border-[#cfd2d9] bg-white text-[#23262c] shadow-sm dark:border-[#38414a] dark:bg-[#22272b] dark:text-[#b6c2cf]">
+          {expanded ? expandTooltips.expandRow.close : expandTooltips.expandRow.open}
+        </TooltipContent>
+      </Tooltip>
+    );
+  };
+
   return (
     <div
       className={cn(
-        "min-h-0 min-w-0 overflow-y-auto scroll-smooth",
+        "min-h-0 min-w-0",
+        scrollY ? "overflow-y-auto scroll-smooth" : "overflow-y-visible",
         scrollX ? "overflow-x-auto" : "overflow-x-hidden",
         className,
       )}
@@ -219,20 +295,7 @@ export function ExpandableFinScanTable<T extends { id: string }>({
             {showExpandCol ? (
               <th scope="col" className={cn(expandColClass, leadingHeaderPad(isCompact))}>
                 <div className="flex items-center justify-center">
-                  {expandable && showExpandAll ? (
-                  <button
-                    type="button"
-                    className={expandBtnClass}
-                    aria-label={allVisibleExpanded ? "Collapse all rows" : "Expand all rows"}
-                    onClick={toggleExpandAll}
-                  >
-                    {allVisibleExpanded ? (
-                      <ChevronDown className={chevronClass} />
-                    ) : (
-                      <ChevronRight className={chevronClass} />
-                    )}
-                  </button>
-                ) : null}
+                  {expandable && showExpandAll ? renderExpandAllButton() : null}
                 </div>
                 <span className="sr-only">Expand rows</span>
               </th>
@@ -320,26 +383,7 @@ export function ExpandableFinScanTable<T extends { id: string }>({
                 {showExpandCol ? (
                   <td className={cn(expandColClass, leadingBodyPad(isCompact))}>
                     <div className="flex items-center justify-center">
-                      {rowExpandable ? (
-                        <button
-                        type="button"
-                        aria-expanded={expanded}
-                        aria-label={expanded ? "Collapse row" : "Expand row"}
-                        onClick={() => toggleExpanded(row.id)}
-                        className={cn(
-                          expandBtnClass,
-                          expanded || showControls
-                            ? "opacity-100"
-                            : "opacity-0 pointer-events-none group-hover/row:opacity-100 group-hover/row:pointer-events-auto",
-                        )}
-                      >
-                        {expanded ? (
-                          <ChevronDown className={chevronClass} />
-                        ) : (
-                          <ChevronRight className={chevronClass} />
-                        )}
-                      </button>
-                    ) : null}
+                      {rowExpandable ? renderExpandRowButton(row, expanded, showControls) : null}
                     </div>
                   </td>
                 ) : null}
@@ -413,25 +457,16 @@ export function ExpandableFinScanTable<T extends { id: string }>({
                 </tr>
                 <tr className="border-b border-[#eff0f2] border-t-0 dark:border-[#333a42]">
                   <td colSpan={colSpan} className="w-full p-0 align-top">
-                    <div
-                      className={cn(
-                        "grid transition-[grid-template-rows]",
-                        durationAccordion,
-                        easeAccordion,
-                        expanded ? "grid-rows-[1fr] overflow-visible" : "grid-rows-[0fr] overflow-hidden",
+                    <AceGridExpandPanel
+                      open={expanded}
+                      contentClassName={cn(
+                        "bg-white dark:bg-[#1d2125]",
+                        isCompact ? "px-3 py-2" : "px-4 py-3",
+                        expandedContentClassName,
                       )}
                     >
-                      <div className={expanded ? "overflow-visible" : "min-h-0 overflow-hidden"}>
-                        <div
-                          className={cn(
-                            "bg-white dark:bg-[#1d2125]",
-                            isCompact ? "px-3 py-2" : "px-4 py-3",
-                          )}
-                        >
-                          {renderExpandedContent?.(row)}
-                        </div>
-                      </div>
-                    </div>
+                      {renderExpandedContent?.(row)}
+                    </AceGridExpandPanel>
                   </td>
                 </tr>
               </Fragment>

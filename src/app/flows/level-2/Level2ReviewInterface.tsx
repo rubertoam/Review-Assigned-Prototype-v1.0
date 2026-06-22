@@ -22,10 +22,12 @@ import { aceTypography, ACE_TYPE } from "../../lib/aceTypography";
 import { ReviewFlowSiteHeader } from "../../components/ReviewFlowSiteHeader";
 import { ReviewMetaTag } from "../../components/ReviewMetaTag";
 import {
-  ClientProfileMetaBadge,
-  ClientProfileOverdueBadge,
+  ClientProfileAccordionHeaderTags,
+  ClientProfileClientIdRow,
   OverdueWarningIcon,
 } from "../../components/ClientProfileHeaderBadges";
+import { ClientProfileAddressSection } from "../../components/ClientProfileAddressSection";
+import { ClientProfileMetaLine } from "../../components/ClientProfileMetaLine";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -234,15 +236,6 @@ function ReviewSidebar({ isOpen, sanctionMatchCount, onMouseEnter, onMouseLeave 
         />
       </AceSidebar>
     </div>
-  );
-}
-
-function MetaDot() {
-  return (
-    <span
-      className="mx-1 inline-block h-1 w-1 shrink-0 rounded-full bg-[#523eb9] align-middle dark:bg-[#8696a7]"
-      aria-hidden
-    />
   );
 }
 
@@ -558,7 +551,7 @@ function DetailPanel({
   }
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
       <AceAccordion
         className={cn(
           "shrink-0 border-[var(--screening-border-strong)]",
@@ -574,23 +567,25 @@ function DetailPanel({
         open={clientExpanded}
         onOpenChange={setClientExpanded}
         title={
-          <span className="inline-flex min-w-0 items-center gap-2">
+          <div
+            className="flex min-w-0 flex-nowrap items-center gap-2 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
             <span className="truncate">{selectedCase.name}</span>
-            <ReviewMetaTag>{profile.clientId}</ReviewMetaTag>
-          </span>
+            <ClientProfileAccordionHeaderTags
+              clientId={profile.clientId}
+              countryLabel={profile.countryLabel}
+              dob={profile.dob}
+              showOverdueWarning={showOverdueWarning}
+            />
+          </div>
         }
         titleClassName={cn(
           aceTypography(ACE_TYPE.p1SemiBold),
-          "text-[var(--screening-text-primary)]",
+          "min-w-0 flex-1 overflow-visible text-[var(--screening-text-primary)] !truncate",
         )}
         headerTrailing={
-          <div
-            className="flex max-w-[min(100%,28rem)] flex-nowrap items-center justify-end gap-2 self-center overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <ClientProfileMetaBadge>{profile.countryLabel}</ClientProfileMetaBadge>
-            {profile.dob ? <ClientProfileMetaBadge>{profile.dob}</ClientProfileMetaBadge> : null}
-            {showOverdueWarning ? <ClientProfileOverdueBadge /> : null}
+          <div className="shrink-0 self-center" onClick={(e) => e.stopPropagation()}>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -652,20 +647,8 @@ function DetailPanel({
               </div>
 
               <div className="flex min-h-0 flex-1 flex-col gap-2 self-stretch rounded border border-[#cfd2d9] dark:border-[#38414a] bg-white dark:bg-[#22272b] p-6">
-                <div className="flex gap-2.5 items-start">
-                  <div className="h-[23px] w-[16px] shrink-0">
-                    <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 16 23">
-                      <path d="M8 0C3.57714 0 0 3.5995 0 8.05C0 14.0875 8 23 8 23C8 23 16 14.0875 16 8.05C16 3.5995 12.4229 0 8 0ZM8 10.925C6.42286 10.925 5.14286 9.637 5.14286 8.05C5.14286 6.463 6.42286 5.175 8 5.175C9.57714 5.175 10.8571 6.463 10.8571 8.05C10.8571 9.637 9.57714 10.925 8 10.925Z" fill="#523EB9" />
-                    </svg>
-                  </div>
-                  <div className="font-['Noto_Sans:Regular',sans-serif] font-normal text-[14px] text-[#23262c] dark:text-[#b6c2cf]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                    {profile.addressLines.map((line, lineIdx) => (
-                      <p key={lineIdx} className="m-0 leading-[1.65]">
-                        {line}
-                      </p>
-                    ))}
-                  </div>
-                </div>
+                <ClientProfileAddressSection addressLines={profile.addressLines} />
+                <ClientProfileClientIdRow clientId={profile.clientId} />
                 <div className="flex gap-2.5 items-center">
                   <div className="size-[16px] shrink-0">
                     <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 16 16">
@@ -673,7 +656,7 @@ function DetailPanel({
                     </svg>
                   </div>
                   <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[14px] text-[#23262c] dark:text-[#b6c2cf]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                    Client Active · {profile.clientId}
+                    Client Active
                   </p>
                 </div>
                 <div className="flex gap-2.5 items-center">
@@ -702,37 +685,23 @@ function DetailPanel({
 
               <div className="flex min-h-0 flex-1 flex-col gap-2 self-stretch rounded border border-[#cfd2d9] dark:border-[#38414a] bg-white dark:bg-[#22272b] p-6">
                 {profile.gender != null ? (
-                  <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[14px] text-[#23262c] dark:text-[#b6c2cf]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                    <span>Gender </span>
-                    <MetaDot />
-                    <span>{profile.gender}</span>
-                  </p>
+                  <ClientProfileMetaLine label="Gender">{profile.gender}</ClientProfileMetaLine>
                 ) : null}
                 {profile.dob != null ? (
-                  <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[14px] text-[#23262c] dark:text-[#b6c2cf]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                    <span>Date of Birth </span>
-                    <MetaDot />
-                    <span>{profile.dob}</span>
-                  </p>
+                  <ClientProfileMetaLine label="Date of Birth">{profile.dob}</ClientProfileMetaLine>
                 ) : null}
-                <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[14px] text-[#23262c] dark:text-[#b6c2cf]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                  <span>Application </span>
-                  <MetaDot />
-                  <span>{profile.applicationLabel}</span>
-                </p>
-                <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[14px] text-[#23262c] dark:text-[#b6c2cf]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                  <span>Review Target </span>
-                  <MetaDot />
-                  <span>{profile.reviewTargetSummary}</span>
+                <ClientProfileMetaLine label="Application">
+                  {profile.applicationLabel}
+                </ClientProfileMetaLine>
+                <ClientProfileMetaLine label="Review Target">
+                  {profile.reviewTargetSummary}
                   {showOverdueWarning ? (
                     <span className="text-[#e65100]"> Overdue Warning</span>
                   ) : null}
-                </p>
-                <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[14px] text-[#23262c] dark:text-[#b6c2cf]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                  <span>Last Modified </span>
-                  <MetaDot />
-                  <span>{profile.lastModified}</span>
-                </p>
+                </ClientProfileMetaLine>
+                <ClientProfileMetaLine label="Last Modified">
+                  {profile.lastModified}
+                </ClientProfileMetaLine>
               </div>
             </div>
       </AceAccordion>
@@ -757,7 +726,6 @@ function DetailPanel({
       </Dialog>
 
       <ScreeningResultsTable
-        className="w-full"
         rows={screeningRows}
         flowVariant="level-2"
         selectedIds={screeningSelectedIds}

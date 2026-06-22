@@ -3,14 +3,18 @@ import {
   useState,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { Check, Eye, EyeOff, MoreVertical } from "lucide-react";
+import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
+import { Check, Eye, EyeOff, GripVertical, List, MoreVertical } from "lucide-react";
 import { AceInputField } from "@ace-ds/components/atoms/AceInputField";
+import { Toggle } from "@ace-ds/components/atoms/Toggle/Toggle";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
-import { aceAccordionFixedHeaderClass } from "../lib/aceAccordion";
+import { AcePagination } from "@ace-ds/components/molecules/AcePagination/AcePagination";
+import { aceAccordionFixedHeaderClass, aceAccordionPanelFillClass } from "../lib/aceAccordion";
 import { aceDropShadowXsClass } from "../lib/aceShadow";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { cn } from "./ui/utils";
@@ -33,6 +37,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { getListProfileSummaryForRow } from "../lib/listProfileData";
@@ -42,7 +47,7 @@ import {
   screeningRowActionsMenuItemClass,
   screeningRowActionsMenuTriggerClass,
 } from "../lib/caseActionsMenuStyles";
-import { ListProfilePanel } from "./ListProfilePanel";
+import { ListProfileInlineContent } from "./ListProfileInlineContent";
 import { MatchSimulatorPanel } from "./MatchSimulatorPanel";
 import { DocumentsPanel } from "./DocumentsPanel";
 import { ScreeningHistoryPanel } from "./ScreeningHistoryPanel";
@@ -54,17 +59,15 @@ const LIST_PROFILE_ANIMATION_MS = 420;
 const ROW_DRILLDOWN_VIEWS = [
   "screening-history",
   "documents",
-  "list-profile",
   "match-simulator",
 ] as const;
 
 type RowDrilldownView = (typeof ROW_DRILLDOWN_VIEWS)[number];
 
 const ROW_DRILLDOWN_TRANSLATE: Record<RowDrilldownView, string> = {
-  "screening-history": "-translate-x-[20%]",
-  documents: "-translate-x-[40%]",
-  "list-profile": "-translate-x-[60%]",
-  "match-simulator": "-translate-x-[80%]",
+  "screening-history": "-translate-x-[25%]",
+  documents: "-translate-x-[50%]",
+  "match-simulator": "-translate-x-[75%]",
 };
 
 /** Level 1 decision outcomes plus Level 2 terminal statuses. */
@@ -175,9 +178,12 @@ const TILE_ROTATIONS = [
   ["N", "C1", "B", "E", "N", "B", "B"],
 ] as const;
 
-function dobForCase(caseIndex: number): string {
-  const dobs = ["03/23/1978", "04/11/1985", "06/07/1942", "09/14/1992", "—", "—"];
-  return dobs[Math.min(caseIndex, dobs.length - 1)];
+function randomDobForRow(caseIndex: number, rowIndex: number): string {
+  const seed = (caseIndex + 1) * 997 + (rowIndex + 1) * 7919;
+  const year = 1940 + (seed % 66);
+  const month = 1 + (seed % 12);
+  const day = 1 + ((seed >> 4) % 28);
+  return `${String(month).padStart(2, "0")}/${String(day).padStart(2, "0")}/${year}`;
 }
 
 function level1ReviewerForCase(caseIndex: number): string {
@@ -196,7 +202,7 @@ export function getScreeningRowsForCase(caseIndex: number): ScreeningResultRow[]
     rows.push({
       id: `c${ci}-${i + 1}`,
       name,
-      dob: dobForCase(ci),
+      dob: randomDobForRow(ci, i),
       matchAgeLabel: AGE_LABELS[i % AGE_LABELS.length],
       matchAgeTone: TONE_ROTATION[i % TONE_ROTATION.length],
       matchScore: score,
@@ -240,6 +246,216 @@ export const MOCK_ROWS: ScreeningResultRow[] = getScreeningRowsForCase(0);
 
 type SortKey = "name" | "country" | "dob" | "matchAge" | "matchScore" | "status" | "reviewer";
 type SortDir = "asc" | "desc";
+
+type ScreeningColumnKey =
+  | "status"
+  | "name"
+  | "country"
+  | "dob"
+  | "matchAge"
+  | "matchScore"
+  | "listId"
+  | "listCategory"
+  | "listProfileId"
+  | "reviewer"
+  | "comments"
+  | "matchString"
+  | "reason"
+  | "matchedNameType"
+  | "finscanCategory";
+
+const SCREENING_COLUMN_DEFINITIONS: ReadonlyArray<{
+  key: ScreeningColumnKey;
+  label: string;
+  defaultVisible: boolean;
+}> = [
+  { key: "status", label: "Status", defaultVisible: true },
+  { key: "name", label: "Name", defaultVisible: true },
+  { key: "country", label: "Country", defaultVisible: true },
+  { key: "dob", label: "Date of Birth", defaultVisible: true },
+  { key: "matchAge", label: "Match Age", defaultVisible: true },
+  { key: "matchScore", label: "Match Score", defaultVisible: true },
+  { key: "listId", label: "List ID", defaultVisible: true },
+  { key: "listCategory", label: "List Category", defaultVisible: true },
+  { key: "listProfileId", label: "List Profile ID", defaultVisible: true },
+  { key: "reviewer", label: "Reviewer", defaultVisible: true },
+  { key: "comments", label: "Comments", defaultVisible: false },
+  { key: "matchString", label: "Match String", defaultVisible: false },
+  { key: "reason", label: "Reason", defaultVisible: false },
+  { key: "matchedNameType", label: "Matched Name Type", defaultVisible: false },
+  { key: "finscanCategory", label: "FinScan Category", defaultVisible: false },
+];
+
+const DEFAULT_VISIBLE_SCREENING_COLUMNS = new Set<ScreeningColumnKey>(
+  SCREENING_COLUMN_DEFINITIONS.filter((column) => column.defaultVisible).map((column) => column.key),
+);
+
+const DEFAULT_SCREENING_COLUMN_ORDER: ScreeningColumnKey[] = SCREENING_COLUMN_DEFINITIONS.map(
+  (column) => column.key,
+);
+
+const SCREENING_COLUMN_LABELS = Object.fromEntries(
+  SCREENING_COLUMN_DEFINITIONS.map((column) => [column.key, column.label]),
+) as Record<ScreeningColumnKey, string>;
+
+const SCREENING_COLUMN_DRAG_MIME = "text/screening-column-key";
+
+const screeningColumnMenuRowClass = cn(
+  "[font:var(--ace-type-paragraph-p1-regular)] [letter-spacing:var(--ace-type-paragraph-p1-regular-tracking)]",
+  "flex w-full cursor-pointer select-none items-center gap-1.5 px-[var(--space-3)] py-[var(--space-2)] text-[var(--screening-text-primary)] outline-none",
+  "data-[highlighted]:bg-[var(--screening-surface-hover)]",
+);
+
+const SCREENING_COLUMN_DRAG_MS = 140;
+
+const screeningColumnDragMotionClass = cn(
+  `duration-[${SCREENING_COLUMN_DRAG_MS}ms]`,
+  "[transition-timing-function:cubic-bezier(0.32,0.72,0,1)]",
+);
+
+const screeningColumnDropLineClass = cn(
+  "pointer-events-none absolute inset-x-2 z-20 h-0.5 rounded-full",
+  "bg-[var(--screening-pill-new-border)]",
+  "shadow-[0_0_10px_color-mix(in_srgb,var(--screening-primary)_20%,transparent)]",
+  "origin-center transition-[opacity,transform]",
+  screeningColumnDragMotionClass,
+);
+
+const screeningToolbarIconButtonClass =
+  "inline-flex size-8 shrink-0 items-center justify-center rounded-[4px] border transition-colors duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/35 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#22272b] cursor-pointer border-[#cfd2d9] bg-white text-[#464c59] hover:border-[#949baa] hover:bg-[#eff0f2] hover:text-[#23262c] dark:border-[#38414a] dark:bg-[#22272b] dark:text-[#9fadbc] dark:hover:border-[#5c6773] dark:hover:bg-[#2c333a] dark:hover:text-[#b6c2cf]";
+
+const FINSCAN_CATEGORY_ROTATION = ["Sanctions", "PEP", "Financial Crime"] as const;
+
+function reorderScreeningColumnKeys(
+  order: ScreeningColumnKey[],
+  fromKey: ScreeningColumnKey,
+  toKey: ScreeningColumnKey,
+  position: "before" | "after",
+): ScreeningColumnKey[] {
+  if (fromKey === toKey) return order;
+  const next = order.filter((key) => key !== fromKey);
+  let insertIndex = next.indexOf(toKey);
+  if (insertIndex === -1) return order;
+  if (position === "after") insertIndex += 1;
+  next.splice(insertIndex, 0, fromKey);
+  return next;
+}
+
+type ColumnDropIndicator = {
+  targetKey: ScreeningColumnKey;
+  position: "before" | "after";
+} | null;
+
+function ScreeningColumnReorderMenuItem({
+  columnKey,
+  label,
+  checked,
+  disabled,
+  draggedColumnKey,
+  dropIndicator,
+  onCheckedChange,
+  onReorder,
+  onDropIndicatorChange,
+  onDraggedColumnKeyChange,
+  onItemRef,
+}: {
+  columnKey: ScreeningColumnKey;
+  label: string;
+  checked: boolean;
+  disabled?: boolean;
+  draggedColumnKey: ScreeningColumnKey | null;
+  dropIndicator: ColumnDropIndicator;
+  onCheckedChange: (checked: boolean) => void;
+  onReorder: (
+    fromKey: ScreeningColumnKey,
+    toKey: ScreeningColumnKey,
+    position: "before" | "after",
+  ) => void;
+  onDropIndicatorChange: (indicator: ColumnDropIndicator) => void;
+  onDraggedColumnKeyChange: (key: ScreeningColumnKey | null) => void;
+  onItemRef: (key: ScreeningColumnKey, node: HTMLElement | null) => void;
+}) {
+  const isDragging = draggedColumnKey === columnKey;
+  const isDragSessionActive = draggedColumnKey !== null;
+
+  return (
+    <DropdownMenuPrimitive.Item
+      ref={(node) => onItemRef(columnKey, node)}
+      data-slot="dropdown-menu-toggle-item"
+      disabled={disabled}
+      aria-label={label}
+      className={cn(
+        screeningColumnMenuRowClass,
+        "group/column-row relative",
+        isDragSessionActive && cn("transition-[opacity,transform]", screeningColumnDragMotionClass),
+        isDragging && "z-10 scale-[0.99] opacity-55",
+        !isDragging && isDragSessionActive && "opacity-95",
+      )}
+      onSelect={(event) => {
+        event.preventDefault();
+        if (!disabled) onCheckedChange(!checked);
+      }}
+      onDragOver={(event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        if (draggedColumnKey === columnKey) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        const position = event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+        onDropIndicatorChange({ targetKey: columnKey, position });
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        const fromKey = event.dataTransfer.getData(SCREENING_COLUMN_DRAG_MIME) as ScreeningColumnKey;
+        if (fromKey && dropIndicator) {
+          onReorder(fromKey, dropIndicator.targetKey, dropIndicator.position);
+        }
+        onDropIndicatorChange(null);
+        onDraggedColumnKeyChange(null);
+      }}
+    >
+      <button
+        type="button"
+        draggable
+        aria-label={`Reorder ${label}`}
+        className={cn(
+          "inline-flex size-5 shrink-0 items-center justify-center rounded text-[var(--screening-icon-muted)]",
+          "cursor-grab opacity-0 active:cursor-grabbing",
+          "transition-opacity",
+          screeningColumnDragMotionClass,
+          "group-hover/column-row:opacity-100 focus-visible:opacity-100",
+          isDragging && "opacity-100",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)]",
+        )}
+        onDragStart={(event) => {
+          event.dataTransfer.setData(SCREENING_COLUMN_DRAG_MIME, columnKey);
+          event.dataTransfer.effectAllowed = "move";
+          event.stopPropagation();
+          onDraggedColumnKeyChange(columnKey);
+        }}
+        onDragEnd={() => {
+          onDropIndicatorChange(null);
+          onDraggedColumnKeyChange(null);
+        }}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+        onPointerDown={(event) => event.stopPropagation()}
+      >
+        <GripVertical className="size-3.5" strokeWidth={2} aria-hidden />
+      </button>
+      <Toggle
+        size="sm"
+        checked={checked}
+        disabled={disabled}
+        tabIndex={-1}
+        className="pointer-events-none"
+        aria-hidden
+      />
+      <span className="min-w-0 flex-1 truncate text-left">{label}</span>
+    </DropdownMenuPrimitive.Item>
+  );
+}
 
 export function scoreIsHighRisk(score: number): boolean {
   return score >= 85;
@@ -651,6 +867,27 @@ function reviewerLabelForRow(row: ScreeningTableDisplayRow): string {
   return "";
 }
 
+function reasonLabelForRow(row: ScreeningTableDisplayRow): string {
+  return row.decisionReason ?? row.level1Reason ?? "";
+}
+
+function commentLabelForRow(row: ScreeningTableDisplayRow): string {
+  if (row.decisionReason) return row.decisionReason;
+  if (row.level1Reason) return row.level1Reason;
+  if (row.status === "New") return "";
+  return "Escalated for secondary review.";
+}
+
+function matchedNameTypeForRow(row: ScreeningTableDisplayRow): string {
+  return /bank|corp|ltd|inc\.?/i.test(row.name) ? "Entity" : "Individual";
+}
+
+function finscanCategoryForRow(row: ScreeningTableDisplayRow): string {
+  const match = row.id.match(/^c(\d+)-(\d+)$/);
+  const rowIndex = match ? Math.max(0, Number(match[2]) - 1) : 0;
+  return FINSCAN_CATEGORY_ROTATION[rowIndex % FINSCAN_CATEGORY_ROTATION.length];
+}
+
 function mapLevel1ConfirmedDisplayRow(r: ScreeningResultRow): ScreeningTableDisplayRow {
   return {
     ...r,
@@ -819,9 +1056,11 @@ export function caseHasLevel2Activity(rows: ScreeningResultRow[]): boolean {
 function ScreeningRowActionsMenu({
   row,
   onOpenDrilldown,
+  onExpandListProfile,
 }: {
   row: ScreeningTableDisplayRow;
   onOpenDrilldown: (row: ScreeningTableDisplayRow, view: RowDrilldownView) => void;
+  onExpandListProfile: (row: ScreeningTableDisplayRow) => void;
 }) {
   return (
     <DropdownMenu modal={false}>
@@ -855,7 +1094,7 @@ function ScreeningRowActionsMenu({
         </DropdownMenuItem>
         <DropdownMenuItem
           className={screeningRowActionsMenuItemClass}
-          onSelect={() => onOpenDrilldown(row, "list-profile")}
+          onSelect={() => onExpandListProfile(row)}
         >
           List Profile
         </DropdownMenuItem>
@@ -903,6 +1142,7 @@ export function ScreeningResultsTable({
   const [drilldownView, setDrilldownView] = useState<RowDrilldownView | null>(null);
   const [drilldownVisible, setDrilldownVisible] = useState(false);
   const drilldownCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [expandedRowIds, setExpandedRowIds] = useState<Set<string>>(() => new Set());
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(() => new Set());
@@ -920,6 +1160,29 @@ export function ScreeningResultsTable({
     [isSelectionControlled, onSelectedIdsChange],
   );
   const [sectionCollapsed, setSectionCollapsed] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [visibleColumns, setVisibleColumns] = useState<Set<ScreeningColumnKey>>(
+    () => new Set(DEFAULT_VISIBLE_SCREENING_COLUMNS),
+  );
+  const [columnOrder, setColumnOrder] = useState<ScreeningColumnKey[]>(
+    () => [...DEFAULT_SCREENING_COLUMN_ORDER],
+  );
+  const [columnDropIndicator, setColumnDropIndicator] = useState<ColumnDropIndicator>(null);
+  const [draggedColumnKey, setDraggedColumnKey] = useState<ScreeningColumnKey | null>(null);
+  const [columnDropLineTop, setColumnDropLineTop] = useState<number | null>(null);
+  const columnListRef = useRef<HTMLDivElement>(null);
+  const columnItemRefs = useRef(new Map<ScreeningColumnKey, HTMLElement>());
+  const [paginationMenuPortal, setPaginationMenuPortal] = useState<HTMLElement | null>(null);
+
+  const registerColumnMenuItemRef = useCallback((key: ScreeningColumnKey, node: HTMLElement | null) => {
+    if (node) columnItemRefs.current.set(key, node);
+    else columnItemRefs.current.delete(key);
+  }, []);
+
+  useEffect(() => {
+    setPaginationMenuPortal(document.body);
+  }, []);
 
   const clearDrilldownCloseTimer = useCallback(() => {
     if (drilldownCloseTimerRef.current !== null) {
@@ -948,6 +1211,14 @@ export function ScreeningResultsTable({
     }, LIST_PROFILE_ANIMATION_MS);
   }, [clearDrilldownCloseTimer]);
 
+  const expandListProfileRow = useCallback((row: ScreeningTableDisplayRow) => {
+    setExpandedRowIds((prev) => {
+      const next = new Set(prev);
+      next.add(row.id);
+      return next;
+    });
+  }, []);
+
   useEffect(() => () => clearDrilldownCloseTimer(), [clearDrilldownCloseTimer]);
 
   const isCaseComplete = useMemo(
@@ -965,11 +1236,17 @@ export function ScreeningResultsTable({
     setShowReviewHistory(false);
     setStatusFilters(new Set());
     setSearchQuery("");
+    setPage(1);
     clearDrilldownCloseTimer();
     setDrilldownVisible(false);
     setDrilldownRow(null);
     setDrilldownView(null);
+    setExpandedRowIds(new Set());
   }, [caseRowIdsKey, clearDrilldownCloseTimer]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, statusFilters]);
 
   const hasReviewHistory = useMemo(() => {
     if (isLevel2) {
@@ -1003,6 +1280,57 @@ export function ScreeningResultsTable({
   }, [baseRows]);
 
   const historyToggleDisabled = !hasReviewHistory && !showReviewHistory;
+
+  const columnMenuOptions = useMemo(() => {
+    const available = new Set(
+      SCREENING_COLUMN_DEFINITIONS.filter(
+        (column) => column.key !== "reviewer" || (isLevel2 && isCaseComplete),
+      ).map((column) => column.key),
+    );
+    return columnOrder
+      .filter((key) => available.has(key))
+      .map((key) => ({ key, label: SCREENING_COLUMN_LABELS[key] }));
+  }, [columnOrder, isLevel2, isCaseComplete]);
+
+  useLayoutEffect(() => {
+    if (!columnDropIndicator || !draggedColumnKey || !columnListRef.current) {
+      setColumnDropLineTop(null);
+      return;
+    }
+    const item = columnItemRefs.current.get(columnDropIndicator.targetKey);
+    if (!item) {
+      setColumnDropLineTop(null);
+      return;
+    }
+    const listTop = columnListRef.current.getBoundingClientRect().top;
+    const itemRect = item.getBoundingClientRect();
+    const relativeTop = itemRect.top - listTop;
+    setColumnDropLineTop(
+      columnDropIndicator.position === "before"
+        ? relativeTop
+        : relativeTop + itemRect.height,
+    );
+  }, [columnDropIndicator, draggedColumnKey, columnMenuOptions]);
+
+  const toggleColumnVisibility = useCallback((key: ScreeningColumnKey, visible: boolean) => {
+    setVisibleColumns((prev) => {
+      const next = new Set(prev);
+      if (visible) {
+        next.add(key);
+        return next;
+      }
+      if (next.size <= 1) return prev;
+      next.delete(key);
+      return next;
+    });
+  }, []);
+
+  const reorderColumns = useCallback(
+    (fromKey: ScreeningColumnKey, toKey: ScreeningColumnKey, position: "before" | "after") => {
+      setColumnOrder((prev) => reorderScreeningColumnKeys(prev, fromKey, toKey, position));
+    },
+    [],
+  );
 
   const showStatusFilter = statusChips.length > 1 || statusFilters.size > 0;
 
@@ -1110,6 +1438,20 @@ export function ScreeningResultsTable({
     });
     return list;
   }, [searchFilteredRows, sortKey, sortDir]);
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(sortedRows.length / pageSize)),
+    [sortedRows.length, pageSize],
+  );
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, totalPages));
+  }, [totalPages]);
+
+  const paginatedRows = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return sortedRows.slice(start, start + pageSize);
+  }, [sortedRows, page, pageSize]);
 
   const selectionRowsSignature = useMemo(
     () => sortedRows.map((r) => `${r.id}:${r.status}`).join(","),
@@ -1219,27 +1561,12 @@ export function ScreeningResultsTable({
   const headerCheckboxState: boolean | "indeterminate" =
     someVisibleSelected && !allVisibleSelected ? "indeterminate" : allVisibleSelected;
 
-  const level2ReviewerColumn: FinScanTableColumn<ScreeningTableDisplayRow> = useMemo(
-    () => ({
-      key: "reviewer",
-      label: "Reviewer",
-      sortKey: "reviewer",
-      headerClassName: "whitespace-nowrap",
-      cellClassName: "text-[#464c59] dark:text-[#9fadbc] whitespace-nowrap",
-      render: (row) => {
-        const reviewer = reviewerLabelForRow(row);
-        if (!reviewer) {
-          return <span className="text-[#949baa] dark:text-[#6a7285]">—</span>;
-        }
-        return reviewer;
-      },
-    }),
-    [],
-  );
+  const screeningColumns: FinScanTableColumn<ScreeningTableDisplayRow>[] = useMemo(() => {
+    const secondaryTextClass = "text-[#464c59] dark:text-[#9fadbc] whitespace-nowrap";
+    const emptySecondary = <span className="text-[#949baa] dark:text-[#6a7285]">—</span>;
 
-  const screeningColumns: FinScanTableColumn<ScreeningTableDisplayRow>[] = useMemo(
-    () => {
-      const statusColumn: FinScanTableColumn<ScreeningTableDisplayRow> = {
+    const byKey: Record<ScreeningColumnKey, FinScanTableColumn<ScreeningTableDisplayRow>> = {
+      status: {
         key: "status",
         label: "Status",
         sortKey: "status",
@@ -1250,9 +1577,8 @@ export function ScreeningResultsTable({
           if (row.displayStatus === "Safe") return safeStatusPill();
           return statusPill(row.status);
         },
-      };
-      const tailColumns: FinScanTableColumn<ScreeningTableDisplayRow>[] = [
-      {
+      },
+      name: {
         key: "name",
         label: "Name",
         sortKey: "name",
@@ -1260,23 +1586,23 @@ export function ScreeningResultsTable({
         cellClassName: "text-[#23262c] dark:text-[#b6c2cf] whitespace-nowrap",
         render: (row) => row.name,
       },
-      {
+      country: {
         key: "country",
         label: "Country",
         sortKey: "country",
         headerClassName: "whitespace-nowrap",
-        cellClassName: "text-[#464c59] dark:text-[#9fadbc] whitespace-nowrap",
+        cellClassName: secondaryTextClass,
         render: (row) => getListProfileSummaryForRow(row).country,
       },
-      {
+      dob: {
         key: "dob",
         label: "Date of Birth",
         sortKey: "dob",
         headerClassName: "whitespace-nowrap",
-        cellClassName: "text-[#464c59] dark:text-[#9fadbc] whitespace-nowrap",
+        cellClassName: secondaryTextClass,
         render: (row) => row.dob,
       },
-      {
+      matchAge: {
         key: "matchAge",
         label: "Match Age",
         sortKey: "matchAge",
@@ -1291,12 +1617,13 @@ export function ScreeningResultsTable({
           </span>
         ),
       },
-      {
+      matchScore: {
         key: "matchScore",
         label: "Match Score",
         sortKey: "matchScore",
         headerClassName: "whitespace-nowrap",
-        cellClassName: "font-['Noto_Sans:SemiBold',sans-serif] font-semibold tabular-nums whitespace-nowrap",
+        cellClassName:
+          "font-['Noto_Sans:SemiBold',sans-serif] font-semibold tabular-nums whitespace-nowrap",
         render: (row) => (
           <span
             className={cn(
@@ -1311,36 +1638,89 @@ export function ScreeningResultsTable({
           </span>
         ),
       },
-      {
+      listId: {
         key: "listId",
         label: "List ID",
         headerClassName: "whitespace-nowrap",
-        cellClassName: "text-[#464c59] dark:text-[#9fadbc] whitespace-nowrap",
+        cellClassName: secondaryTextClass,
         render: (row) => getListProfileSummaryForRow(row).listId,
       },
-      {
+      listCategory: {
         key: "listCategory",
         label: "List Category",
         headerClassName: "whitespace-nowrap",
-        cellClassName: "text-[#464c59] dark:text-[#9fadbc] whitespace-nowrap",
+        cellClassName: secondaryTextClass,
         render: (row) => getListProfileSummaryForRow(row).listCategory,
       },
-      {
+      listProfileId: {
         key: "listProfileId",
         label: "List Profile ID",
         headerClassName: "whitespace-nowrap",
         cellClassName: "text-[#464c59] dark:text-[#9fadbc] tabular-nums whitespace-nowrap",
         render: (row) => getListProfileSummaryForRow(row).listProfileId,
       },
-    ];
+      reviewer: {
+        key: "reviewer",
+        label: "Reviewer",
+        sortKey: "reviewer",
+        headerClassName: "whitespace-nowrap",
+        cellClassName: secondaryTextClass,
+        render: (row) => {
+          const reviewer = reviewerLabelForRow(row);
+          if (!reviewer) return emptySecondary;
+          return reviewer;
+        },
+      },
+      comments: {
+        key: "comments",
+        label: "Comments",
+        headerClassName: "whitespace-nowrap",
+        cellClassName: "max-w-[14rem] truncate text-[#464c59] dark:text-[#9fadbc]",
+        render: (row) => {
+          const comment = commentLabelForRow(row);
+          if (!comment) return emptySecondary;
+          return comment;
+        },
+      },
+      matchString: {
+        key: "matchString",
+        label: "Match String",
+        headerClassName: "whitespace-nowrap",
+        cellClassName: "whitespace-nowrap",
+        render: (row) => <MatchStringTiles tiles={row.matchTiles} />,
+      },
+      reason: {
+        key: "reason",
+        label: "Reason",
+        headerClassName: "whitespace-nowrap",
+        cellClassName: "max-w-[12rem] truncate text-[#464c59] dark:text-[#9fadbc]",
+        render: (row) => {
+          const reason = reasonLabelForRow(row);
+          if (!reason) return emptySecondary;
+          return reason;
+        },
+      },
+      matchedNameType: {
+        key: "matchedNameType",
+        label: "Matched Name Type",
+        headerClassName: "whitespace-nowrap",
+        cellClassName: secondaryTextClass,
+        render: (row) => matchedNameTypeForRow(row),
+      },
+      finscanCategory: {
+        key: "finscanCategory",
+        label: "FinScan Category",
+        headerClassName: "whitespace-nowrap",
+        cellClassName: secondaryTextClass,
+        render: (row) => finscanCategoryForRow(row),
+      },
+    };
 
-      if (isLevel2 && isCaseComplete) {
-        return [statusColumn, ...tailColumns, level2ReviewerColumn];
-      }
-      return [statusColumn, ...tailColumns];
-    },
-    [isLevel2, isCaseComplete, flowVariant, level2ReviewerColumn],
-  );
+    return columnOrder
+      .filter((key) => key !== "reviewer" || (isLevel2 && isCaseComplete))
+      .filter((key) => visibleColumns.has(key))
+      .map((key) => byKey[key]);
+  }, [isLevel2, isCaseComplete, flowVariant, visibleColumns, columnOrder]);
 
   const screeningEmptyState = (
     <>
@@ -1434,12 +1814,16 @@ export function ScreeningResultsTable({
     </div>
   );
 
+  const screeningAccordionOpen = !sectionCollapsed;
+
   return (
     <AceAccordion
       className={cn(
-        "flex w-full shrink-0 flex-col border-[var(--screening-border-strong)]",
+        "flex w-full flex-col border-[var(--screening-border-strong)]",
+        screeningAccordionOpen ? "min-h-0 flex-1" : "shrink-0",
         aceAccordionFixedHeaderClass,
         aceDropShadowXsClass,
+        screeningAccordionOpen && aceAccordionPanelFillClass,
         className,
       )}
       surface="white"
@@ -1449,7 +1833,7 @@ export function ScreeningResultsTable({
       showDeleteIcon={false}
       showEditIcon={false}
       showMoreIcon={false}
-      open={!sectionCollapsed}
+      open={screeningAccordionOpen}
       onOpenChange={(next) => setSectionCollapsed(!next)}
       title={title}
       titleClassName={cn(
@@ -1459,11 +1843,11 @@ export function ScreeningResultsTable({
       headerTrailing={tableHeaderTrailing}
       contentPadding={false}
     >
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden max-h-[calc(100dvh-14rem)]">
-            <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <div className="relative flex min-h-0 flex-1 overflow-hidden">
               <div
                 className={cn(
-                  "flex h-full w-[500%] shrink-0 transition-transform will-change-transform",
+                  "flex min-h-0 w-[400%] shrink-0 transition-transform will-change-transform",
                   durationAccordion,
                   easeAccordion,
                   !drilldownVisible
@@ -1474,9 +1858,10 @@ export function ScreeningResultsTable({
                 )}
               >
                 <div
-                  className="flex h-full min-h-0 w-1/5 min-w-0 flex-col overflow-hidden"
+                  className="flex min-h-0 w-1/4 min-w-0 flex-col overflow-hidden self-stretch"
                   aria-hidden={drilldownVisible}
                 >
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
             <div className="shrink-0 border-b border-[#cfd2d9] dark:border-[#38414a] bg-[#fafafb] dark:bg-[#1d2125] px-4 py-3">
               <div className="flex flex-nowrap items-center justify-between gap-3">
                 {showStatusFilter ? (
@@ -1513,6 +1898,79 @@ export function ScreeningResultsTable({
                   <div className="min-w-0 flex-1" aria-hidden />
                 )}
                 <div className="flex shrink-0 flex-nowrap items-center gap-3">
+                  <DropdownMenu
+                    onOpenChange={(open) => {
+                      if (!open) {
+                        setColumnDropIndicator(null);
+                        setDraggedColumnKey(null);
+                        setColumnDropLineTop(null);
+                      }
+                    }}
+                  >
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label="Show or hide columns"
+                            className={screeningToolbarIconButtonClass}
+                          >
+                            <List className="size-4" strokeWidth={2} aria-hidden />
+                          </button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent
+                        side="top"
+                        hideArrow
+                        className={cn(
+                          aceTypography(ACE_TYPE.captionSemiBold),
+                          "border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] text-[var(--screening-text-primary)] shadow-[var(--ace-drop-shadow-xs)]",
+                        )}
+                      >
+                        Columns
+                      </TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent
+                      align="end"
+                      className="min-w-[15rem]"
+                      onDragLeave={(event) => {
+                        if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+                          setColumnDropIndicator(null);
+                          setColumnDropLineTop(null);
+                        }
+                      }}
+                    >
+                      <DropdownMenuLabel>Columns</DropdownMenuLabel>
+                      <div ref={columnListRef} className="relative">
+                        {columnDropLineTop !== null ? (
+                          <span
+                            aria-hidden
+                            className={cn(
+                              screeningColumnDropLineClass,
+                              draggedColumnKey ? "scale-x-100 opacity-100" : "scale-x-[0.98] opacity-0",
+                            )}
+                            style={{ top: columnDropLineTop }}
+                          />
+                        ) : null}
+                        {columnMenuOptions.map((column) => (
+                          <ScreeningColumnReorderMenuItem
+                            key={column.key}
+                            columnKey={column.key}
+                            label={column.label}
+                            checked={visibleColumns.has(column.key)}
+                            disabled={visibleColumns.has(column.key) && visibleColumns.size <= 1}
+                            draggedColumnKey={draggedColumnKey}
+                            dropIndicator={columnDropIndicator}
+                            onCheckedChange={(checked) => toggleColumnVisibility(column.key, checked)}
+                            onReorder={reorderColumns}
+                            onDropIndicatorChange={setColumnDropIndicator}
+                            onDraggedColumnKeyChange={setDraggedColumnKey}
+                            onItemRef={registerColumnMenuItemRef}
+                          />
+                        ))}
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   {showReviewHistoryToggle ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -1530,10 +1988,9 @@ export function ScreeningResultsTable({
                             }
                             onClick={() => setShowReviewHistory((o) => !o)}
                             className={cn(
-                              "inline-flex size-8 shrink-0 items-center justify-center rounded-[4px] border transition-colors duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/35 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#22272b]",
-                              historyToggleDisabled
-                                ? "cursor-not-allowed border-[#cfd2d9] bg-[#f5f6f8] text-[#949baa] opacity-60 dark:border-[#38414a] dark:bg-[#2c333a] dark:text-[#6a7285]"
-                                : "cursor-pointer border-[#cfd2d9] bg-white text-[#464c59] hover:border-[#949baa] hover:bg-[#eff0f2] hover:text-[#23262c] dark:border-[#38414a] dark:bg-[#22272b] dark:text-[#9fadbc] dark:hover:border-[#5c6773] dark:hover:bg-[#2c333a] dark:hover:text-[#b6c2cf]",
+                              screeningToolbarIconButtonClass,
+                              historyToggleDisabled &&
+                                "cursor-not-allowed border-[#cfd2d9] bg-[#f5f6f8] text-[#949baa] opacity-60 dark:border-[#38414a] dark:bg-[#2c333a] dark:text-[#6a7285]",
                             )}
                           >
                             {showReviewHistory ? (
@@ -1573,14 +2030,28 @@ export function ScreeningResultsTable({
               </div>
             </div>
             <ExpandableFinScanTable
-              rows={sortedRows}
+              rows={paginatedRows}
               columns={screeningColumns}
               caption={`${title}, ${sortedRows.length} ${sortedRows.length === 1 ? "row" : "rows"}${statusFilters.size > 0 ? `, filtered by ${[...statusFilters].sort((a, b) => a.localeCompare(b)).join(", ")}` : ""}`}
-              className="min-h-0 min-w-0 flex-1"
+              className="shrink-0"
+              scrollY={false}
               tableLayout="auto"
               minWidth="min-w-full"
-              expandable={false}
-              showExpandAll={false}
+              expandable
+              showExpandAll
+              expandedIds={expandedRowIds}
+              onExpandedIdsChange={setExpandedRowIds}
+              expandTooltips={{
+                expandRow: { open: "Open List Profile", close: "Close List Profile" },
+                expandAll: { show: "Show All", hide: "Hide All" },
+              }}
+              expandedContentClassName="bg-[var(--screening-surface-muted)]"
+              renderExpandedContent={(row) => (
+                <ListProfileInlineContent
+                  row={row}
+                  className="ml-10 border-l-2 border-[#523eb9]/25 pl-6"
+                />
+              )}
               sort={{
                 sortKey,
                 sortDir,
@@ -1599,7 +2070,11 @@ export function ScreeningResultsTable({
               }}
               trailingColumn={{
                 render: (row) => (
-                  <ScreeningRowActionsMenu row={row} onOpenDrilldown={openRowDrilldown} />
+                  <ScreeningRowActionsMenu
+                    row={row}
+                    onOpenDrilldown={openRowDrilldown}
+                    onExpandListProfile={expandListProfileRow}
+                  />
                 ),
               }}
               getRowClassName={(row) => {
@@ -1614,9 +2089,23 @@ export function ScreeningResultsTable({
               }}
               emptyState={sortedRows.length === 0 ? screeningEmptyState : undefined}
             />
+            <div className="shrink-0 border-t border-[var(--screening-border-strong)] bg-[var(--screening-surface-muted)] px-4 py-3">
+              <AcePagination
+                totalItems={sortedRows.length}
+                page={page}
+                pageSize={pageSize}
+                portalContainer={paginationMenuPortal}
+                onPageChange={setPage}
+                onPageSizeChange={(nextPageSize) => {
+                  setPageSize(nextPageSize);
+                  setPage(1);
+                }}
+              />
+            </div>
+            </div>
                 </div>
                 <div
-                  className="flex h-full min-h-0 w-1/5 min-w-0 flex-col overflow-hidden"
+                  className="flex h-full min-h-0 w-1/4 min-w-0 flex-col overflow-hidden"
                   aria-hidden={!drilldownVisible || drilldownView !== "screening-history"}
                 >
                   {drilldownRow && drilldownView === "screening-history" ? (
@@ -1624,7 +2113,7 @@ export function ScreeningResultsTable({
                   ) : null}
                 </div>
                 <div
-                  className="flex h-full min-h-0 w-1/5 min-w-0 flex-col overflow-hidden"
+                  className="flex h-full min-h-0 w-1/4 min-w-0 flex-col overflow-hidden"
                   aria-hidden={!drilldownVisible || drilldownView !== "documents"}
                 >
                   {drilldownRow && drilldownView === "documents" ? (
@@ -1632,15 +2121,7 @@ export function ScreeningResultsTable({
                   ) : null}
                 </div>
                 <div
-                  className="flex h-full min-h-0 w-1/5 min-w-0 flex-col overflow-hidden"
-                  aria-hidden={!drilldownVisible || drilldownView !== "list-profile"}
-                >
-                  {drilldownRow && drilldownView === "list-profile" ? (
-                    <ListProfilePanel row={drilldownRow} onBack={closeRowDrilldown} />
-                  ) : null}
-                </div>
-                <div
-                  className="flex h-full min-h-0 w-1/5 min-w-0 flex-col overflow-hidden"
+                  className="flex h-full min-h-0 w-1/4 min-w-0 flex-col overflow-hidden"
                   aria-hidden={!drilldownVisible || drilldownView !== "match-simulator"}
                 >
                   {drilldownRow && drilldownView === "match-simulator" ? (

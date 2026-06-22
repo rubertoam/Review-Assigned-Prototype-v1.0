@@ -1,16 +1,8 @@
-import { useEffect, useId, useMemo, useState } from "react";
 import { ChevronLeft } from "lucide-react";
-import { AceTabs, aceTabButtonId } from "./ui/ace-tabs";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
-import { getListProfileForRow } from "../lib/listProfileData";
-import { LIST_PROFILE_TABS, type ListProfileTabId } from "../lib/listProfileTabs";
 import { cn } from "./ui/utils";
 import type { ScreeningResultRow } from "./ScreeningResultsTable";
-import {
-  ListProfileAllTabView,
-  ListProfileDataTableView,
-  ListProfileGeneralTable,
-} from "./ListProfileTabContent";
+import { ListProfileInlineContent } from "./ListProfileInlineContent";
 
 const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 
@@ -22,14 +14,6 @@ export interface ListProfilePanelProps {
 }
 
 export function ListProfilePanel({ row, onBack }: ListProfilePanelProps) {
-  const [activeTab, setActiveTab] = useState<ListProfileTabId>("general");
-  const tabPrefix = useId();
-  const profile = useMemo(() => getListProfileForRow(row), [row]);
-
-  useEffect(() => {
-    setActiveTab("general");
-  }, [row.id]);
-
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <div className="shrink-0 bg-[var(--screening-surface)] px-4 pb-2 pt-3">
@@ -49,40 +33,10 @@ export function ListProfilePanel({ row, onBack }: ListProfilePanelProps) {
             Back to List
           </span>
         </button>
-
-        <AceTabs
-          items={[...LIST_PROFILE_TABS]}
-          value={activeTab}
-          onValueChange={(id) => setActiveTab(id as ListProfileTabId)}
-          idPrefix={tabPrefix}
-          aria-label="List profile sections"
-        />
       </div>
 
-      <div
-        role="tabpanel"
-        id={`${tabPrefix}-panel-${activeTab}`}
-        aria-labelledby={aceTabButtonId(tabPrefix, activeTab)}
-        className="min-h-0 flex-1 overflow-y-auto bg-[var(--screening-surface)] px-4 py-6"
-      >
-        {activeTab === "general" ? <ListProfileGeneralTable fields={profile.general} /> : null}
-        {activeTab === "addresses" ? (
-          <ListProfileDataTableView table={profile.addresses} caption="Address records" />
-        ) : null}
-        {activeTab === "dates" ? (
-          <ListProfileDataTableView table={profile.dates} caption="Date records" />
-        ) : null}
-        {activeTab === "id-numbers" ? (
-          <ListProfileDataTableView table={profile.idNumbers} caption="Identification numbers" />
-        ) : null}
-        {activeTab === "person" ? (
-          <ListProfileDataTableView table={profile.person} caption="Person records" />
-        ) : null}
-        {activeTab === "tracking" ? (
-          <ListProfileDataTableView table={profile.tracking} caption="Tracking information" />
-        ) : null}
-        {activeTab === "all" ? <ListProfileAllTabView profile={profile} /> : null}
-        <p className="sr-only">Selected match: {row.name}</p>
+      <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--screening-surface)] px-4 py-6">
+        <ListProfileInlineContent row={row} />
       </div>
     </div>
   );

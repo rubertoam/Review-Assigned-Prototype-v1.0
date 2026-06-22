@@ -159,7 +159,11 @@ function Dialog({
       fitContent={hasFixedHeight ? false : fitContent}
       className={cn(
         contentClassName,
-        hideAceHeader && "[&>div:first-child]:hidden",
+        hideAceHeader && [
+          "[&>div:first-child]:absolute [&>div:first-child]:right-4 [&>div:first-child]:top-4 [&>div:first-child]:z-20 [&>div:first-child]:w-auto",
+          "[&>div:first-child>h2]:sr-only",
+          "[&>div:first-child]:pointer-events-none [&>div:first-child_button]:pointer-events-auto",
+        ],
         wideModal && "!max-w-[min(calc(100vw-2rem),1200px)]",
         hasFixedHeight &&
           "!h-[min(90vh,880px)] !max-h-[min(90vh,880px)] !gap-0 !overflow-hidden",
@@ -207,7 +211,13 @@ function DialogContent({ children }: { children?: React.ReactNode; className?: s
 DialogContent.displayName = "DialogContent";
 
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
-  return <div data-slot="dialog-header" className={className} {...props} />;
+  return (
+    <div
+      data-slot="dialog-header"
+      className={cn("pr-10", className)}
+      {...props}
+    />
+  );
 }
 DialogHeader.displayName = "DialogHeader";
 
