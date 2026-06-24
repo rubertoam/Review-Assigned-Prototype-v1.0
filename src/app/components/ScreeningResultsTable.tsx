@@ -134,6 +134,8 @@ export type ScreeningResultRow = {
   level1Reviewer?: string;
   /** Level 1 reason when the match was cleared without escalation. */
   level1Reason?: string;
+  /** Prototype: row is New again after a prior Confirmed Safe decision. */
+  reopenedFromConfirmedSafe?: boolean;
 };
 
 /** Row shape used inside the table (Level 2 review history adds display overrides). */
@@ -186,6 +188,12 @@ function randomDobForRow(caseIndex: number, rowIndex: number): string {
   return `${String(month).padStart(2, "0")}/${String(day).padStart(2, "0")}/${year}`;
 }
 
+/** ~50% of rows per case — deterministic — show Confirmed Safe → New in history / review panel. */
+function reopenedFromConfirmedSafeForRow(caseIndex: number, rowIndex: number): boolean {
+  const seed = (caseIndex + 1) * 419 + (rowIndex + 1) * 907;
+  return seed % 2 === 0;
+}
+
 function level1ReviewerForCase(caseIndex: number): string {
   return LEVEL1_CASE_REVIEWERS[Math.min(caseIndex, LEVEL1_CASE_REVIEWERS.length - 1)];
 }
@@ -199,6 +207,7 @@ export function getScreeningRowsForCase(caseIndex: number): ScreeningResultRow[]
     const name = names[Math.min(i, names.length - 1)];
     const score = Math.max(22, 93 - i * 7 - (ci % 3) * 2);
     const tiles = TILE_ROTATIONS[i % TILE_ROTATIONS.length];
+    const reopenedFromConfirmedSafe = reopenedFromConfirmedSafeForRow(ci, i);
     rows.push({
       id: `c${ci}-${i + 1}`,
       name,
@@ -208,6 +217,13 @@ export function getScreeningRowsForCase(caseIndex: number): ScreeningResultRow[]
       matchScore: score,
       matchTiles: [...tiles],
       status: "New",
+      ...(reopenedFromConfirmedSafe
+        ? {
+            reopenedFromConfirmedSafe: true,
+            level1Reviewer: level1ReviewerForCase(ci),
+            level1Reason: "Confirmed Safe",
+          }
+        : {}),
     });
   }
   return rows;

@@ -1,9 +1,7 @@
 import { ChevronLeft } from "lucide-react";
-import { useMemo } from "react";
-import { AceTimeline } from "@ace-ds/components/organisms/AceTimeline/AceTimeline";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
-import { getScreeningHistoryTimelineItems } from "../lib/screeningHistoryTimeline";
 import { cn } from "./ui/utils";
+import { ScreeningHistoryTimelineView } from "./ScreeningHistoryTimelineView";
 import type { ScreeningResultRow } from "./ScreeningResultsTable";
 
 const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
@@ -14,8 +12,6 @@ export interface ScreeningHistoryPanelProps {
 }
 
 export function ScreeningHistoryPanel({ row, onBack }: ScreeningHistoryPanelProps) {
-  const timelineItems = useMemo(() => getScreeningHistoryTimelineItems(row), [row]);
-
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <div className="shrink-0 bg-[var(--screening-surface)] px-4 pb-2 pt-3">
@@ -44,7 +40,7 @@ export function ScreeningHistoryPanel({ row, onBack }: ScreeningHistoryPanelProp
         <p className="sr-only">Selected match: {row.name}</p>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--screening-surface)] px-4 py-4">
-        <AceTimeline items={timelineItems} />
+        <ScreeningHistoryTimelineView row={row} />
       </div>
     </div>
   );

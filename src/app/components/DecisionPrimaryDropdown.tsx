@@ -1,22 +1,12 @@
-import { ChevronDown } from "lucide-react";
+import { useMemo } from "react";
+import {
+  AceDropdownMenu,
+  type AceDropdownMenuEntry,
+} from "@ace-ds/components/molecules/AceDropdownMenu/AceDropdownMenu";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { cn } from "./ui/utils";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "./ui/dropdown-menu";
 
 const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
-
-/** ACE field trigger — matches AceDropdownMenu field mode, full width in the drawer. */
-export const decisionPrimaryTriggerClass = cn(
-  "inline-flex w-full cursor-pointer items-center justify-between gap-[var(--space-2)] rounded-[var(--radius-sm)] border border-solid border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-[var(--ace-button-px-sm)] py-[var(--ace-button-py-sm)] text-xs font-semibold leading-[1.65] text-[var(--screening-text-primary)] outline-none transition-colors [font-family:var(--font-screening)]",
-  "hover:bg-[var(--screening-surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--screening-primary-ring-offset)]",
-  "data-[state=open]:bg-[var(--screening-surface-hover)] data-[state=open]:ring-2 data-[state=open]:ring-[var(--screening-primary-ring)] data-[state=open]:ring-offset-2 data-[state=open]:ring-offset-[var(--screening-primary-ring-offset)]",
-  "disabled:pointer-events-none disabled:opacity-50",
-);
 
 export function DecisionPrimaryDropdown({
   label,
@@ -33,7 +23,14 @@ export function DecisionPrimaryDropdown({
   onChange: (value: string) => void;
   disabled?: boolean;
 }) {
-  const displayLabel = value ?? placeholder;
+  const items = useMemo((): AceDropdownMenuEntry[] => {
+    return options.map((option) => ({
+      type: "item",
+      label: option,
+      highlighted: option === value,
+      onSelect: () => onChange(option),
+    }));
+  }, [onChange, options, value]);
 
   return (
     <div className="flex w-full flex-col gap-2">
@@ -43,42 +40,19 @@ export function DecisionPrimaryDropdown({
       >
         {label}
       </p>
-      <DropdownMenu modal={false}>
-        <DropdownMenuTrigger
-          disabled={disabled}
-          className={cn(
-            decisionPrimaryTriggerClass,
-            !value && "font-normal text-[var(--screening-text-muted)]",
-          )}
-        >
-          <span className="min-w-0 flex-1 truncate text-left">{displayLabel}</span>
-          <ChevronDown className="ml-auto size-4 shrink-0 opacity-70" aria-hidden />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          variant="primary"
-          align="start"
-          side="bottom"
-          collisionPadding={12}
-          className={cn(
-            "z-[400]",
-            "w-[var(--radix-dropdown-menu-trigger-width)] min-w-[var(--radix-dropdown-menu-trigger-width)] max-w-[var(--radix-dropdown-menu-trigger-width)]",
-            "max-h-[min(20rem,50vh)] overflow-y-auto",
-          )}
-        >
-          {options.map((option) => (
-            <DropdownMenuItem
-              key={option}
-              className={cn(
-                option === value &&
-                  "bg-[var(--screening-surface-hover)] [&>span:first-child]:bg-[var(--ace-dropdown-menu-primary)]",
-              )}
-              onSelect={() => onChange(option)}
-            >
-              {option}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <AceDropdownMenu
+        triggerLabel={value ?? placeholder}
+        triggerMode="field"
+        size="sm"
+        panelWidth="wide"
+        align="start"
+        disabled={disabled}
+        className={cn(
+          "!w-full !max-w-full font-['Noto_Sans:Regular',sans-serif] font-normal",
+          !value && "text-[var(--screening-text-muted)]",
+        )}
+        items={items}
+      />
     </div>
   );
 }

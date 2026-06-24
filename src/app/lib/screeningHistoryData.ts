@@ -45,6 +45,39 @@ export function getScreeningHistoryEventsForRow(row: ScreeningResultRow): Screen
     },
   ];
 
+  if (row.reopenedFromConfirmedSafe) {
+    const reviewer = (row.level1Reviewer ?? "Laura").toLowerCase();
+    events.push({
+      id: `${row.id}-confirmed-safe`,
+      variant: "safe",
+      label: "Confirmed Safe",
+      timestamp: "15 Apr 2026 09:12:08",
+      user: reviewer,
+      details: {
+        reason: row.level1Reason ?? "Confirmed Safe",
+        comment: "--",
+        listVersion: "20120612",
+        timeViewed: "15 Apr 2026 09:12:08",
+        daysOpen: "1 Day",
+      },
+    });
+    events.push({
+      id: `${row.id}-reopened`,
+      variant: "system-action",
+      label: "New",
+      timestamp: "05 Oct 2025 17:33:23",
+      user: reviewer,
+      details: {
+        reason: "New",
+        comment: "Last user comment goes here",
+        listVersion: "20120612",
+        timeViewed: "05 Oct 2025 17:33:23",
+        daysOpen: "2 Days",
+      },
+    });
+    return events;
+  }
+
   if (row.status !== "New") {
     const reviewer = row.decisionReviewer ?? row.level1Reviewer ?? "Laura";
     const reason = row.decisionReason ?? row.level1Reason ?? row.status;

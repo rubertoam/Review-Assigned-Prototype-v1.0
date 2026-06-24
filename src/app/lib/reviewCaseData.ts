@@ -1,20 +1,64 @@
-export const CASE_INTERACTION_OPTIONS = [
-  "Risk",
-  "Review Target",
-  "Organization",
-  "Individual",
+export const CASE_FILTER_GROUPS = [
+  {
+    label: "Risk",
+    items: [
+      { value: "risk-high", label: "High", selectedLabel: "Risk - High" },
+      { value: "risk-medium", label: "Medium", selectedLabel: "Risk - Medium" },
+      { value: "risk-low", label: "Low", selectedLabel: "Risk - Low" },
+    ],
+  },
+  {
+    label: "Review Target",
+    items: [
+      {
+        value: "review-target-overdue-warning",
+        label: "Overdue Warning",
+        selectedLabel: "Review Target - Overdue Warning",
+      },
+      { value: "review-target-overdue", label: "Overdue", selectedLabel: "Review Target - Overdue" },
+    ],
+  },
+  {
+    label: "Record Type",
+    items: [
+      { value: "individual", label: "Individual", selectedLabel: "Individual" },
+      { value: "organization", label: "Organization", selectedLabel: "Organization" },
+      {
+        value: "unknown-record-type",
+        label: "Unknown",
+        selectedLabel: "Unknown Record Type",
+      },
+    ],
+  },
 ] as const;
 
-export type CaseInteraction = (typeof CASE_INTERACTION_OPTIONS)[number];
-export type CaseInteractionPicklist = "all" | CaseInteraction;
+export type CaseFilterValue = (typeof CASE_FILTER_GROUPS)[number]["items"][number]["value"];
+
+export function caseFilterDisplayLabel(value: CaseFilterValue): string {
+  for (const group of CASE_FILTER_GROUPS) {
+    const match = group.items.find((item) => item.value === value);
+    if (match) return match.selectedLabel;
+  }
+  return value;
+}
+
+export function caseFilterTriggerLabel(selectedFilters: ReadonlySet<CaseFilterValue>): string {
+  if (selectedFilters.size === 0) return "All";
+  if (selectedFilters.size === 1) {
+    return caseFilterDisplayLabel([...selectedFilters][0]);
+  }
+  return `${selectedFilters.size} selected`;
+}
+
+export type CaseRecordType = "individual" | "organization" | "unknown";
 
 export const casesData = [
-  { name: "John Smith", results: 8, selected: true, interaction: "Individual" as const },
-  { name: "Mr. Jose A Gonzalez", results: 8, selected: false, interaction: "Review Target" as const },
-  { name: "Muammar Qadhafi", results: 7, selected: false, interaction: "Risk" as const },
-  { name: "Jane Doe", results: 5, selected: false, interaction: "Individual" as const },
-  { name: "Bank of Iran", results: 3, selected: false, isEntity: true, interaction: "Organization" as const },
-  { name: "Bank of Moscow", results: 2, selected: false, isEntity: true, interaction: "Organization" as const },
+  { name: "John Smith", results: 8, selected: true },
+  { name: "Mr. Jose A Gonzalez", results: 8, selected: false },
+  { name: "Muammar Qadhafi", results: 7, selected: false },
+  { name: "Jane Doe", results: 5, selected: false },
+  { name: "Bank of Iran", results: 3, selected: false, isEntity: true },
+  { name: "Bank of Moscow", results: 2, selected: false, isEntity: true },
 ] as const;
 
 export type ClientRiskBand = "low" | "medium" | "high";
@@ -28,8 +72,12 @@ export interface ClientProfileFields {
   lastModified: string;
   applicationLabel: string;
   reviewTargetSummary: string;
+  /** Approaching review target deadline — shows overdue warning in profile. */
   reviewTargetOverdue: boolean;
+  /** Past review target deadline. */
+  reviewTargetPastDue: boolean;
   riskBand: ClientRiskBand;
+  recordType?: CaseRecordType;
   showIdVerified: boolean;
 }
 
@@ -45,6 +93,7 @@ export const CLIENT_PROFILES: readonly ClientProfileFields[] = [
     applicationLabel: "ISI Focus",
     reviewTargetSummary: "Level 1",
     reviewTargetOverdue: true,
+    reviewTargetPastDue: false,
     riskBand: "low",
     showIdVerified: true,
   },
@@ -58,6 +107,7 @@ export const CLIENT_PROFILES: readonly ClientProfileFields[] = [
     applicationLabel: "ISI Focus",
     reviewTargetSummary: "Level 1",
     reviewTargetOverdue: false,
+    reviewTargetPastDue: true,
     riskBand: "low",
     showIdVerified: true,
   },
@@ -71,6 +121,7 @@ export const CLIENT_PROFILES: readonly ClientProfileFields[] = [
     applicationLabel: "ISI Focus",
     reviewTargetSummary: "Level 1",
     reviewTargetOverdue: false,
+    reviewTargetPastDue: false,
     riskBand: "high",
     showIdVerified: true,
   },
@@ -84,6 +135,7 @@ export const CLIENT_PROFILES: readonly ClientProfileFields[] = [
     applicationLabel: "ISI Focus",
     reviewTargetSummary: "Level 1",
     reviewTargetOverdue: false,
+    reviewTargetPastDue: false,
     riskBand: "medium",
     showIdVerified: true,
   },
@@ -97,7 +149,9 @@ export const CLIENT_PROFILES: readonly ClientProfileFields[] = [
     applicationLabel: "ISI Focus",
     reviewTargetSummary: "Level 1",
     reviewTargetOverdue: false,
+    reviewTargetPastDue: false,
     riskBand: "high",
+    recordType: "unknown",
     showIdVerified: false,
   },
   {
@@ -110,10 +164,55 @@ export const CLIENT_PROFILES: readonly ClientProfileFields[] = [
     applicationLabel: "ISI Focus",
     reviewTargetSummary: "Level 1",
     reviewTargetOverdue: false,
+    reviewTargetPastDue: false,
     riskBand: "high",
     showIdVerified: false,
   },
 ];
+
+export function recordTypeForCase(caseIndex: number): CaseRecordType {
+  const profile = clientProfileForCaseIndex(caseIndex);
+  if (profile.recordType) return profile.recordType;
+  const item = casesData[caseIndex];
+  if (!item) return "unknown";
+  if ("isEntity" in item && item.isEntity) return "organization";
+  return "individual";
+}
+
+export function caseMatchesSingleFilter(caseIndex: number, filter: CaseFilterValue): boolean {
+  const profile = clientProfileForCaseIndex(caseIndex);
+  switch (filter) {
+    case "risk-high":
+      return profile.riskBand === "high";
+    case "risk-medium":
+      return profile.riskBand === "medium";
+    case "risk-low":
+      return profile.riskBand === "low";
+    case "review-target-overdue-warning":
+      return profile.reviewTargetOverdue;
+    case "review-target-overdue":
+      return profile.reviewTargetPastDue;
+    case "individual":
+      return recordTypeForCase(caseIndex) === "individual";
+    case "organization":
+      return recordTypeForCase(caseIndex) === "organization";
+    case "unknown-record-type":
+      return recordTypeForCase(caseIndex) === "unknown";
+    default:
+      return false;
+  }
+}
+
+export function caseMatchesFilters(
+  caseIndex: number,
+  selectedFilters: ReadonlySet<CaseFilterValue>,
+): boolean {
+  if (selectedFilters.size === 0) return true;
+  for (const filter of selectedFilters) {
+    if (caseMatchesSingleFilter(caseIndex, filter)) return true;
+  }
+  return false;
+}
 
 export function clientProfileForCaseIndex(caseIndex: number): ClientProfileFields {
   const i = Math.max(0, Math.min(caseIndex, CLIENT_PROFILES.length - 1));

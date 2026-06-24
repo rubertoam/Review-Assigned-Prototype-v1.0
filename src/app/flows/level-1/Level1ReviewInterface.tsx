@@ -32,13 +32,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../../components/ui/select";
+import { CaseListFilterSelect } from "../../components/CaseListFilterSelect";
 import {
   Dialog,
   DialogContent,
@@ -56,13 +50,14 @@ import {
 import { useScreeningRowsByCase } from "../../lib/screeningState";
 import { useCompleteCaseSubmit } from "../../lib/useCompleteCaseSubmit";
 import {
-  CASE_INTERACTION_OPTIONS,
+  caseMatchesFilters,
   casesData,
   clientProfileForCaseIndex,
   riskBandPresentation,
-  type CaseInteractionPicklist,
+  type CaseFilterValue,
 } from "../../lib/reviewCaseData";
 import { cn } from "../../components/ui/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../../components/ui/tooltip";
 import { ReviewDrawer } from "../../components/ReviewDrawer";
 import { SidebarNavCountBadge } from "../../components/SidebarNavCountBadge";
 import type { Level1ScreeningStatus } from "../../lib/reviewDecisionConfig";
@@ -280,19 +275,20 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
   const listRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
   const [doneSectionExpanded, setDoneSectionExpanded] = useState(false);
-  const [interactionPicklist, setInteractionPicklist] =
-    useState<CaseInteractionPicklist>("all");
+  const [selectedCaseFilters, setSelectedCaseFilters] = useState<ReadonlySet<CaseFilterValue>>(
+    () => new Set(),
+  );
   const wasSelectedCaseCompleteRef = useRef(false);
 
   const filteredRows = useMemo(() => {
     const out: CaseListRow[] = [];
     casesData.forEach((item, index) => {
-      if (interactionPicklist === "all" || item.interaction === interactionPicklist) {
+      if (caseMatchesFilters(index, selectedCaseFilters)) {
         out.push({ item, index });
       }
     });
     return out;
-  }, [interactionPicklist]);
+  }, [selectedCaseFilters]);
 
   const caseRowsForIndex = useCallback(
     (index: number) => screeningRowsByCase[index] ?? getScreeningRowsForCase(index),
@@ -461,46 +457,10 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
           >
             Filter by
           </span>
-          <Select
-            value={interactionPicklist}
-            onValueChange={(v) => setInteractionPicklist(v as CaseInteractionPicklist)}
-          >
-            <SelectTrigger
-              size="sm"
-              className={cn(
-                "h-8 w-full rounded-[4px] border-[#cfd2d9] dark:border-[#38414a] bg-white dark:bg-[#22272b] px-2.5 py-1.5 text-[13px] font-['Noto_Sans:Regular',sans-serif] font-normal text-[#23262c] dark:text-[#b6c2cf] shadow-none hover:bg-[#eff0f2] dark:hover:bg-[#2c333a] focus-visible:border-[#523eb9] focus-visible:ring-[#523eb9]/30",
-                "[&_svg]:size-3.5 [&_svg]:opacity-60",
-              )}
-              style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-            >
-              <SelectValue placeholder="Select interaction" />
-            </SelectTrigger>
-            <SelectContent
-              position="popper"
-              className={cn(
-                "rounded-[var(--radius-sm)] border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] p-1",
-                aceDropShadowXsClass,
-              )}
-            >
-              <SelectItem
-                value="all"
-                className="rounded-[4px] py-1.5 pl-2 pr-8 text-[13px] font-['Noto_Sans:Regular',sans-serif] focus:bg-[#efeef9] dark:bg-[#333a42] focus:text-[#23262c] dark:text-[#b6c2cf]"
-                style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-              >
-                All
-              </SelectItem>
-              {CASE_INTERACTION_OPTIONS.map((opt) => (
-                <SelectItem
-                  key={opt}
-                  value={opt}
-                  className="rounded-[4px] py-1.5 pl-2 pr-8 text-[13px] font-['Noto_Sans:Regular',sans-serif] focus:bg-[#efeef9] dark:bg-[#333a42] focus:text-[#23262c] dark:text-[#b6c2cf]"
-                  style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-                >
-                  {opt}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <CaseListFilterSelect
+            selectedFilters={selectedCaseFilters}
+            onSelectedFiltersChange={setSelectedCaseFilters}
+          />
         </div>
       </div>
       <div className="flex flex-col">
@@ -759,6 +719,29 @@ function TaskBar({
   screeningSelectionCount,
   onDeselectAllScreening,
 }: TaskBarProps) {
+  const isShowReviewDisabled = !isReviewOpen && screeningSelectionCount === 0;
+
+  const showReviewButton = (
+    <button
+      type="button"
+      disabled={isShowReviewDisabled}
+      onClick={onShowReview}
+      className={cn(
+        "shrink-0 rounded-[4px] px-4 py-2 transition-colors",
+        isShowReviewDisabled
+          ? "cursor-not-allowed bg-[#3d2e8a] opacity-50"
+          : "cursor-pointer bg-[#3d2e8a] hover:bg-[#523eb9]",
+      )}
+    >
+      <p
+        className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[14px] text-white"
+        style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+      >
+        {isReviewOpen ? "Hide Review" : "Show Review"}
+      </p>
+    </button>
+  );
+
   return (
     <div
       className={cn(
@@ -797,14 +780,25 @@ function TaskBar({
             </button>
           </>
         ) : null}
-        <div
-          className="shrink-0 bg-[#3d2e8a] px-4 py-2 rounded-[4px] cursor-pointer hover:bg-[#523eb9] transition-colors"
-          onClick={onShowReview}
-        >
-          <p className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[14px] text-white" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-            {isReviewOpen ? 'Hide Review' : 'Show Review'}
-          </p>
-        </div>
+        {isShowReviewDisabled ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex shrink-0">{showReviewButton}</span>
+            </TooltipTrigger>
+            <TooltipContent
+              side="top"
+              hideArrow
+              className={cn(
+                aceTypography(ACE_TYPE.captionSemiBold),
+                "border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] text-[var(--screening-text-primary)] shadow-[var(--ace-drop-shadow-xs)]",
+              )}
+            >
+              Select one or more matches
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          showReviewButton
+        )}
       </div>
     </div>
   );
@@ -821,6 +815,11 @@ export function Level1ReviewInterface() {
   const screeningRows = useMemo(
     () => screeningRowsByCase[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex),
     [screeningRowsByCase, selectedCaseIndex],
+  );
+
+  const selectedScreeningRows = useMemo(
+    () => screeningRows.filter((row) => screeningSelectedIds.has(row.id)),
+    [screeningRows, screeningSelectedIds],
   );
 
   const allCasesCleared = useMemo(
@@ -994,6 +993,7 @@ export function Level1ReviewInterface() {
             onClose={() => setIsReviewDrawerOpen(false)}
             flowVariant="level-1"
             selectedCount={screeningSelectedIds.size}
+            selectedRows={selectedScreeningRows}
             onSubmit={submitReviewDecision}
           />
         </div>
