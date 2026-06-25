@@ -6,7 +6,6 @@ import {
   CloudUpload,
   FileText,
   Link2,
-  X,
 } from "lucide-react";
 import { AceInputField } from "@ace-ds/components/atoms/AceInputField";
 import {
@@ -22,7 +21,7 @@ import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { AceGridExpandPanel } from "./AceGridExpandPanel";
 import { ReviewActivityMatchSelect } from "./ReviewActivityMatchSelect";
 import { cn } from "./ui/utils";
-import type { ScreeningResultRow } from "./ScreeningResultsTable";
+import { STATUS_PILL_STYLES, type ScreeningResultRow } from "./ScreeningResultsTable";
 
 const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 const NEUTRAL_800 = "text-[#23262c]";
@@ -345,12 +344,23 @@ function ActivityCommentBlock({
   );
 }
 
+const ACTIVITY_STATUS_STYLE_ALIAS: Record<string, string> = {
+  "In Process": "New",
+  "Pending Review": "New",
+  "Confirmed Match": "Escalate",
+};
+
 function ActivityStatusTag({ label }: { label: string }) {
+  const styleKey = ACTIVITY_STATUS_STYLE_ALIAS[label] ?? label;
+  const style = STATUS_PILL_STYLES[styleKey] ?? STATUS_PILL_STYLES.Escalate;
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-[4px] bg-[#fdf3ea] px-2 py-1",
-        "text-[10px] font-normal leading-[1.65] tracking-[0.2px] text-[#e67e23]",
+        "inline-flex items-center rounded-[4px] border px-2 py-1",
+        style.border,
+        style.bg,
+        "text-[10px] font-normal leading-[1.65] tracking-[0.2px]",
+        style.text,
       )}
       style={notoVar}
     >
@@ -369,7 +379,6 @@ function ActivityFileTag({ fileName }: { fileName: string }) {
       >
         {fileName}
       </span>
-      <X className={cn(ICON_CLASS, "text-[#464c59]")} strokeWidth={2} aria-hidden />
     </span>
   );
 }

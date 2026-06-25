@@ -920,7 +920,7 @@ function mapLevel2ReviewedDisplayRow(r: ScreeningResultRow): ScreeningTableDispl
   };
 }
 
-const STATUS_PILL_STYLES: Record<
+export const STATUS_PILL_STYLES: Record<
   string,
   { border: string; bg: string; dot: string; text: string }
 > = {
