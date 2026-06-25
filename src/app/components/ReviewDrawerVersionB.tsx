@@ -10,7 +10,7 @@ import { AceTabs, aceTabButtonId } from "./ui/ace-tabs";
 import { DecisionPrimaryDropdown } from "./DecisionPrimaryDropdown";
 import { ReviewActivityFeed } from "./ReviewActivityFeed";
 import { ReviewDecisionInlineCommentField } from "./ReviewDecisionInlineCommentField";
-import type { ReviewActivityFilter, SubmittedReviewComment } from "../lib/reviewActivityData";
+import type { ReviewActivityFilter } from "../lib/reviewActivityData";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { cn } from "./ui/utils";
 import type { ScreeningResultRow } from "./ScreeningResultsTable";
@@ -44,8 +44,6 @@ export function ReviewDrawerVersionB({
   reasonOptions,
   decisionCommentDraft,
   onDecisionCommentDraftChange,
-  onSubmitDecisionComment,
-  submittedComments,
   attachmentFiles,
   attachmentLinks,
   attachmentUrlDraft,
@@ -78,8 +76,6 @@ export function ReviewDrawerVersionB({
   reasonOptions: readonly string[];
   decisionCommentDraft: string;
   onDecisionCommentDraftChange: (value: string) => void;
-  onSubmitDecisionComment: () => void;
-  submittedComments: readonly SubmittedReviewComment[];
   attachmentFiles: AceAttachmentFile[];
   attachmentLinks: AceAttachmentLink[];
   attachmentUrlDraft: string;
@@ -143,7 +139,6 @@ export function ReviewDrawerVersionB({
             <ReviewDecisionInlineCommentField
               value={decisionCommentDraft}
               onChange={onDecisionCommentDraftChange}
-              onSubmit={onSubmitDecisionComment}
               disabled={selectedCount === 0}
             />
             </div>
@@ -171,10 +166,6 @@ export function ReviewDrawerVersionB({
                 selectedRows={selectedRows}
                 activityViewRowId={activityViewRowId}
                 onActivityViewRowIdChange={onActivityViewRowIdChange}
-                selectedStatus={selectedStatus}
-                submittedComments={submittedComments}
-                uploadedFiles={attachmentFiles}
-                uploadedLinks={attachmentLinks}
                 activityFilter={activityFilter}
                 onActivityFilterChange={onActivityFilterChange}
                 resetSignal={activityResetSignal}

@@ -70,6 +70,16 @@ const RELATIVE_TIMES = [
   "2 days ago",
 ] as const;
 
+const RELATIVE_TIME_MINUTES: Record<string, number> = {
+  "Just now": 0,
+  "5 min ago": 5,
+  "15 min ago": 15,
+  "1 hour ago": 60,
+  "3 hours ago": 180,
+  "1 day ago": 1440,
+  "2 days ago": 2880,
+};
+
 const STATUS_LABELS = [
   "Escalate",
   "Safe",
@@ -289,10 +299,19 @@ export function generateRowActivity(row: ScreeningResultRow): GeneratedRowActivi
     demoLogIds.add(id);
   }
 
-  const timelineEntries = shuffle(random, [
+  const commentTimeById = new Map(topLevelComments.map((comment) => [comment.id, comment.relativeTime]));
+  const logTimeById = new Map(logs.map((item) => [item.id, item.relativeTime]));
+  const timelineEntries = [
     ...topLevelComments.map((comment) => ({ type: "comment" as const, id: comment.id })),
     ...logs.map((item) => ({ type: "log" as const, id: item.id })),
-  ]);
+  ];
+  const minutesAgoFor = (entry: { type: "comment" | "log"; id: string }) => {
+    const relativeTime =
+      entry.type === "comment" ? commentTimeById.get(entry.id) : logTimeById.get(entry.id);
+    return RELATIVE_TIME_MINUTES[relativeTime ?? "Just now"] ?? 0;
+  };
+  // Oldest (largest minutes ago) first so the feed reads chronologically top-to-bottom.
+  timelineEntries.sort((a, b) => minutesAgoFor(b) - minutesAgoFor(a));
   timeline.push(...timelineEntries);
 
   return {

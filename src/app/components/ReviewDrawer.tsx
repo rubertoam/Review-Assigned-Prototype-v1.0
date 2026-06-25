@@ -205,13 +205,6 @@ export function ReviewDrawer({
     setSavedComment(trimmed);
   };
 
-  const handleSubmitDecisionComment = () => {
-    const trimmed = decisionCommentDraft.trim();
-    if (!trimmed || selectedCount === 0) return;
-    setSubmittedComments((current) => [...current, createSubmittedComment(trimmed)]);
-    setDecisionCommentDraft("");
-  };
-
   const canSubmitVersionA =
     selectedCount > 0 && selectedStatus !== null && selectedReason !== null;
 
@@ -219,18 +212,23 @@ export function ReviewDrawer({
     selectedCount > 0 &&
     selectedStatus !== null &&
     selectedReason !== null &&
-    submittedComments.length > 0;
+    decisionCommentDraft.trim().length > 0;
 
   const canSubmit = panelVersion === "b" ? canSubmitVersionB : canSubmitVersionA;
 
   const handleSubmit = () => {
     if (!canSubmit || !selectedStatus || !selectedReason) return;
 
+    const trimmedDecisionComment = decisionCommentDraft.trim();
+    const decisionComments = trimmedDecisionComment
+      ? [createSubmittedComment(trimmedDecisionComment)]
+      : [];
+
     appendPersistedReviewActivity(
       selectedRows.map((row) => row.id),
       buildReviewSubmitActivity(flowVariant, {
         status: selectedStatus,
-        comments: submittedComments,
+        comments: [...submittedComments, ...decisionComments],
         files: attachmentFiles,
         links: attachmentLinks,
       }),
@@ -301,8 +299,6 @@ export function ReviewDrawer({
               reasonOptions={reasonOptions}
               decisionCommentDraft={decisionCommentDraft}
               onDecisionCommentDraftChange={setDecisionCommentDraft}
-              onSubmitDecisionComment={handleSubmitDecisionComment}
-              submittedComments={submittedComments}
               attachmentFiles={attachmentFiles}
               attachmentLinks={attachmentLinks}
               attachmentUrlDraft={attachmentUrlDraft}

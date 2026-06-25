@@ -10,6 +10,7 @@ export const CASE_FILTER_GROUPS = [
   {
     label: "Review Target",
     items: [
+      { value: "review-target-met", label: "Met", selectedLabel: "Review Target - Met" },
       {
         value: "review-target-overdue-warning",
         label: "Overdue Warning",
@@ -28,6 +29,23 @@ export const CASE_FILTER_GROUPS = [
         label: "Unknown",
         selectedLabel: "Unknown Record Type",
       },
+    ],
+  },
+  {
+    label: "Application IDs",
+    items: [
+      { value: "application-isi", label: "ISI", selectedLabel: "Application - ISI" },
+      {
+        value: "application-isi-focus",
+        label: "ISI Focus",
+        selectedLabel: "Application - ISI Focus",
+      },
+      {
+        value: "application-watchlist-api",
+        label: "Watchlist API",
+        selectedLabel: "Application - Watchlist API",
+      },
+      { value: "application-edd", label: "EDD", selectedLabel: "Application - EDD" },
     ],
   },
 ] as const;
@@ -49,6 +67,15 @@ export function caseFilterTriggerLabel(selectedFilters: ReadonlySet<CaseFilterVa
   }
   return `${selectedFilters.size} selected`;
 }
+
+export const CASE_SORT_OPTIONS = [
+  { value: "name-asc", label: "A-Z" },
+  { value: "name-desc", label: "Z-A" },
+  { value: "risk-asc", label: "Low to High" },
+  { value: "risk-desc", label: "High to Low" },
+] as const;
+
+export type CaseSortValue = (typeof CASE_SORT_OPTIONS)[number]["value"];
 
 export type CaseRecordType = "individual" | "organization" | "unknown";
 
@@ -188,6 +215,8 @@ export function caseMatchesSingleFilter(caseIndex: number, filter: CaseFilterVal
       return profile.riskBand === "medium";
     case "risk-low":
       return profile.riskBand === "low";
+    case "review-target-met":
+      return !profile.reviewTargetOverdue && !profile.reviewTargetPastDue;
     case "review-target-overdue-warning":
       return profile.reviewTargetOverdue;
     case "review-target-overdue":
@@ -198,6 +227,14 @@ export function caseMatchesSingleFilter(caseIndex: number, filter: CaseFilterVal
       return recordTypeForCase(caseIndex) === "organization";
     case "unknown-record-type":
       return recordTypeForCase(caseIndex) === "unknown";
+    case "application-isi":
+      return profile.applicationLabel === "ISI";
+    case "application-isi-focus":
+      return profile.applicationLabel === "ISI Focus";
+    case "application-watchlist-api":
+      return profile.applicationLabel === "Watchlist API";
+    case "application-edd":
+      return profile.applicationLabel === "EDD";
     default:
       return false;
   }
@@ -212,6 +249,34 @@ export function caseMatchesFilters(
     if (caseMatchesSingleFilter(caseIndex, filter)) return true;
   }
   return false;
+}
+
+const RISK_BAND_ORDER: Record<ClientRiskBand, number> = {
+  low: 0,
+  medium: 1,
+  high: 2,
+};
+
+export function compareCasesBySort(
+  aIndex: number,
+  bIndex: number,
+  sort: CaseSortValue,
+): number {
+  if (sort === "risk-asc" || sort === "risk-desc") {
+    const aRank = RISK_BAND_ORDER[clientProfileForCaseIndex(aIndex).riskBand];
+    const bRank = RISK_BAND_ORDER[clientProfileForCaseIndex(bIndex).riskBand];
+    if (aRank !== bRank) {
+      return sort === "risk-asc" ? aRank - bRank : bRank - aRank;
+    }
+    return aIndex - bIndex;
+  }
+
+  const nameCompare = casesData[aIndex].name.localeCompare(
+    casesData[bIndex].name,
+    undefined,
+    { sensitivity: "base" },
+  );
+  return sort === "name-desc" ? -nameCompare : nameCompare;
 }
 
 export function clientProfileForCaseIndex(caseIndex: number): ClientProfileFields {

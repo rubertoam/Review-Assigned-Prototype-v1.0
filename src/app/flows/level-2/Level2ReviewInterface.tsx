@@ -35,6 +35,7 @@ import {
   DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu";
 import { CaseListFilterSelect } from "../../components/CaseListFilterSelect";
+import { CaseListSortSelect } from "../../components/CaseListSortSelect";
 import {
   Dialog,
   DialogContent,
@@ -61,8 +62,10 @@ import {
   caseMatchesFilters,
   casesData,
   clientProfileForCaseIndex,
+  compareCasesBySort,
   riskBandPresentation,
   type CaseFilterValue,
+  type CaseSortValue,
 } from "../../lib/reviewCaseData";
 import { cn } from "../../components/ui/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../components/ui/tooltip";
@@ -249,6 +252,7 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
   const [selectedCaseFilters, setSelectedCaseFilters] = useState<ReadonlySet<CaseFilterValue>>(
     () => new Set(),
   );
+  const [caseSort, setCaseSort] = useState<CaseSortValue>("name-asc");
   const wasSelectedCaseCompleteRef = useRef(false);
 
   const filteredRows = useMemo(() => {
@@ -258,8 +262,9 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
         out.push({ item, index });
       }
     });
+    out.sort((a, b) => compareCasesBySort(a.index, b.index, caseSort));
     return out;
-  }, [selectedCaseFilters]);
+  }, [selectedCaseFilters, caseSort]);
 
   const caseRowsForIndex = useCallback(
     (index: number) => screeningRowsByCase[index] ?? getScreeningRowsForCase(index),
@@ -421,17 +426,28 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
         </div>
       </div>
       <div className="shrink-0 border-b border-[#cfd2d9] dark:border-[#38414a] bg-white dark:bg-[#22272b] px-3 py-2.5">
-        <div className="flex flex-col gap-1.5">
-          <span
-            className="font-['Noto_Sans:SemiBold',sans-serif] text-[13px] text-[#23262c] dark:text-[#b6c2cf]"
-            style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-          >
-            Filter by
-          </span>
-          <CaseListFilterSelect
-            selectedFilters={selectedCaseFilters}
-            onSelectedFiltersChange={setSelectedCaseFilters}
-          />
+        <div className="flex items-end gap-2">
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <span
+              className="font-['Noto_Sans:SemiBold',sans-serif] text-[13px] text-[#23262c] dark:text-[#b6c2cf]"
+              style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+            >
+              Filter by
+            </span>
+            <CaseListFilterSelect
+              selectedFilters={selectedCaseFilters}
+              onSelectedFiltersChange={setSelectedCaseFilters}
+            />
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <span
+              className="font-['Noto_Sans:SemiBold',sans-serif] text-[13px] text-[#23262c] dark:text-[#b6c2cf]"
+              style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+            >
+              Sort by
+            </span>
+            <CaseListSortSelect value={caseSort} onValueChange={setCaseSort} />
+          </div>
         </div>
       </div>
       <div className="flex flex-col">

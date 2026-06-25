@@ -12,14 +12,10 @@ import { AceInputField } from "@ace-ds/components/atoms/AceInputField";
 import {
   type ActivityComment,
   type ActivityLogItem,
-  commentFromSubmitted,
-  createPendingDecisionLogs,
   createUserActivityComment,
   generateRowActivity,
   getReplyCount,
-  mergeUploadLogItems,
   type ReviewActivityFilter,
-  type SubmittedReviewComment,
 } from "../lib/reviewActivityData";
 import { getPersistedRowActivity } from "../lib/reviewActivityState";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
@@ -40,6 +36,8 @@ const ACTIVITY_FILTERS: { id: ReviewActivityFilter; label: string }[] = [
   { id: "comments", label: "Comments" },
   { id: "log", label: "Log" },
 ];
+
+const MAX_ACTIVITY_RESULTS = 5;
 
 const replyInputClass =
   "[&_input]:text-xs [&_input]:leading-[1.65] [&_input]:placeholder:text-xs [&_input]:placeholder:leading-[1.65]";
@@ -167,6 +165,38 @@ function ActivityReplyField({
       >
         <ArrowUp className="size-3" strokeWidth={2} aria-hidden />
       </button>
+    </div>
+  );
+}
+
+function ActivityCommentComposer({
+  value,
+  onChange,
+  onSubmit,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+}) {
+  const canSubmit = value.trim().length > 0;
+
+  return (
+    <div className="sticky bottom-0 z-10 mt-2 bg-white px-1.5 pb-2 pt-4 dark:bg-[#22272b]">
+      <div className={cn("w-full min-w-0", replyInputClass)}>
+        <AceInputField
+          fieldSize="sm"
+          placeholder="Add a comment and press Enter. Use @ to mention."
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              if (canSubmit) onSubmit();
+            }
+          }}
+          aria-label="Add a comment"
+        />
+      </div>
     </div>
   );
 }
@@ -432,10 +462,6 @@ export function ReviewActivityFeed({
   selectedRows,
   activityViewRowId,
   onActivityViewRowIdChange,
-  selectedStatus,
-  submittedComments,
-  uploadedFiles,
-  uploadedLinks,
   activityFilter,
   onActivityFilterChange,
   resetSignal,
@@ -444,10 +470,6 @@ export function ReviewActivityFeed({
   selectedRows: readonly ScreeningResultRow[];
   activityViewRowId: string | null;
   onActivityViewRowIdChange: (rowId: string) => void;
-  selectedStatus: string | null;
-  submittedComments: readonly SubmittedReviewComment[];
-  uploadedFiles: readonly { id: string; name: string }[];
-  uploadedLinks: readonly { id: string; url: string }[];
   activityFilter: ReviewActivityFilter;
   onActivityFilterChange: (filter: ReviewActivityFilter) => void;
   resetSignal: number;
@@ -472,14 +494,6 @@ export function ReviewActivityFeed({
     () => new Set(persistedActivity?.logs.map((item) => item.id) ?? []),
     [persistedActivity],
   );
-  const pendingDecisionLogs = useMemo(
-    () => createPendingDecisionLogs(selectedStatus),
-    [selectedStatus],
-  );
-  const pendingDecisionLogIds = useMemo(
-    () => new Set(pendingDecisionLogs.map((item) => item.id)),
-    [pendingDecisionLogs],
-  );
 
   const [comments, setComments] = useState<ActivityComment[]>([]);
   const [logs, setLogs] = useState<ActivityLogItem[]>([]);
@@ -488,8 +502,7 @@ export function ReviewActivityFeed({
   const [replyDraft, setReplyDraft] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
-
-  const [activityInitialized, setActivityInitialized] = useState(false);
+  const [newCommentDraft, setNewCommentDraft] = useState("");
 
   useEffect(() => {
     if (!rowId || !generatedActivity) {
@@ -500,51 +513,22 @@ export function ReviewActivityFeed({
       setReplyDraft("");
       setEditingId(null);
       setEditDraft("");
-      setActivityInitialized(false);
+      setNewCommentDraft("");
       return;
     }
 
     setComments([
-      ...submittedComments.map(commentFromSubmitted),
       ...(persistedActivity?.comments ?? []),
       ...generatedActivity.comments,
     ]);
-    setLogs(
-      mergeUploadLogItems(
-        [...(persistedActivity?.logs ?? []), ...generatedActivity.logs],
-        uploadedFiles,
-        uploadedLinks,
-      ),
-    );
+    setLogs([...(persistedActivity?.logs ?? []), ...generatedActivity.logs]);
     setExpandedThreads({});
     setReplyingToId(null);
     setReplyDraft("");
     setEditingId(null);
     setEditDraft("");
-    setActivityInitialized(true);
+    setNewCommentDraft("");
   }, [generatedActivity, persistedActivity, rowId, resetSignal]);
-
-  useEffect(() => {
-    if (!rowId || !activityInitialized) return;
-    setComments((current) => {
-      const existingIds = new Set(current.map((comment) => comment.id));
-      const newComments = submittedComments
-        .filter((comment) => !existingIds.has(comment.id))
-        .map(commentFromSubmitted);
-      return newComments.length > 0 ? [...newComments, ...current] : current;
-    });
-  }, [activityInitialized, rowId, submittedComments]);
-
-  useEffect(() => {
-    if (!rowId || !generatedActivity) return;
-    setLogs(
-      mergeUploadLogItems(
-        [...(persistedActivity?.logs ?? []), ...generatedActivity.logs],
-        uploadedFiles,
-        uploadedLinks,
-      ),
-    );
-  }, [generatedActivity, persistedActivity, rowId, resetSignal, uploadedFiles, uploadedLinks]);
 
   const feedBlocks = useMemo((): FeedBlock[] => {
     if (!rowId || !generatedActivity) return [];
@@ -557,32 +541,6 @@ export function ReviewActivityFeed({
     const appendComment = (comment: ActivityComment) => {
       blocks.push({ type: "comment", comment });
     };
-
-    if (showComments) {
-      for (const comment of comments.filter(
-        (item) =>
-          !item.parentId &&
-          !demoCommentIds.has(item.id) &&
-          !persistedCommentIds.has(item.id),
-      )) {
-        appendComment(comment);
-      }
-    }
-
-    if (showLogs) {
-      const dynamicLogs = logs.filter(
-        (item) =>
-          !demoLogIds.has(item.id) &&
-          !pendingDecisionLogIds.has(item.id) &&
-          !persistedLogIds.has(item.id),
-      );
-      for (const item of dynamicLogs) {
-        blocks.push({ type: "log", item });
-      }
-      for (const item of pendingDecisionLogs) {
-        blocks.push({ type: "log", item });
-      }
-    }
 
     const appendTimelineEntry = (entry: { type: "comment" | "log"; id: string }) => {
       if (entry.type === "comment") {
@@ -600,12 +558,34 @@ export function ReviewActivityFeed({
       }
     };
 
+    // Oldest first: pre-existing generated history, then carried-over L1 activity.
+    for (const entry of timeline) {
+      appendTimelineEntry(entry);
+    }
+
     for (const entry of persistedActivity?.timeline ?? []) {
       appendTimelineEntry(entry);
     }
 
-    for (const entry of timeline) {
-      appendTimelineEntry(entry);
+    // Current-session activity (newest), pinned to the bottom of the thread.
+    if (showLogs) {
+      const dynamicLogs = logs.filter(
+        (item) => !demoLogIds.has(item.id) && !persistedLogIds.has(item.id),
+      );
+      for (const item of dynamicLogs) {
+        blocks.push({ type: "log", item });
+      }
+    }
+
+    if (showComments) {
+      for (const comment of comments.filter(
+        (item) =>
+          !item.parentId &&
+          !demoCommentIds.has(item.id) &&
+          !persistedCommentIds.has(item.id),
+      )) {
+        appendComment(comment);
+      }
     }
 
     return blocks;
@@ -614,8 +594,6 @@ export function ReviewActivityFeed({
     comments,
     generatedActivity,
     logs,
-    pendingDecisionLogIds,
-    pendingDecisionLogs,
     persistedActivity,
     persistedCommentIds,
     persistedLogIds,
@@ -636,6 +614,13 @@ export function ReviewActivityFeed({
     setReplyDraft("");
     setReplyingToId(null);
     setExpandedThreads((current) => ({ ...current, [parentId]: true }));
+  };
+
+  const handleAddComment = () => {
+    const trimmed = newCommentDraft.trim();
+    if (!trimmed) return;
+    setComments((current) => [...current, createUserActivityComment(trimmed)]);
+    setNewCommentDraft("");
   };
 
   const handleSaveEdit = (commentId: string) => {
@@ -705,25 +690,40 @@ export function ReviewActivityFeed({
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-2">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 overflow-visible py-1">
-        <div className="flex flex-wrap items-center gap-1">
-          {ACTIVITY_FILTERS.map((filter) => (
-            <ActivityFilterPill
-              key={filter.id}
-              label={filter.label}
-              selected={activityFilter === filter.id}
-              onSelect={() => onActivityFilterChange(filter.id)}
-            />
-          ))}
+      {selectedRows.length > 0 ? (
+        <div className="sticky top-0 z-10 mb-4 flex flex-wrap items-center justify-between gap-2 overflow-visible bg-white py-2 dark:bg-[#22272b]">
+          <div className="flex flex-wrap items-center gap-1">
+            {ACTIVITY_FILTERS.map((filter) => (
+              <ActivityFilterPill
+                key={filter.id}
+                label={filter.label}
+                selected={activityFilter === filter.id}
+                onSelect={() => onActivityFilterChange(filter.id)}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                aceTypography(ACE_TYPE.p1Regular),
+                "whitespace-nowrap text-[var(--screening-text-muted)]",
+              )}
+              style={notoVar}
+            >
+              {selectedRows.length} of {MAX_ACTIVITY_RESULTS} selected
+            </span>
+            {selectedRows.length > 1 &&
+            selectedRows.length <= MAX_ACTIVITY_RESULTS &&
+            activityViewRowId ? (
+              <ReviewActivityMatchSelect
+                rows={selectedRows}
+                value={activityViewRowId}
+                onChange={onActivityViewRowIdChange}
+              />
+            ) : null}
+          </div>
         </div>
-        {selectedRows.length > 1 && activityViewRowId ? (
-          <ReviewActivityMatchSelect
-            rows={selectedRows}
-            value={activityViewRowId}
-            onChange={onActivityViewRowIdChange}
-          />
-        ) : null}
-      </div>
+      ) : null}
 
       {selectedRows.length === 0 ? (
         <p
@@ -732,8 +732,16 @@ export function ReviewActivityFeed({
         >
           Select one or more matches to view activity.
         </p>
+      ) : selectedRows.length > MAX_ACTIVITY_RESULTS ? (
+        <p
+          className={cn(aceTypography(ACE_TYPE.p1Regular), "m-0 text-[var(--screening-text-muted)]")}
+          style={notoVar}
+        >
+          Can only display activity for up to {MAX_ACTIVITY_RESULTS} results at a time.
+        </p>
       ) : (
-        <div className="flex flex-col gap-6">
+        <>
+          <div className="flex flex-col gap-6">
           {feedBlocks.map((block) => {
             if (block.type === "log") {
               return <ActivityLogRow key={block.item.id} item={block.item} />;
@@ -761,7 +769,13 @@ export function ReviewActivityFeed({
               </div>
             );
           })}
-        </div>
+          </div>
+          <ActivityCommentComposer
+            value={newCommentDraft}
+            onChange={setNewCommentDraft}
+            onSubmit={handleAddComment}
+          />
+        </>
       )}
     </div>
   );
