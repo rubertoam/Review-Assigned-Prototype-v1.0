@@ -111,7 +111,6 @@ export function ReviewDrawer({
   const [decisionCommentDraft, setDecisionCommentDraft] = useState("");
   const [submittedComments, setSubmittedComments] = useState<SubmittedReviewComment[]>([]);
   const [activityFilter, setActivityFilter] = useState<ReviewActivityFilter>("all");
-  const [activePanelTab, setActivePanelTab] = useState<"activity" | "attachments">("activity");
   const [attachmentsExpanded, setAttachmentsExpanded] = useState(false);
   const [attachmentFiles, setAttachmentFiles] = useState<AceAttachmentFile[]>([]);
   const [attachmentLinks, setAttachmentLinks] = useState<AceAttachmentLink[]>([]);
@@ -154,7 +153,6 @@ export function ReviewDrawer({
       setDecisionCommentDraft("");
       setSubmittedComments([]);
       setActivityFilter("all");
-      setActivePanelTab("activity");
       setActivityViewRowId(null);
     }
   }, [isOpen]);
@@ -331,8 +329,6 @@ export function ReviewDrawer({
               }
               activityFilter={activityFilter}
               onActivityFilterChange={setActivityFilter}
-              activeTab={activePanelTab}
-              onActiveTabChange={setActivePanelTab}
               canSubmit={canSubmit}
               onSubmit={handleSubmit}
               onReset={handleResetVersionB}

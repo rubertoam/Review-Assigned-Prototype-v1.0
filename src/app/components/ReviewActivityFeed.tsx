@@ -181,7 +181,7 @@ function ActivityCommentComposer({
   const canSubmit = value.trim().length > 0;
 
   return (
-    <div className="sticky bottom-0 z-10 mt-2 bg-white px-1.5 pb-2 pt-4 dark:bg-[#22272b]">
+    <div className="mt-2 px-1.5 pb-2 pt-4">
       <div className={cn("w-full min-w-0", replyInputClass)}>
         <AceInputField
           fieldSize="sm"
@@ -691,7 +691,7 @@ export function ReviewActivityFeed({
   return (
     <div className="flex w-full min-w-0 flex-col gap-2">
       {selectedRows.length > 0 ? (
-        <div className="sticky top-0 z-10 mb-4 flex flex-wrap items-center justify-between gap-2 overflow-visible bg-white py-2 dark:bg-[#22272b]">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 overflow-visible py-1">
           <div className="flex flex-wrap items-center gap-1">
             {ACTIVITY_FILTERS.map((filter) => (
               <ActivityFilterPill

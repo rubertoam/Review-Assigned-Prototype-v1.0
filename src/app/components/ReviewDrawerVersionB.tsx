@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useState } from "react";
 import { CircleCheck } from "lucide-react";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
 import {
@@ -6,7 +6,6 @@ import {
   type AceAttachmentFile,
   type AceAttachmentLink,
 } from "@ace-ds/components/organisms/AceAttachments/AceAttachments";
-import { AceTabs, aceTabButtonId } from "./ui/ace-tabs";
 import { DecisionPrimaryDropdown } from "./DecisionPrimaryDropdown";
 import { ReviewActivityFeed } from "./ReviewActivityFeed";
 import { ReviewDecisionInlineCommentField } from "./ReviewDecisionInlineCommentField";
@@ -22,14 +21,7 @@ const drawerAccordionTitleClass = cn(
   "text-[var(--screening-text-primary)]",
 );
 
-const drawerAccordionClass = "border-[var(--ace-accordion-border)] shadow-none";
-
-const REVIEW_PANEL_TABS = [
-  { id: "activity", label: "Activity" },
-  { id: "attachments", label: "Attachments" },
-] as const;
-
-type ReviewPanelTab = (typeof REVIEW_PANEL_TABS)[number]["id"];
+const drawerAccordionClass = "shrink-0 border-[var(--ace-accordion-border)] shadow-none";
 
 export function ReviewDrawerVersionB({
   selectedCount,
@@ -54,8 +46,6 @@ export function ReviewDrawerVersionB({
   onRemoveLink,
   activityFilter,
   onActivityFilterChange,
-  activeTab,
-  onActiveTabChange,
   canSubmit,
   onSubmit,
   onReset,
@@ -86,8 +76,6 @@ export function ReviewDrawerVersionB({
   onRemoveLink: (id: string) => void;
   activityFilter: ReviewActivityFilter;
   onActivityFilterChange: (filter: ReviewActivityFilter) => void;
-  activeTab: ReviewPanelTab;
-  onActiveTabChange: (tab: ReviewPanelTab) => void;
   canSubmit: boolean;
   onSubmit: () => void;
   onReset: () => void;
@@ -96,27 +84,27 @@ export function ReviewDrawerVersionB({
   onActivityViewRowIdChange: (rowId: string) => void;
   activityPersistRevision: number;
 }) {
-  const tabsIdPrefix = useId();
+  const [activityExpanded, setActivityExpanded] = useState(true);
+  const [attachmentsExpanded, setAttachmentsExpanded] = useState(false);
 
   return (
     <>
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
-        <div className="mb-4 shrink-0">
-          <AceAccordion
-            title="Decision"
-            surface="white"
-            dropShadow={false}
-            showTag={false}
-            showAddIcon={false}
-            showDeleteIcon={false}
-            showEditIcon={false}
-            showMoreIcon={false}
-            open={decisionExpanded}
-            onOpenChange={onDecisionExpandedChange}
-            className={drawerAccordionClass}
-            titleClassName={drawerAccordionTitleClass}
-          >
-            <div className="flex flex-col gap-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6 pb-24">
+        <AceAccordion
+          title="Decision"
+          surface="white"
+          dropShadow={false}
+          showTag={false}
+          showAddIcon={false}
+          showDeleteIcon={false}
+          showEditIcon={false}
+          showMoreIcon={false}
+          open={decisionExpanded}
+          onOpenChange={onDecisionExpandedChange}
+          className={drawerAccordionClass}
+          titleClassName={drawerAccordionTitleClass}
+        >
+          <div className="flex flex-col gap-4">
             <DecisionPrimaryDropdown
               label="Select Status"
               placeholder="Status..."
@@ -141,56 +129,65 @@ export function ReviewDrawerVersionB({
               onChange={onDecisionCommentDraftChange}
               disabled={selectedCount === 0}
             />
-            </div>
-          </AceAccordion>
-        </div>
-
-        <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden">
-          <AceTabs
-            items={[...REVIEW_PANEL_TABS]}
-            value={activeTab}
-            onValueChange={(value) => onActiveTabChange(value as ReviewPanelTab)}
-            idPrefix={tabsIdPrefix}
-            aria-label="Review panel sections"
-            className="shrink-0"
-          />
-
-          <div
-            role="tabpanel"
-            id={`${tabsIdPrefix}-panel-${activeTab}`}
-            aria-labelledby={aceTabButtonId(tabsIdPrefix, activeTab)}
-            className="min-h-0 flex-1 overflow-y-auto"
-          >
-            {activeTab === "activity" ? (
-              <ReviewActivityFeed
-                selectedRows={selectedRows}
-                activityViewRowId={activityViewRowId}
-                onActivityViewRowIdChange={onActivityViewRowIdChange}
-                activityFilter={activityFilter}
-                onActivityFilterChange={onActivityFilterChange}
-                resetSignal={activityResetSignal}
-                activityPersistRevision={activityPersistRevision}
-              />
-            ) : (
-              <AceAttachments
-                className="w-full min-w-0 border-0 bg-transparent p-0 [&>h2]:sr-only"
-                files={attachmentFiles}
-                links={attachmentLinks}
-                urlDraft={attachmentUrlDraft}
-                disabled={selectedCount === 0}
-                onUrlDraftChange={onAttachmentUrlDraftChange}
-                onFilesSelected={onFilesSelected}
-                onAddUrl={onAddUrl}
-                onRemoveFile={onRemoveFile}
-                onRemoveLink={onRemoveLink}
-              />
-            )}
           </div>
-        </div>
+        </AceAccordion>
+
+        <AceAccordion
+          title="Activity"
+          surface="white"
+          dropShadow={false}
+          showTag={false}
+          showAddIcon={false}
+          showDeleteIcon={false}
+          showEditIcon={false}
+          showMoreIcon={false}
+          open={activityExpanded}
+          onOpenChange={setActivityExpanded}
+          className={drawerAccordionClass}
+          titleClassName={drawerAccordionTitleClass}
+        >
+          <ReviewActivityFeed
+            selectedRows={selectedRows}
+            activityViewRowId={activityViewRowId}
+            onActivityViewRowIdChange={onActivityViewRowIdChange}
+            activityFilter={activityFilter}
+            onActivityFilterChange={onActivityFilterChange}
+            resetSignal={activityResetSignal}
+            activityPersistRevision={activityPersistRevision}
+          />
+        </AceAccordion>
+
+        <AceAccordion
+          title="Attachments"
+          surface="white"
+          dropShadow={false}
+          showTag={false}
+          showAddIcon={false}
+          showDeleteIcon={false}
+          showEditIcon={false}
+          showMoreIcon={false}
+          open={attachmentsExpanded}
+          onOpenChange={setAttachmentsExpanded}
+          className={drawerAccordionClass}
+          titleClassName={drawerAccordionTitleClass}
+        >
+          <AceAttachments
+            className="w-full min-w-0 border-0 bg-transparent p-0 [&>h2]:sr-only"
+            files={attachmentFiles}
+            links={attachmentLinks}
+            urlDraft={attachmentUrlDraft}
+            disabled={selectedCount === 0}
+            onUrlDraftChange={onAttachmentUrlDraftChange}
+            onFilesSelected={onFilesSelected}
+            onAddUrl={onAddUrl}
+            onRemoveFile={onRemoveFile}
+            onRemoveLink={onRemoveLink}
+          />
+        </AceAccordion>
       </div>
 
-      <div className="shrink-0 p-6">
-        <div className="flex w-full items-center justify-between gap-4">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-[var(--screening-surface)] p-6">
+        <div className="pointer-events-auto flex w-full items-center justify-between gap-4">
           {canSubmit ? (
             <span
               className={cn(
