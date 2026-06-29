@@ -233,7 +233,7 @@
   border-radius: 8px;
   margin: -4px -8px;
   padding: 4px 8px;
-  animation: activity-pulse 0.8s ease-in-out 2;
+  animation: activity-pulse 1.6s ease-in-out 2;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -511,7 +511,7 @@ export function ReviewActivityFeed({
   useEffect(() => {
     if (!pulseSignal) return;
     setPulseActive(true);
-    const timer = setTimeout(() => setPulseActive(false), 1600);
+    const timer = setTimeout(() => setPulseActive(false), 3200);
     return () => clearTimeout(timer);
   }, [pulseSignal]);
 
