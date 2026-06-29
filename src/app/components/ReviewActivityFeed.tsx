@@ -475,6 +475,7 @@ export function ReviewActivityFeed({
   onActivityFilterChange,
   resetSignal,
   activityPersistRevision,
+  pulseSignal = 0,
 }: {
   selectedRows: readonly ScreeningResultRow[];
   activityViewRowId: string | null;
@@ -483,6 +484,8 @@ export function ReviewActivityFeed({
   onActivityFilterChange: (filter: ReviewActivityFilter) => void;
   resetSignal: number;
   activityPersistRevision: number;
+  /** Increment to pulse the most recent activity item (e.g. when the panel opens). */
+  pulseSignal?: number;
 }) {
   const activityRow =
     selectedRows.find((row) => row.id === activityViewRowId) ?? selectedRows[0] ?? null;
@@ -503,6 +506,14 @@ export function ReviewActivityFeed({
     () => new Set(persistedActivity?.logs.map((item) => item.id) ?? []),
     [persistedActivity],
   );
+
+  const [pulseActive, setPulseActive] = useState(false);
+  useEffect(() => {
+    if (!pulseSignal) return;
+    setPulseActive(true);
+    const timer = setTimeout(() => setPulseActive(false), 1600);
+    return () => clearTimeout(timer);
+  }, [pulseSignal]);
 
   const [comments, setComments] = useState<ActivityComment[]>([]);
   const [logs, setLogs] = useState<ActivityLogItem[]>([]);
@@ -751,9 +762,15 @@ export function ReviewActivityFeed({
       ) : (
         <>
           <div className="flex flex-col gap-6">
-          {feedBlocks.map((block) => {
+          {feedBlocks.map((block, index) => {
+            const isLatest = index === feedBlocks.length - 1;
+            const pulseClass = isLatest && pulseActive ? "activity-pulse" : undefined;
             if (block.type === "log") {
-              return <ActivityLogRow key={block.item.id} item={block.item} />;
+              return (
+                <div key={block.item.id} className={pulseClass}>
+                  <ActivityLogRow item={block.item} />
+                </div>
+              );
             }
 
             const { comment } = block;
@@ -763,7 +780,7 @@ export function ReviewActivityFeed({
             const repliesExpanded = expandedThreads[comment.id] ?? false;
 
             return (
-              <div key={comment.id} className="flex flex-col gap-2">
+              <div key={comment.id} className={cn("flex flex-col gap-2", pulseClass)}>
                 {renderCommentBlock(comment)}
                 {isThreadParent ? (
                   <AceGridExpandPanel

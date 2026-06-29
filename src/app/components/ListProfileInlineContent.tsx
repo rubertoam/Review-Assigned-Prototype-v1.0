@@ -1,21 +1,23 @@
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import { AceTabs, aceTabButtonId } from "./ui/ace-tabs";
 import { getListProfileForRow } from "../lib/listProfileData";
 import { LIST_PROFILE_TABS, type ListProfileTabId } from "../lib/listProfileTabs";
 import { cn } from "./ui/utils";
 import type { ScreeningResultRow } from "./ScreeningResultsTable";
 import {
+  GeneralProfileComparison,
   ListProfileAllTabView,
   ListProfileDataTableView,
-  ListProfileGeneralTable,
 } from "./ListProfileTabContent";
 
 export function ListProfileInlineContent({
   row,
   className,
+  headerTrailing,
 }: {
   row: ScreeningResultRow;
   className?: string;
+  headerTrailing?: ReactNode;
 }) {
   const [activeTab, setActiveTab] = useState<ListProfileTabId>("general");
   const tabPrefix = useId();
@@ -27,20 +29,25 @@ export function ListProfileInlineContent({
 
   return (
     <div className={cn("flex min-h-0 flex-col", className)}>
-      <AceTabs
-        items={[...LIST_PROFILE_TABS]}
-        value={activeTab}
-        onValueChange={(id) => setActiveTab(id as ListProfileTabId)}
-        idPrefix={tabPrefix}
-        aria-label="List profile sections"
-      />
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <AceTabs
+            items={[...LIST_PROFILE_TABS]}
+            value={activeTab}
+            onValueChange={(id) => setActiveTab(id as ListProfileTabId)}
+            idPrefix={tabPrefix}
+            aria-label="List profile sections"
+          />
+        </div>
+        {headerTrailing ? <div className="shrink-0">{headerTrailing}</div> : null}
+      </div>
       <div
         role="tabpanel"
         id={`${tabPrefix}-panel-${activeTab}`}
         aria-labelledby={aceTabButtonId(tabPrefix, activeTab)}
         className="pt-4"
       >
-        {activeTab === "general" ? <ListProfileGeneralTable fields={profile.general} /> : null}
+        {activeTab === "general" ? <GeneralProfileComparison row={row} /> : null}
         {activeTab === "addresses" ? (
           <ListProfileDataTableView table={profile.addresses} caption="Address records" />
         ) : null}

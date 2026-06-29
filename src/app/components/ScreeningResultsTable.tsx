@@ -9,7 +9,7 @@ import {
   type SetStateAction,
 } from "react";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
-import { Check, Eye, EyeOff, GripVertical, List, MoreVertical } from "lucide-react";
+import { Check, Eye, EyeOff, GripVertical, List, MoreVertical, Zap } from "lucide-react";
 import { AceInputField } from "@ace-ds/components/atoms/AceInputField";
 import { Toggle } from "@ace-ds/components/atoms/Toggle/Toggle";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
@@ -19,6 +19,7 @@ import { aceDropShadowXsClass } from "../lib/aceShadow";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { cn } from "./ui/utils";
 import {
+  LEVEL1_DECISION_STATUSES,
   LEVEL1_STATUS_DISPLAY_ORDER,
   LEVEL2_DECISION_STATUSES,
   isLevel1ConfirmedStatus,
@@ -40,7 +41,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { getListProfileSummaryForRow } from "../lib/listProfileData";
+import { getClientRecordForRow, getListProfileSummaryForRow } from "../lib/listProfileData";
+import { AceDropdownMenu } from "@ace-ds/components/molecules/AceDropdownMenu/AceDropdownMenu";
 import {
   caseActionsMenuIconClass,
   screeningRowActionsMenuContentClass,
@@ -266,8 +268,11 @@ type SortDir = "asc" | "desc";
 type ScreeningColumnKey =
   | "status"
   | "name"
+  | "clientName"
   | "country"
+  | "clientCountry"
   | "dob"
+  | "clientDob"
   | "matchAge"
   | "matchScore"
   | "listId"
@@ -278,7 +283,8 @@ type ScreeningColumnKey =
   | "matchString"
   | "reason"
   | "matchedNameType"
-  | "finscanCategory";
+  | "finscanCategory"
+  | "quickClear";
 
 const SCREENING_COLUMN_DEFINITIONS: ReadonlyArray<{
   key: ScreeningColumnKey;
@@ -287,8 +293,11 @@ const SCREENING_COLUMN_DEFINITIONS: ReadonlyArray<{
 }> = [
   { key: "status", label: "Status", defaultVisible: true },
   { key: "name", label: "Name", defaultVisible: true },
+  { key: "clientName", label: "Client Name", defaultVisible: false },
   { key: "country", label: "Country", defaultVisible: true },
+  { key: "clientCountry", label: "Client Country", defaultVisible: false },
   { key: "dob", label: "Date of Birth", defaultVisible: true },
+  { key: "clientDob", label: "Client DOB", defaultVisible: false },
   { key: "matchAge", label: "Match Age", defaultVisible: true },
   { key: "matchScore", label: "Match Score", defaultVisible: true },
   { key: "listId", label: "List ID", defaultVisible: true },
@@ -300,6 +309,7 @@ const SCREENING_COLUMN_DEFINITIONS: ReadonlyArray<{
   { key: "reason", label: "Reason", defaultVisible: false },
   { key: "matchedNameType", label: "Matched Name Type", defaultVisible: false },
   { key: "finscanCategory", label: "FinScan Category", defaultVisible: false },
+  { key: "quickClear", label: "Quick Clear", defaultVisible: false },
 ];
 
 const DEFAULT_VISIBLE_SCREENING_COLUMNS = new Set<ScreeningColumnKey>(
@@ -849,6 +859,92 @@ interface ScreeningResultsTableProps {
   /** When both are passed, row selection is controlled by the parent (e.g. task bar). */
   selectedIds?: Set<string>;
   onSelectedIdsChange?: Dispatch<SetStateAction<Set<string>>>;
+  /** Clears a single row to the chosen decision status from the table's Quick Clear column. */
+  onQuickClearRow?: (rowId: string, status: ScreeningRowStatus) => void;
+}
+
+/** Per-row Quick Clear dropdown — resolves a single match to a decision status from the table. */
+function ScreeningRowQuickClear({
+  disabled,
+  flowVariant,
+  onSelect,
+  variant = "icon",
+}: {
+  disabled: boolean;
+  flowVariant: "level-1" | "level-2";
+  onSelect: (status: ScreeningRowStatus) => void;
+  /** `icon` saves space inside table rows; `field` is the labelled trigger for the expanded row. */
+  variant?: "icon" | "field";
+}) {
+  const options =
+    flowVariant === "level-2" ? LEVEL2_DECISION_STATUSES : LEVEL1_DECISION_STATUSES;
+
+  if (variant === "field") {
+    return (
+      <div onClick={(e) => e.stopPropagation()}>
+        <AceDropdownMenu
+          triggerLabel="Quick Clear"
+          triggerMode="field"
+          size="sm"
+          align="end"
+          showChevron
+          disabled={disabled}
+          className="shrink-0 font-['Noto_Sans:Regular',sans-serif] font-normal text-[var(--screening-primary)]"
+          items={options.map((status) => ({
+            type: "item" as const,
+            label: status,
+            onSelect: () => onSelect(status as ScreeningRowStatus),
+          }))}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div onClick={(e) => e.stopPropagation()}>
+      <DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label="Quick Clear"
+                disabled={disabled}
+                className={cn(
+                  screeningToolbarIconButtonClass,
+                  disabled &&
+                    "cursor-not-allowed border-[#cfd2d9] bg-[#f5f6f8] text-[#949baa] opacity-60 dark:border-[#38414a] dark:bg-[#2c333a] dark:text-[#6a7285]",
+                )}
+              >
+                <Zap className="size-4" strokeWidth={2} aria-hidden />
+              </button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent
+            side="top"
+            hideArrow
+            className={cn(
+              aceTypography(ACE_TYPE.captionSemiBold),
+              "border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] text-[var(--screening-text-primary)] shadow-[var(--ace-drop-shadow-xs)]",
+            )}
+          >
+            Quick Clear
+          </TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent align="end" className="min-w-[12rem]">
+          <DropdownMenuLabel>Quick Clear</DropdownMenuLabel>
+          {options.map((status) => (
+            <DropdownMenuItem
+              key={status}
+              onSelect={() => onSelect(status as ScreeningRowStatus)}
+            >
+              {status}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
 }
 
 const statusPillShellClass =
@@ -1148,6 +1244,7 @@ export function ScreeningResultsTable({
   className,
   selectedIds: selectedIdsProp,
   onSelectedIdsChange,
+  onQuickClearRow,
 }: ScreeningResultsTableProps) {
   const isLevel2 = flowVariant === "level-2";
   /** Empty set = no filter (show all). Otherwise rows must match one of the selected status labels. */
@@ -1602,6 +1699,13 @@ export function ScreeningResultsTable({
         cellClassName: "text-[#23262c] dark:text-[#b6c2cf] whitespace-nowrap",
         render: (row) => row.name,
       },
+      clientName: {
+        key: "clientName",
+        label: "Client Name",
+        headerClassName: "whitespace-nowrap",
+        cellClassName: secondaryTextClass,
+        render: (row) => getClientRecordForRow(row).name,
+      },
       country: {
         key: "country",
         label: "Country",
@@ -1610,6 +1714,13 @@ export function ScreeningResultsTable({
         cellClassName: secondaryTextClass,
         render: (row) => getListProfileSummaryForRow(row).country,
       },
+      clientCountry: {
+        key: "clientCountry",
+        label: "Client Country",
+        headerClassName: "whitespace-nowrap",
+        cellClassName: secondaryTextClass,
+        render: (row) => getClientRecordForRow(row).countryLabel,
+      },
       dob: {
         key: "dob",
         label: "Date of Birth",
@@ -1617,6 +1728,13 @@ export function ScreeningResultsTable({
         headerClassName: "whitespace-nowrap",
         cellClassName: secondaryTextClass,
         render: (row) => row.dob,
+      },
+      clientDob: {
+        key: "clientDob",
+        label: "Client DOB",
+        headerClassName: "whitespace-nowrap",
+        cellClassName: secondaryTextClass,
+        render: (row) => getClientRecordForRow(row).dob ?? emptySecondary,
       },
       matchAge: {
         key: "matchAge",
@@ -1730,13 +1848,26 @@ export function ScreeningResultsTable({
         cellClassName: secondaryTextClass,
         render: (row) => finscanCategoryForRow(row),
       },
+      quickClear: {
+        key: "quickClear",
+        label: "Quick Clear",
+        headerClassName: "whitespace-nowrap",
+        cellClassName: "whitespace-nowrap",
+        render: (row) => (
+          <ScreeningRowQuickClear
+            disabled={isDisabledScreeningRow(row, flowVariant)}
+            flowVariant={flowVariant}
+            onSelect={(status) => onQuickClearRow?.(row.id, status)}
+          />
+        ),
+      },
     };
 
     return columnOrder
       .filter((key) => key !== "reviewer" || (isLevel2 && isCaseComplete))
       .filter((key) => visibleColumns.has(key))
       .map((key) => byKey[key]);
-  }, [isLevel2, isCaseComplete, flowVariant, visibleColumns, columnOrder]);
+  }, [isLevel2, isCaseComplete, flowVariant, visibleColumns, columnOrder, onQuickClearRow]);
 
   const screeningEmptyState = (
     <>
@@ -1836,7 +1967,7 @@ export function ScreeningResultsTable({
     <AceAccordion
       className={cn(
         "flex w-full flex-col border-[var(--screening-border-strong)]",
-        screeningAccordionOpen ? "min-h-0 flex-1" : "shrink-0",
+        screeningAccordionOpen ? "min-h-0 flex-initial" : "shrink-0",
         aceAccordionFixedHeaderClass,
         aceDropShadowXsClass,
         screeningAccordionOpen && aceAccordionPanelFillClass,
@@ -1878,7 +2009,7 @@ export function ScreeningResultsTable({
                   aria-hidden={drilldownVisible}
                 >
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-            <div className="shrink-0 border-b border-[#cfd2d9] dark:border-[#38414a] bg-[#fafafb] dark:bg-[#1d2125] px-4 py-3">
+            <div className="shrink-0 border-b border-[#cfd2d9] dark:border-[#38414a] bg-white dark:bg-[#22272b] px-4 py-3">
               <div className="flex flex-nowrap items-center justify-between gap-3">
                 {showStatusFilter ? (
                   <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
@@ -2066,6 +2197,14 @@ export function ScreeningResultsTable({
                 <ListProfileInlineContent
                   row={row}
                   className="ml-10 border-l-2 border-[#523eb9]/25 pl-6"
+                  headerTrailing={
+                    <ScreeningRowQuickClear
+                      variant="field"
+                      disabled={isDisabledScreeningRow(row, flowVariant)}
+                      flowVariant={flowVariant}
+                      onSelect={(status) => onQuickClearRow?.(row.id, status)}
+                    />
+                  }
                 />
               )}
               sort={{
@@ -2105,7 +2244,7 @@ export function ScreeningResultsTable({
               }}
               emptyState={sortedRows.length === 0 ? screeningEmptyState : undefined}
             />
-            <div className="shrink-0 border-t border-[var(--screening-border-strong)] bg-[var(--screening-surface-muted)] px-4 py-3">
+            <div className="shrink-0 border-t border-[var(--screening-border-strong)] bg-white dark:bg-[#22272b] px-4 py-3">
               <AcePagination
                 totalItems={sortedRows.length}
                 page={page}

@@ -481,6 +481,7 @@ interface DetailPanelProps {
   onScreeningSelectedIdsChange: Dispatch<SetStateAction<Set<string>>>;
   allCasesCleared: boolean;
   awaitingLevel1Work: boolean;
+  onQuickClearRow: (rowId: string, status: ScreeningRowStatus) => void;
 }
 
 function DetailPanel({
@@ -491,6 +492,7 @@ function DetailPanel({
   onScreeningSelectedIdsChange,
   allCasesCleared,
   awaitingLevel1Work,
+  onQuickClearRow,
 }: DetailPanelProps) {
   const [clientExpanded, setClientExpanded] = useState(false);
   const [caseActionModal, setCaseActionModal] = useState<
@@ -706,6 +708,7 @@ function DetailPanel({
         flowVariant="level-2"
         selectedIds={screeningSelectedIds}
         onSelectedIdsChange={onScreeningSelectedIdsChange}
+        onQuickClearRow={onQuickClearRow}
       />
     </div>
   );
@@ -882,6 +885,35 @@ export function Level2ReviewInterface() {
     [selectedCaseIndex, screeningSelectedIds, setScreeningRowsByCase],
   );
 
+  const handleQuickClearRow = useCallback(
+    (rowId: string, status: ScreeningRowStatus) => {
+      setScreeningRowsByCase((prev) => {
+        const current =
+          prev[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
+        return {
+          ...prev,
+          [selectedCaseIndex]: current.map((row) =>
+            row.id === rowId
+              ? {
+                  ...row,
+                  status: status as ScreeningRowStatus,
+                  decisionReason: status,
+                  decisionReviewer: LEVEL2_ANALYST_REVIEWER,
+                }
+              : row,
+          ),
+        };
+      });
+      setScreeningSelectedIds((prev) => {
+        if (!prev.has(rowId)) return prev;
+        const next = new Set(prev);
+        next.delete(rowId);
+        return next;
+      });
+    },
+    [selectedCaseIndex, setScreeningRowsByCase],
+  );
+
   const { submitReviewDecision, completeCaseConfirmDialog } = useCompleteCaseSubmit({
     rows: screeningRows,
     selectedIds: screeningSelectedIds,
@@ -992,6 +1024,7 @@ export function Level2ReviewInterface() {
                 onScreeningSelectedIdsChange={setScreeningSelectedIds}
                 allCasesCleared={allCasesCleared}
                 awaitingLevel1Work={awaitingLevel1Work}
+                onQuickClearRow={handleQuickClearRow}
               />
             </div>
             {!allCasesCleared && !awaitingLevel1Work ? (

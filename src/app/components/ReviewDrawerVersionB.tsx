@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CircleCheck } from "lucide-react";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
 import {
@@ -22,6 +22,17 @@ const drawerAccordionTitleClass = cn(
 );
 
 const drawerAccordionClass = "shrink-0 border-[var(--ace-accordion-border)] shadow-none";
+
+function ActivityNewBadge({ count }: { count: number }) {
+  return (
+    <span
+      className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#d32f2f] px-1 text-[10px] font-semibold leading-none text-white"
+      aria-label={`${count} new activity item${count === 1 ? "" : "s"}`}
+    >
+      {count}
+    </span>
+  );
+}
 
 export function ReviewDrawerVersionB({
   selectedCount,
@@ -84,8 +95,25 @@ export function ReviewDrawerVersionB({
   onActivityViewRowIdChange: (rowId: string) => void;
   activityPersistRevision: number;
 }) {
-  const [activityExpanded, setActivityExpanded] = useState(true);
+  const [activityExpanded, setActivityExpanded] = useState(false);
   const [attachmentsExpanded, setAttachmentsExpanded] = useState(false);
+  const [activitySeen, setActivitySeen] = useState(false);
+  const [activityPulseSignal, setActivityPulseSignal] = useState(0);
+
+  const selectionKey = selectedRows.map((row) => row.id).join("|");
+  useEffect(() => {
+    setActivitySeen(false);
+  }, [selectionKey, activityPersistRevision]);
+
+  const handleActivityOpenChange = (open: boolean) => {
+    setActivityExpanded(open);
+    if (open) {
+      setActivitySeen(true);
+      setActivityPulseSignal((signal) => signal + 1);
+    }
+  };
+
+  const showActivityBadge = !activityExpanded && !activitySeen && selectedRows.length > 0;
 
   return (
     <>
@@ -142,9 +170,10 @@ export function ReviewDrawerVersionB({
           showEditIcon={false}
           showMoreIcon={false}
           open={activityExpanded}
-          onOpenChange={setActivityExpanded}
+          onOpenChange={handleActivityOpenChange}
           className={drawerAccordionClass}
           titleClassName={drawerAccordionTitleClass}
+          headerTrailing={showActivityBadge ? <ActivityNewBadge count={1} /> : undefined}
         >
           <ReviewActivityFeed
             selectedRows={selectedRows}
@@ -154,6 +183,7 @@ export function ReviewDrawerVersionB({
             onActivityFilterChange={onActivityFilterChange}
             resetSignal={activityResetSignal}
             activityPersistRevision={activityPersistRevision}
+            pulseSignal={activityPulseSignal}
           />
         </AceAccordion>
 

@@ -215,3 +215,29 @@
     line-height: 1.5;
   }
 }
+
+/* Highlights the newest activity item when the Activity panel is opened. */
+@keyframes activity-pulse {
+  0% {
+    background-color: rgba(82, 62, 185, 0);
+  }
+  35% {
+    background-color: rgba(82, 62, 185, 0.14);
+  }
+  100% {
+    background-color: rgba(82, 62, 185, 0);
+  }
+}
+
+.activity-pulse {
+  border-radius: 8px;
+  margin: -4px -8px;
+  padding: 4px 8px;
+  animation: activity-pulse 0.8s ease-in-out 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .activity-pulse {
+    animation: none;
+  }
+}

@@ -1,10 +1,17 @@
-import { useCallback, useMemo, useState } from "react";
+import { Fragment, useCallback, useMemo, useState } from "react";
+import { Check } from "lucide-react";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
 import { AceTable } from "@ace-ds/components/molecules/AceTable/AceTable";
-import type { ListProfileData, ListProfileDataTable, ListProfileGeneralField } from "../lib/listProfileData";
+import {
+  getGeneralProfileViewForRow,
+  type ListProfileData,
+  type ListProfileDataTable,
+  type ListProfileGeneralField,
+} from "../lib/listProfileData";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { LIST_PROFILE_ACCORDION_TABS } from "../lib/listProfileTabs";
 import { cn } from "./ui/utils";
+import type { ScreeningResultRow } from "./ScreeningResultsTable";
 
 const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 
@@ -53,6 +60,99 @@ const listProfileAccordionTitleClass = cn(
   aceTypography(ACE_TYPE.p1SemiBold),
   "text-[var(--screening-text-primary)]",
 );
+
+function GeneralMatchCheck() {
+  return (
+    <span
+      className="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-[#2e7d32]"
+      aria-hidden
+    >
+      <Check className="size-2.5 stroke-[3] text-white" />
+    </span>
+  );
+}
+
+const generalHeaderCellClass = cn(
+  aceTypography(ACE_TYPE.p1Bold),
+  "text-[var(--screening-text-primary)]",
+);
+const generalLabelCellClass = cn(
+  aceTypography(ACE_TYPE.p1Regular),
+  "text-[var(--screening-text-secondary)]",
+);
+const generalValueCellClass = cn(
+  aceTypography(ACE_TYPE.p1Regular),
+  "text-[var(--screening-text-primary)]",
+);
+
+/** Expanded-row General tab: client-vs-list comparison + collapsible list metadata. */
+export function GeneralProfileComparison({ row }: { row: ScreeningResultRow }) {
+  const { comparison, more } = useMemo(() => getGeneralProfileViewForRow(row), [row]);
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  const renderValue = (value: string | null, field: { kind: "text" | "boolean" }) => {
+    if (field.kind === "boolean") {
+      return value === "Yes" ? (
+        <GeneralMatchCheck />
+      ) : (
+        <span className="text-[var(--screening-text-secondary)]">—</span>
+      );
+    }
+    return value && value !== "—" ? (
+      value
+    ) : (
+      <span className="text-[var(--screening-text-secondary)]">—</span>
+    );
+  };
+
+  return (
+    <div className="flex flex-col items-start gap-4">
+      <div
+        className="grid w-fit grid-cols-[auto_auto_auto] items-center gap-x-12 gap-y-1.5"
+        style={notoVar}
+      >
+        <span className={generalHeaderCellClass}>Field</span>
+        <span className={generalHeaderCellClass}>Client Record</span>
+        <span className={generalHeaderCellClass}>List Record</span>
+        {comparison.map((field) => (
+          <Fragment key={field.field}>
+            <span className={generalLabelCellClass}>{field.field}</span>
+            <span className={generalValueCellClass}>{renderValue(field.client, field)}</span>
+            <span className={generalValueCellClass}>{renderValue(field.list, field)}</span>
+          </Fragment>
+        ))}
+      </div>
+
+      <AceAccordion
+        title="More"
+        surface="white"
+        dropShadow={false}
+        showTag={false}
+        showAddIcon={false}
+        showDeleteIcon={false}
+        showEditIcon={false}
+        showMoreIcon={false}
+        open={moreOpen}
+        onOpenChange={setMoreOpen}
+        className={cn(listProfileAccordionClass, "w-full max-w-md")}
+        titleClassName={listProfileAccordionTitleClass}
+      >
+        <div className="flex flex-col gap-2">
+          {more.map((item) => (
+            <div
+              key={item.label}
+              className={cn(aceTypography(ACE_TYPE.p1Regular), "text-[var(--screening-text-primary)]")}
+              style={notoVar}
+            >
+              <span className="text-[var(--screening-text-secondary)]">{item.label}:</span>{" "}
+              <span>{item.value}</span>
+            </div>
+          ))}
+        </div>
+      </AceAccordion>
+    </div>
+  );
+}
 
 function listProfileSectionContent(profile: ListProfileData, sectionId: (typeof LIST_PROFILE_ACCORDION_TABS)[number]["id"]) {
   switch (sectionId) {

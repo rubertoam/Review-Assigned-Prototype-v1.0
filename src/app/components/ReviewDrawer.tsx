@@ -7,7 +7,6 @@ import {
   type AceAttachmentFile,
   type AceAttachmentLink,
 } from "@ace-ds/components/organisms/AceAttachments/AceAttachments";
-import { ReviewDrawerQuickClear } from "./ReviewDrawerQuickClear";
 import { ReviewDrawerVersionB } from "./ReviewDrawerVersionB";
 import { ReviewPanelVersionSelect } from "./ReviewPanelVersionSelect";
 import { ReviewPanelInlineInfoMessage } from "./ReviewPanelInlineInfoMessage";
@@ -212,7 +211,7 @@ export function ReviewDrawer({
     selectedReason !== null &&
     decisionCommentDraft.trim().length > 0;
 
-  const canSubmit = panelVersion === "b" ? canSubmitVersionB : canSubmitVersionA;
+  const canSubmit = panelVersion === "a" ? canSubmitVersionB : canSubmitVersionA;
 
   const handleSubmit = () => {
     if (!canSubmit || !selectedStatus || !selectedReason) return;
@@ -276,14 +275,13 @@ export function ReviewDrawer({
               Review
             </p>
             <div className="flex min-w-0 items-center justify-end gap-2">
-              {panelVersion === "b" ? <ReviewDrawerQuickClear /> : null}
               <ReviewPanelVersionSelect value={panelVersion} onChange={setPanelVersion} />
             </div>
           </div>
         </div>
 
         <div className="relative flex w-full min-h-px flex-1 flex-col bg-[var(--screening-surface)]">
-          {panelVersion === "b" ? (
+          {panelVersion === "a" ? (
             <ReviewDrawerVersionB
               selectedCount={selectedCount}
               selectedRows={selectedRows}

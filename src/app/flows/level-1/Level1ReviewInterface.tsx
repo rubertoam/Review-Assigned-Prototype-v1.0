@@ -47,6 +47,7 @@ import {
   level1ReviewerForCaseIndex,
   screeningNewPillSurfaceClass,
   type ScreeningResultRow,
+  type ScreeningRowStatus,
 } from "../../components/ScreeningResultsTable";
 import { useScreeningRowsByCase } from "../../lib/screeningState";
 import { useCompleteCaseSubmit } from "../../lib/useCompleteCaseSubmit";
@@ -504,6 +505,7 @@ interface DetailPanelProps {
   screeningSelectedIds: Set<string>;
   onScreeningSelectedIdsChange: Dispatch<SetStateAction<Set<string>>>;
   allCasesCleared: boolean;
+  onQuickClearRow: (rowId: string, status: ScreeningRowStatus) => void;
 }
 
 function DetailPanel({
@@ -513,6 +515,7 @@ function DetailPanel({
   screeningSelectedIds,
   onScreeningSelectedIdsChange,
   allCasesCleared,
+  onQuickClearRow,
 }: DetailPanelProps) {
   const [clientExpanded, setClientExpanded] = useState(false);
   const [caseActionModal, setCaseActionModal] = useState<
@@ -717,6 +720,7 @@ function DetailPanel({
         rows={screeningRows}
         selectedIds={screeningSelectedIds}
         onSelectedIdsChange={onScreeningSelectedIdsChange}
+        onQuickClearRow={onQuickClearRow}
       />
     </div>
   );
@@ -884,6 +888,35 @@ export function Level1ReviewInterface() {
     [selectedCaseIndex, screeningSelectedIds, setScreeningRowsByCase],
   );
 
+  const handleQuickClearRow = useCallback(
+    (rowId: string, status: ScreeningRowStatus) => {
+      setScreeningRowsByCase((prev) => {
+        const current =
+          prev[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
+        return {
+          ...prev,
+          [selectedCaseIndex]: current.map((row) =>
+            row.id === rowId
+              ? {
+                  ...row,
+                  status: status as Level1ScreeningStatus,
+                  level1Reason: status,
+                  level1Reviewer: level1ReviewerForCaseIndex(selectedCaseIndex),
+                }
+              : row,
+          ),
+        };
+      });
+      setScreeningSelectedIds((prev) => {
+        if (!prev.has(rowId)) return prev;
+        const next = new Set(prev);
+        next.delete(rowId);
+        return next;
+      });
+    },
+    [selectedCaseIndex, setScreeningRowsByCase],
+  );
+
   const { submitReviewDecision, completeCaseConfirmDialog } = useCompleteCaseSubmit({
     rows: screeningRows,
     selectedIds: screeningSelectedIds,
@@ -993,6 +1026,7 @@ export function Level1ReviewInterface() {
                 screeningSelectedIds={screeningSelectedIds}
                 onScreeningSelectedIdsChange={setScreeningSelectedIds}
                 allCasesCleared={allCasesCleared}
+                onQuickClearRow={handleQuickClearRow}
               />
             </div>
             {!allCasesCleared ? (

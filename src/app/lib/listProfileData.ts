@@ -1,4 +1,5 @@
 import type { ScreeningResultRow } from "../components/ScreeningResultsTable";
+import { casesData, clientProfileForCaseIndex, recordTypeForCase } from "./reviewCaseData";
 
 export type ListProfileGeneralField = { label: string; value: string };
 
@@ -423,4 +424,143 @@ export function getListProfileForRow(row: ScreeningResultRow): ListProfileData {
     return johnSmithListProfile(row, rowIndex);
   }
   return generatedListProfile(row, caseIndex, rowIndex);
+}
+
+const RECORD_TYPE_LABEL: Record<string, string> = {
+  individual: "Individual",
+  organization: "Organization",
+  unknown: "Unknown",
+};
+
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+/** "03/23/1978" → "3/23/1978" (drop leading zeros for readability). */
+function stripDateLeadingZeros(value: string | null): string | null {
+  if (!value || value === "—") return value === "—" ? null : value;
+  const parts = value.split("/");
+  if (parts.length !== 3) return value;
+  const [month, day, year] = parts;
+  return `${Number(month)}/${Number(day)}/${year}`;
+}
+
+/** "2026-04-14 07:43:19.000" → "April 14, 2026 7:43 AM". */
+function formatListTimestamp(raw: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(raw);
+  if (!match) return raw;
+  const [, yearStr, monthStr, dayStr, hourStr, minuteStr] = match;
+  const monthName = MONTH_NAMES[Number(monthStr) - 1] ?? monthStr;
+  const day = Number(dayStr);
+  let hour = Number(hourStr);
+  const meridiem = hour >= 12 ? "PM" : "AM";
+  hour %= 12;
+  if (hour === 0) hour = 12;
+  return `${monthName} ${day}, ${yearStr} ${hour}:${minuteStr} ${meridiem}`;
+}
+
+function listGeneralMap(profile: ListProfileData): Record<string, string> {
+  return Object.fromEntries(profile.general.map((field) => [field.label, field.value]));
+}
+
+export type ClientRecordSummary = {
+  name: string;
+  dob: string | null;
+  countryLabel: string;
+  recordType: string;
+};
+
+/** Client profile values for a screening row (used by the table's client columns). */
+export function getClientRecordForRow(row: ScreeningResultRow): ClientRecordSummary {
+  const { caseIndex } = parseScreeningRowId(row.id);
+  const profile = clientProfileForCaseIndex(caseIndex);
+  const name = casesData[Math.min(caseIndex, casesData.length - 1)]?.name ?? row.name;
+  return {
+    name,
+    dob: profile.dob,
+    countryLabel: profile.countryLabel,
+    recordType: RECORD_TYPE_LABEL[recordTypeForCase(caseIndex)] ?? "Unknown",
+  };
+}
+
+export type GeneralComparisonField = {
+  field: string;
+  client: string | null;
+  list: string | null;
+  kind: "text" | "boolean";
+  /** Highlights this field as the matched attribute (check beside both values). */
+  match?: boolean;
+};
+
+export type GeneralMoreField = { label: string; value: string };
+
+export type GeneralProfileView = {
+  comparison: GeneralComparisonField[];
+  more: GeneralMoreField[];
+};
+
+/** Client-vs-list comparison + additional list metadata for the expanded General tab. */
+export function getGeneralProfileViewForRow(row: ScreeningResultRow): GeneralProfileView {
+  const profile = getListProfileForRow(row);
+  const map = listGeneralMap(profile);
+  const summary = getListProfileSummaryForRow(row);
+  const client = getClientRecordForRow(row);
+  const listActive = (map["Active"] ?? "").toLowerCase() === "yes" ? "Yes" : "No";
+
+  const comparison: GeneralComparisonField[] = [
+    {
+      field: "Name",
+      client: client.name,
+      list: map["Full Name"] ?? row.name,
+      kind: "text",
+      match: true,
+    },
+    {
+      field: "DOB",
+      client: stripDateLeadingZeros(client.dob),
+      list: stripDateLeadingZeros(row.dob),
+      kind: "text",
+    },
+    {
+      field: "Country",
+      client: client.countryLabel,
+      list: summary.country,
+      kind: "text",
+    },
+    {
+      field: "Record Type",
+      client: client.recordType,
+      list: map["Record Type"] ?? "—",
+      kind: "text",
+    },
+    {
+      field: "Active?",
+      client: "Yes",
+      list: listActive,
+      kind: "boolean",
+    },
+  ];
+
+  const more: GeneralMoreField[] = [
+    { label: "List Name", value: map["List Name"] ?? "—" },
+    { label: "List ID", value: map["List ID"] ?? "—" },
+    { label: "List Profile ID", value: map["List Profile ID"] ?? "—" },
+    { label: "Version", value: map["Version"] ?? "—" },
+    { label: "Load Date", value: formatListTimestamp(map["Load Date"] ?? "—") },
+    { label: "Updated Date", value: formatListTimestamp(map["Updated Date"] ?? "—") },
+    { label: "Deleted", value: map["Deleted"] ?? "—" },
+  ];
+
+  return { comparison, more };
 }
