@@ -71,8 +71,8 @@ export function caseFilterTriggerLabel(selectedFilters: ReadonlySet<CaseFilterVa
 export const CASE_SORT_OPTIONS = [
   { value: "name-asc", label: "A-Z" },
   { value: "name-desc", label: "Z-A" },
-  { value: "risk-asc", label: "Low to High" },
-  { value: "risk-desc", label: "High to Low" },
+  { value: "results-asc", label: "Low to High" },
+  { value: "results-desc", label: "High to Low" },
 ] as const;
 
 export type CaseSortValue = (typeof CASE_SORT_OPTIONS)[number]["value"];
@@ -251,24 +251,15 @@ export function caseMatchesFilters(
   return false;
 }
 
-const RISK_BAND_ORDER: Record<ClientRiskBand, number> = {
-  low: 0,
-  medium: 1,
-  high: 2,
-};
-
 export function compareCasesBySort(
   aIndex: number,
   bIndex: number,
   sort: CaseSortValue,
 ): number {
-  if (sort === "risk-asc" || sort === "risk-desc") {
-    const aRank = RISK_BAND_ORDER[clientProfileForCaseIndex(aIndex).riskBand];
-    const bRank = RISK_BAND_ORDER[clientProfileForCaseIndex(bIndex).riskBand];
-    if (aRank !== bRank) {
-      return sort === "risk-asc" ? aRank - bRank : bRank - aRank;
-    }
-    return aIndex - bIndex;
+  if (sort === "results-asc" || sort === "results-desc") {
+    const diff = casesData[aIndex].results - casesData[bIndex].results;
+    const ordered = sort === "results-desc" ? -diff : diff;
+    return ordered !== 0 ? ordered : aIndex - bIndex;
   }
 
   const nameCompare = casesData[aIndex].name.localeCompare(

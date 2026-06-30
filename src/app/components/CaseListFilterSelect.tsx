@@ -27,17 +27,7 @@ export function CaseListFilterSelect({
   );
 
   const items = useMemo((): AceDropdownMenuEntry[] => {
-    const entries: AceDropdownMenuEntry[] = [
-      {
-        type: "checkbox",
-        label: "All",
-        checked: selectedFilters.size === 0,
-        style: "assignment",
-        onCheckedChange: (checked) => {
-          if (checked) onSelectedFiltersChange(new Set());
-        },
-      },
-    ];
+    const entries: AceDropdownMenuEntry[] = [];
 
     for (const group of CASE_FILTER_GROUPS) {
       entries.push({ type: "label", label: group.label });

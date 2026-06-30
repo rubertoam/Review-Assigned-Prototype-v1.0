@@ -282,7 +282,7 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
   const [selectedCaseFilters, setSelectedCaseFilters] = useState<ReadonlySet<CaseFilterValue>>(
     () => new Set(),
   );
-  const [caseSort, setCaseSort] = useState<CaseSortValue>("name-asc");
+  const [caseSort, setCaseSort] = useState<CaseSortValue>("results-desc");
   const wasSelectedCaseCompleteRef = useRef(false);
 
   const filteredRows = useMemo(() => {
