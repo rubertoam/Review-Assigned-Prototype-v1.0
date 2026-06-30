@@ -21,9 +21,12 @@ export type Level1DecisionStatus = (typeof LEVEL1_DECISION_STATUSES)[number];
 
 export type Level1ScreeningStatus = "New" | Level1DecisionStatus;
 
-export const LEVEL2_DECISION_STATUSES = ["Safe", "False Positive"] as const;
+export const LEVEL2_DECISION_STATUSES = ["Safe", "False Positive", "Remediate"] as const;
 
 export type Level2DecisionStatus = (typeof LEVEL2_DECISION_STATUSES)[number];
+
+/** L2 "Remediate" sends a match back to Level 1 and reopens it for re-review. */
+export const LEVEL2_REMEDIATE_STATUS = "Remediate" as const;
 
 export const LEVEL1_STATUS_REASONS: Record<Level1DecisionStatus, readonly string[]> = {
   "Confirmed Safe": ["Confirmed Safe"],
@@ -66,6 +69,7 @@ export const LEVEL2_STATUS_REASONS: Record<Level2DecisionStatus, readonly string
     "Prior Hit",
   ],
   "False Positive": ["None"],
+  Remediate: ["Incorrect Disposition", "Wrong Status Applied"],
 };
 
 export const LEVEL1_STATUS_DISPLAY_ORDER: Level1ScreeningStatus[] = [

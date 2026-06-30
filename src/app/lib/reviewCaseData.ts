@@ -255,9 +255,11 @@ export function compareCasesBySort(
   aIndex: number,
   bIndex: number,
   sort: CaseSortValue,
+  /** Resolves the result count to sort by; defaults to the static case total. */
+  resultCountForIndex: (index: number) => number = (index) => casesData[index].results,
 ): number {
   if (sort === "results-asc" || sort === "results-desc") {
-    const diff = casesData[aIndex].results - casesData[bIndex].results;
+    const diff = resultCountForIndex(aIndex) - resultCountForIndex(bIndex);
     const ordered = sort === "results-desc" ? -diff : diff;
     return ordered !== 0 ? ordered : aIndex - bIndex;
   }

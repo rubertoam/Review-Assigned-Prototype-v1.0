@@ -38,7 +38,8 @@ export function useCompleteCaseSubmit({
 
   const submitReviewDecision = useCallback(
     (status: string, reason: string) => {
-      const completingCase = willCompleteCaseOnSubmit(rows, selectedIds, flowVariant);
+      const completingCase =
+        status !== "Remediate" && willCompleteCaseOnSubmit(rows, selectedIds, flowVariant);
       if (completingCase && !shouldSkipCompleteCaseDialog()) {
         setPendingSubmit({ status, reason });
         setConfirmOpen(true);

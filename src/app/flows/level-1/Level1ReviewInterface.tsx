@@ -285,6 +285,17 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
   const [caseSort, setCaseSort] = useState<CaseSortValue>("results-desc");
   const wasSelectedCaseCompleteRef = useRef(false);
 
+  const caseRowsForIndex = useCallback(
+    (index: number) => screeningRowsByCase[index] ?? getScreeningRowsForCase(index),
+    [screeningRowsByCase],
+  );
+
+  /** Results still awaiting Level 1 review (the count the analyst acts on). */
+  const pendingResultCount = useCallback(
+    (index: number) => caseRowsForIndex(index).filter((r) => r.status === "New").length,
+    [caseRowsForIndex],
+  );
+
   const filteredRows = useMemo(() => {
     const out: CaseListRow[] = [];
     casesData.forEach((item, index) => {
@@ -292,14 +303,9 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
         out.push({ item, index });
       }
     });
-    out.sort((a, b) => compareCasesBySort(a.index, b.index, caseSort));
+    out.sort((a, b) => compareCasesBySort(a.index, b.index, caseSort, pendingResultCount));
     return out;
-  }, [selectedCaseFilters, caseSort]);
-
-  const caseRowsForIndex = useCallback(
-    (index: number) => screeningRowsByCase[index] ?? getScreeningRowsForCase(index),
-    [screeningRowsByCase],
-  );
+  }, [selectedCaseFilters, caseSort, pendingResultCount]);
 
   const { pendingRows, doneRows } = useMemo(() => {
     const pending: CaseListRow[] = [];
@@ -388,6 +394,8 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
     const clientId = clientProfileForCaseIndex(index).clientId;
     const { done, total } = caseReviewProgress[index] ?? { done: 0, total: 1 };
     const progressPct = total > 0 ? (done / total) * 100 : 0;
+    const pendingCount = pendingResultCount(index);
+    const resultsCount = pendingCount > 0 ? pendingCount : caseItem.results;
     return (
       <div
         key={index}
@@ -412,7 +420,7 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
                 {caseItem.name}
               </p>
               <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[#23262c] dark:text-[#b6c2cf] text-[10px] tracking-[0.2px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                {clientId} · {caseItem.results} results
+                {clientId} · {resultsCount} results
               </p>
             </div>
           </div>
@@ -485,7 +493,7 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
           {pendingRows.map(({ item, index }) => renderCaseRow(item, index))}
         </CaseListSection>
         <CaseListSection
-          title="Done"
+          title="Sent to Level 2"
           count={doneRows.length}
           expanded={doneSectionExpanded}
           onExpandedChange={setDoneSectionExpanded}

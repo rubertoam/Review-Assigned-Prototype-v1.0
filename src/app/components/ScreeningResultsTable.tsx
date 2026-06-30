@@ -41,7 +41,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { getClientRecordForRow, getListProfileSummaryForRow } from "../lib/listProfileData";
+import {
+  getClientRecordForRow,
+  getListProfileSummaryForRow,
+  isOrganizationRow,
+} from "../lib/listProfileData";
 import { AceDropdownMenu } from "@ace-ds/components/molecules/AceDropdownMenu/AceDropdownMenu";
 import {
   caseActionsMenuIconClass,
@@ -138,6 +142,10 @@ export type ScreeningResultRow = {
   level1Reason?: string;
   /** Prototype: row is New again after a prior Confirmed Safe decision. */
   reopenedFromConfirmedSafe?: boolean;
+  /** Reopened for Level 1 because Level 2 sent it back via Remediate. */
+  remediatedFromLevel2?: boolean;
+  /** Reason the Level 2 analyst chose when remediating. */
+  remediationReason?: string;
 };
 
 /** Row shape used inside the table (Level 2 review history adds display overrides). */
@@ -1074,6 +1082,12 @@ export const STATUS_PILL_STYLES: Record<
     dot: "bg-[#6a7285]",
     text: "text-[#464c59]",
   },
+  Remediate: {
+    border: "border-[#ef9a9a]",
+    bg: "bg-[#fdecea]",
+    dot: "bg-[#c62828]",
+    text: "text-[#b71c1c]",
+  },
 };
 
 function statusPill(status: ScreeningRowStatus) {
@@ -1373,15 +1387,21 @@ export function ScreeningResultsTable({
     [isLevel2, rows],
   );
 
-  /** Done cases always show full history; open cases use the toggle. */
-  const effectiveShowReviewHistory = isCaseComplete || showReviewHistory;
+  /**
+   * Done cases always show full history; Level 2 open cases use the toggle.
+   * Level 1 always surfaces decided rows (e.g. results sent to Level 2) as soon
+   * as they exist, so the analyst keeps that context mid-review and on return.
+   */
+  const effectiveShowReviewHistory =
+    isCaseComplete || showReviewHistory || (!isLevel2 && hasReviewHistory);
 
   const baseRows = useMemo((): ScreeningTableDisplayRow[] => {
     if (isLevel2) return buildLevel2DisplayRows(rows, effectiveShowReviewHistory, isCaseComplete);
     return buildLevel1DisplayRows(rows, effectiveShowReviewHistory);
   }, [isLevel2, rows, effectiveShowReviewHistory, isCaseComplete]);
 
-  const showReviewHistoryToggle = !isCaseComplete;
+  /** Level 1 history is always shown, so the manual toggle is Level 2 only. */
+  const showReviewHistoryToggle = !isCaseComplete && isLevel2;
 
   // Chips = one per status label in the current table view. Multi-select: OR semantics. Empty selection = show all rows.
   const statusChips = useMemo(() => {
@@ -1727,14 +1747,15 @@ export function ScreeningResultsTable({
         sortKey: "dob",
         headerClassName: "whitespace-nowrap",
         cellClassName: secondaryTextClass,
-        render: (row) => row.dob,
+        render: (row) => (isOrganizationRow(row) ? emptySecondary : row.dob),
       },
       clientDob: {
         key: "clientDob",
         label: "Client DOB",
         headerClassName: "whitespace-nowrap",
         cellClassName: secondaryTextClass,
-        render: (row) => getClientRecordForRow(row).dob ?? emptySecondary,
+        render: (row) =>
+          isOrganizationRow(row) ? emptySecondary : getClientRecordForRow(row).dob ?? emptySecondary,
       },
       matchAge: {
         key: "matchAge",
@@ -2197,14 +2218,6 @@ export function ScreeningResultsTable({
                 <ListProfileInlineContent
                   row={row}
                   className="ml-10 border-l-2 border-[#523eb9]/25 pl-6"
-                  headerTrailing={
-                    <ScreeningRowQuickClear
-                      variant="field"
-                      disabled={isDisabledScreeningRow(row, flowVariant)}
-                      flowVariant={flowVariant}
-                      onSelect={(status) => onQuickClearRow?.(row.id, status)}
-                    />
-                  }
                 />
               )}
               sort={{

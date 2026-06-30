@@ -83,6 +83,35 @@ interface PageHeaderProps {
   onTriggerMouseLeave: () => void;
 }
 
+/**
+ * Apply a Level 2 decision to a screening row. "Remediate" sends the match back
+ * to Level 1 — it is reopened as "New" and the prior L1/L2 decision is cleared.
+ */
+function applyLevel2Decision(
+  row: ScreeningResultRow,
+  status: string,
+  reason: string,
+): ScreeningResultRow {
+  if (status === "Remediate") {
+    return {
+      ...row,
+      status: "New",
+      level1Reason: undefined,
+      level1Reviewer: undefined,
+      decisionReason: undefined,
+      decisionReviewer: undefined,
+      remediatedFromLevel2: true,
+      remediationReason: reason,
+    };
+  }
+  return {
+    ...row,
+    status: status as ScreeningRowStatus,
+    decisionReason: reason,
+    decisionReviewer: LEVEL2_ANALYST_REVIEWER,
+  };
+}
+
 function PageHeader({
   isSidebarOpen,
   sidebarPinned,
@@ -460,7 +489,7 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
           {pendingRows.map(({ item, index }) => renderCaseRow(item, index))}
         </CaseListSection>
         <CaseListSection
-          title="Done"
+          title="Sent to Final Status"
           count={doneRows.length}
           expanded={doneSectionExpanded}
           onExpandedChange={setDoneSectionExpanded}
@@ -869,14 +898,7 @@ export function Level2ReviewInterface() {
         return {
           ...prev,
           [selectedCaseIndex]: current.map((row) =>
-            screeningSelectedIds.has(row.id)
-              ? {
-                  ...row,
-                  status: status as ScreeningRowStatus,
-                  decisionReason: reason,
-                  decisionReviewer: LEVEL2_ANALYST_REVIEWER,
-                }
-              : row,
+            screeningSelectedIds.has(row.id) ? applyLevel2Decision(row, status, reason) : row,
           ),
         };
       });
@@ -893,14 +915,7 @@ export function Level2ReviewInterface() {
         return {
           ...prev,
           [selectedCaseIndex]: current.map((row) =>
-            row.id === rowId
-              ? {
-                  ...row,
-                  status: status as ScreeningRowStatus,
-                  decisionReason: status,
-                  decisionReviewer: LEVEL2_ANALYST_REVIEWER,
-                }
-              : row,
+            row.id === rowId ? applyLevel2Decision(row, status, status) : row,
           ),
         };
       });

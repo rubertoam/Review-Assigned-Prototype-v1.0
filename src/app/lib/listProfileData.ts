@@ -481,6 +481,12 @@ export type ClientRecordSummary = {
   recordType: string;
 };
 
+/** Entities (organizations / non-individuals) have no date of birth. */
+export function isOrganizationRow(row: ScreeningResultRow): boolean {
+  const { caseIndex } = parseScreeningRowId(row.id);
+  return recordTypeForCase(caseIndex) !== "individual";
+}
+
 /** Client profile values for a screening row (used by the table's client columns). */
 export function getClientRecordForRow(row: ScreeningResultRow): ClientRecordSummary {
   const { caseIndex } = parseScreeningRowId(row.id);
@@ -518,6 +524,8 @@ export function getGeneralProfileViewForRow(row: ScreeningResultRow): GeneralPro
   const client = getClientRecordForRow(row);
   const listActive = (map["Active"] ?? "").toLowerCase() === "yes" ? "Yes" : "No";
 
+  const isOrganization = isOrganizationRow(row);
+
   const comparison: GeneralComparisonField[] = [
     {
       field: "Name",
@@ -526,12 +534,16 @@ export function getGeneralProfileViewForRow(row: ScreeningResultRow): GeneralPro
       kind: "text",
       match: true,
     },
-    {
-      field: "DOB",
-      client: stripDateLeadingZeros(client.dob),
-      list: stripDateLeadingZeros(row.dob),
-      kind: "text",
-    },
+    ...(isOrganization
+      ? []
+      : [
+          {
+            field: "DOB",
+            client: stripDateLeadingZeros(client.dob),
+            list: stripDateLeadingZeros(row.dob),
+            kind: "text" as const,
+          },
+        ]),
     {
       field: "Country",
       client: client.countryLabel,
