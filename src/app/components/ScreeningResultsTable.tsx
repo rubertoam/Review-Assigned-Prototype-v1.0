@@ -247,11 +247,20 @@ export function level1ReviewerForCaseIndex(caseIndex: number): string {
 export function tableStatusLabel(row: ScreeningTableDisplayRow): string {
   if (row.displayStatus === "Confirmed Safe") return "Confirmed Safe";
   if (row.displayStatus === "Safe") return "Safe";
+  if (isRemediatedActiveRow(row)) return "Remediate";
   return row.status;
+}
+
+/** Row was sent back by Level 2 (Remediate) and still awaits Level 1 re-review. */
+export function isRemediatedActiveRow(
+  row: Pick<ScreeningResultRow, "status" | "remediatedFromLevel2">,
+): boolean {
+  return Boolean(row.remediatedFromLevel2) && row.status === "New";
 }
 
 const STATUS_FILTER_DISPLAY_ORDER: readonly string[] = [
   ...LEVEL1_STATUS_DISPLAY_ORDER,
+  "Remediate",
   ...LEVEL2_DECISION_STATUSES.filter((status) => status === "False Positive"),
 ];
 
@@ -1360,7 +1369,9 @@ export function ScreeningResultsTable({
   );
 
   useEffect(() => {
-    setShowReviewHistory(false);
+    // Level 1 shows the "sent to Level 2" history by default (analyst can hide it);
+    // Level 2 keeps history collapsed until requested.
+    setShowReviewHistory(!isLevel2);
     setStatusFilters(new Set());
     setSearchQuery("");
     setPage(1);
@@ -1369,7 +1380,7 @@ export function ScreeningResultsTable({
     setDrilldownRow(null);
     setDrilldownView(null);
     setExpandedRowIds(new Set());
-  }, [caseRowIdsKey, clearDrilldownCloseTimer]);
+  }, [caseRowIdsKey, isLevel2, clearDrilldownCloseTimer]);
 
   useEffect(() => {
     setPage(1);
@@ -1387,21 +1398,15 @@ export function ScreeningResultsTable({
     [isLevel2, rows],
   );
 
-  /**
-   * Done cases always show full history; Level 2 open cases use the toggle.
-   * Level 1 always surfaces decided rows (e.g. results sent to Level 2) as soon
-   * as they exist, so the analyst keeps that context mid-review and on return.
-   */
-  const effectiveShowReviewHistory =
-    isCaseComplete || showReviewHistory || (!isLevel2 && hasReviewHistory);
+  /** Done cases always show full history; open cases use the toggle. */
+  const effectiveShowReviewHistory = isCaseComplete || showReviewHistory;
 
   const baseRows = useMemo((): ScreeningTableDisplayRow[] => {
     if (isLevel2) return buildLevel2DisplayRows(rows, effectiveShowReviewHistory, isCaseComplete);
     return buildLevel1DisplayRows(rows, effectiveShowReviewHistory);
   }, [isLevel2, rows, effectiveShowReviewHistory, isCaseComplete]);
 
-  /** Level 1 history is always shown, so the manual toggle is Level 2 only. */
-  const showReviewHistoryToggle = !isCaseComplete && isLevel2;
+  const showReviewHistoryToggle = !isCaseComplete;
 
   // Chips = one per status label in the current table view. Multi-select: OR semantics. Empty selection = show all rows.
   const statusChips = useMemo(() => {
@@ -1412,7 +1417,7 @@ export function ScreeningResultsTable({
     return [...ordered, ...extras];
   }, [baseRows]);
 
-  const historyToggleDisabled = !hasReviewHistory && !showReviewHistory;
+  const historyToggleDisabled = !hasReviewHistory;
 
   const columnMenuOptions = useMemo(() => {
     const available = new Set(
@@ -1708,6 +1713,7 @@ export function ScreeningResultsTable({
         render: (row) => {
           if (row.displayStatus === "Confirmed Safe") return safeStatusPill("Confirmed Safe");
           if (row.displayStatus === "Safe") return safeStatusPill();
+          if (isRemediatedActiveRow(row)) return statusPill("Remediate");
           return statusPill(row.status);
         },
       },
@@ -2161,7 +2167,7 @@ export function ScreeningResultsTable({
                                 "cursor-not-allowed border-[#cfd2d9] bg-[#f5f6f8] text-[#949baa] opacity-60 dark:border-[#38414a] dark:bg-[#2c333a] dark:text-[#6a7285]",
                             )}
                           >
-                            {showReviewHistory ? (
+                            {showReviewHistory && !historyToggleDisabled ? (
                               <EyeOff className="size-4" strokeWidth={2} aria-hidden />
                             ) : (
                               <Eye className="size-4" strokeWidth={2} aria-hidden />

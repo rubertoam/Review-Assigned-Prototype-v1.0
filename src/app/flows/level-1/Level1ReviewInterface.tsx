@@ -44,6 +44,7 @@ import {
   ScreeningResultsTable,
   getScreeningRowsForCase,
   isCaseScreeningComplete,
+  isLevel2ReviewedRow,
   level1ReviewerForCaseIndex,
   screeningNewPillSurfaceClass,
   type ScreeningResultRow,
@@ -64,7 +65,10 @@ import { cn } from "../../components/ui/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../components/ui/tooltip";
 import { ReviewDrawer } from "../../components/ReviewDrawer";
 import { SidebarNavCountBadge } from "../../components/SidebarNavCountBadge";
-import type { Level1ScreeningStatus } from "../../lib/reviewDecisionConfig";
+import {
+  isLevel1InProcessStatus,
+  type Level1ScreeningStatus,
+} from "../../lib/reviewDecisionConfig";
 import { AceSidebar } from "@ace-ds/components/organisms/AceSidebar/AceSidebar";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
 
@@ -311,18 +315,29 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
     const pending: CaseListRow[] = [];
     const done: CaseListRow[] = [];
     filteredRows.forEach((row) => {
-      if (isCaseScreeningComplete(caseRowsForIndex(row.index))) {
-        done.push(row);
-      } else {
-        pending.push(row);
-      }
+      const caseRows = caseRowsForIndex(row.index);
+      const complete = isCaseScreeningComplete(caseRows);
+      // Any result that has moved to (or through) Level 2.
+      const hasSentToLevel2 = caseRows.some(
+        (r) => isLevel1InProcessStatus(r.status) || isLevel2ReviewedRow(r),
+      );
+      if (!complete) pending.push(row);
+      // A case keeps a spot in "Sent to Level 2" whenever it has work there,
+      // even if remediated results have reopened it in "To Do".
+      if (complete || hasSentToLevel2) done.push(row);
     });
     return { pendingRows: pending, doneRows: done };
   }, [filteredRows, caseRowsForIndex]);
 
   const navigableRows = useMemo(() => {
     const showDone = doneSectionExpanded || pendingRows.length === 0;
-    return showDone ? [...pendingRows, ...doneRows] : pendingRows;
+    const combined = showDone ? [...pendingRows, ...doneRows] : pendingRows;
+    const seen = new Set<number>();
+    return combined.filter((row) => {
+      if (seen.has(row.index)) return false;
+      seen.add(row.index);
+      return true;
+    });
   }, [pendingRows, doneRows, doneSectionExpanded]);
 
   useEffect(() => {
