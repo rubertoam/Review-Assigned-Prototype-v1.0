@@ -123,6 +123,8 @@ export function isDisabledScreeningRow(
   return row.status !== "New";
 }
 
+export type CaseListSectionContext = "todo" | "done";
+
 export type ScreeningResultRow = {
   id: string;
   name: string;
@@ -300,8 +302,7 @@ type ScreeningColumnKey =
   | "matchString"
   | "reason"
   | "matchedNameType"
-  | "finscanCategory"
-  | "quickClear";
+  | "finscanCategory";
 
 const SCREENING_COLUMN_DEFINITIONS: ReadonlyArray<{
   key: ScreeningColumnKey;
@@ -326,7 +327,6 @@ const SCREENING_COLUMN_DEFINITIONS: ReadonlyArray<{
   { key: "reason", label: "Reason", defaultVisible: false },
   { key: "matchedNameType", label: "Matched Name Type", defaultVisible: false },
   { key: "finscanCategory", label: "FinScan Category", defaultVisible: false },
-  { key: "quickClear", label: "Quick Clear", defaultVisible: false },
 ];
 
 const DEFAULT_VISIBLE_SCREENING_COLUMNS = new Set<ScreeningColumnKey>(
@@ -871,6 +871,8 @@ interface ScreeningResultsTableProps {
   title?: string;
   /** Level 2 shows escalated-only work queue plus optional L1 review history. */
   flowVariant?: "level-1" | "level-2";
+  /** Which case-list bucket is active — scopes visible rows (todo vs sent-away). */
+  caseListSection?: CaseListSectionContext;
   /** Optional root classes (e.g. `w-full`). Table body scroll is internal to the component; avoid `flex-1` on the root so the closed accordion does not stretch. */
   className?: string;
   /** When both are passed, row selection is controlled by the parent (e.g. task bar). */
@@ -1145,10 +1147,23 @@ function buildLevel1DisplayRows(
   return [...active, ...history];
 }
 
+/** Level 1 "Sent to Level 2" case-list view — only rows that left L1 for L2 (never New). */
+function buildLevel1SentToLevel2DisplayRows(
+  rows: ScreeningResultRow[],
+): ScreeningTableDisplayRow[] {
+  return rows
+    .filter((r) => isLevel1InProcessStatus(r.status) || isLevel2ReviewedRow(r))
+    .map((r): ScreeningTableDisplayRow => {
+      if (isLevel2ReviewedRow(r)) return mapLevel2ReviewedDisplayRow(r);
+      return { ...r, readOnlyHistory: true };
+    });
+}
+
 function buildLevel2DisplayRows(
   rows: ScreeningResultRow[],
   showReviewHistory: boolean,
   caseComplete: boolean,
+  caseListSection: CaseListSectionContext = "todo",
 ): ScreeningTableDisplayRow[] {
   const mapHistoryRow = (r: ScreeningResultRow): ScreeningTableDisplayRow => {
     if (isLevel2ReviewedRow(r)) return mapLevel2ReviewedDisplayRow(r);
@@ -1156,16 +1171,21 @@ function buildLevel2DisplayRows(
     return { ...r, readOnlyHistory: true };
   };
 
-  if (caseComplete) {
-    return rows
-      .filter((r) => r.status !== "New")
-      .map(mapHistoryRow);
+  /** Level 2 never surfaces rows reopened as New on Level 1. */
+  const l2Rows = rows.filter((r) => r.status !== "New");
+
+  if (caseListSection === "done") {
+    return l2Rows.filter((r) => isLevel2ReviewedRow(r)).map(mapHistoryRow);
   }
 
-  const active = rows.filter((r) => isLevel1InProcessStatus(r.status));
+  if (caseComplete) {
+    return l2Rows.map(mapHistoryRow);
+  }
+
+  const active = l2Rows.filter((r) => isLevel1InProcessStatus(r.status));
   if (!showReviewHistory) return active;
 
-  const history = rows
+  const history = l2Rows
     .filter((r) => isLevel1ConfirmedRow(r) || isLevel2ReviewedRow(r))
     .map(mapHistoryRow);
   return [...active, ...history];
@@ -1191,11 +1211,9 @@ export function caseHasLevel2Activity(rows: ScreeningResultRow[]): boolean {
 function ScreeningRowActionsMenu({
   row,
   onOpenDrilldown,
-  onExpandListProfile,
 }: {
   row: ScreeningTableDisplayRow;
   onOpenDrilldown: (row: ScreeningTableDisplayRow, view: RowDrilldownView) => void;
-  onExpandListProfile: (row: ScreeningTableDisplayRow) => void;
 }) {
   return (
     <DropdownMenu modal={false}>
@@ -1229,12 +1247,6 @@ function ScreeningRowActionsMenu({
         </DropdownMenuItem>
         <DropdownMenuItem
           className={screeningRowActionsMenuItemClass}
-          onSelect={() => onExpandListProfile(row)}
-        >
-          List Profile
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          className={screeningRowActionsMenuItemClass}
           onSelect={() => onOpenDrilldown(row, "match-simulator")}
         >
           Match Simulator
@@ -1264,6 +1276,7 @@ export function ScreeningResultsTable({
   rows = MOCK_ROWS,
   title = "Screening Results",
   flowVariant = "level-1",
+  caseListSection = "todo",
   className,
   selectedIds: selectedIdsProp,
   onSelectedIdsChange,
@@ -1399,14 +1412,26 @@ export function ScreeningResultsTable({
   );
 
   /** Done cases always show full history; open cases use the toggle. */
-  const effectiveShowReviewHistory = isCaseComplete || showReviewHistory;
+  const viewingDoneCaseListSection = caseListSection === "done";
+  const effectiveShowReviewHistory =
+    isCaseComplete || showReviewHistory || viewingDoneCaseListSection;
 
   const baseRows = useMemo((): ScreeningTableDisplayRow[] => {
-    if (isLevel2) return buildLevel2DisplayRows(rows, effectiveShowReviewHistory, isCaseComplete);
+    if (isLevel2) {
+      return buildLevel2DisplayRows(
+        rows,
+        effectiveShowReviewHistory,
+        isCaseComplete,
+        caseListSection,
+      );
+    }
+    if (caseListSection === "done") {
+      return buildLevel1SentToLevel2DisplayRows(rows);
+    }
     return buildLevel1DisplayRows(rows, effectiveShowReviewHistory);
-  }, [isLevel2, rows, effectiveShowReviewHistory, isCaseComplete]);
+  }, [isLevel2, rows, effectiveShowReviewHistory, isCaseComplete, caseListSection]);
 
-  const showReviewHistoryToggle = !isCaseComplete;
+  const showReviewHistoryToggle = !isCaseComplete && !viewingDoneCaseListSection;
 
   // Chips = one per status label in the current table view. Multi-select: OR semantics. Empty selection = show all rows.
   const statusChips = useMemo(() => {
@@ -1875,26 +1900,13 @@ export function ScreeningResultsTable({
         cellClassName: secondaryTextClass,
         render: (row) => finscanCategoryForRow(row),
       },
-      quickClear: {
-        key: "quickClear",
-        label: "Quick Clear",
-        headerClassName: "whitespace-nowrap",
-        cellClassName: "whitespace-nowrap",
-        render: (row) => (
-          <ScreeningRowQuickClear
-            disabled={isDisabledScreeningRow(row, flowVariant)}
-            flowVariant={flowVariant}
-            onSelect={(status) => onQuickClearRow?.(row.id, status)}
-          />
-        ),
-      },
     };
 
     return columnOrder
       .filter((key) => key !== "reviewer" || (isLevel2 && isCaseComplete))
       .filter((key) => visibleColumns.has(key))
       .map((key) => byKey[key]);
-  }, [isLevel2, isCaseComplete, flowVariant, visibleColumns, columnOrder, onQuickClearRow]);
+  }, [isLevel2, isCaseComplete, flowVariant, visibleColumns, columnOrder]);
 
   const screeningEmptyState = (
     <>
@@ -2247,7 +2259,6 @@ export function ScreeningResultsTable({
                   <ScreeningRowActionsMenu
                     row={row}
                     onOpenDrilldown={openRowDrilldown}
-                    onExpandListProfile={expandListProfileRow}
                   />
                 ),
               }}

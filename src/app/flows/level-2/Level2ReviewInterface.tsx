@@ -52,6 +52,7 @@ import {
   isLevel2ReviewedRow,
   LEVEL2_ANALYST_REVIEWER,
   screeningNewPillSurfaceClass,
+  type CaseListSectionContext,
   type ScreeningResultRow,
   type ScreeningRowStatus,
 } from "../../components/ScreeningResultsTable";
@@ -68,8 +69,8 @@ import {
   type CaseSortValue,
 } from "../../lib/reviewCaseData";
 import { cn } from "../../components/ui/utils";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../../components/ui/tooltip";
 import { ReviewDrawer } from "../../components/ReviewDrawer";
+import { ReviewTaskBar } from "../../components/ReviewTaskBar";
 import { AceSidebar } from "@ace-ds/components/organisms/AceSidebar/AceSidebar";
 import { ReviewSidebarGroupSection } from "../../components/ReviewSidebarGroupSection";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
@@ -267,14 +268,20 @@ function ReviewSidebar({ isOpen, sanctionMatchCount, onMouseEnter, onMouseLeave 
 }
 
 interface CaseListProps {
-  onSelectCase: (index: number) => void;
-  selectedCaseIndex: number;
+  onSelectCase: (index: number, section: CaseListSectionContext) => void;
+  selectedCaseIndex: number | null;
+  selectedCaseListSection: CaseListSectionContext | null;
   screeningRowsByCase: Record<number, ScreeningResultRow[]>;
 }
 
 type CaseListRow = { item: (typeof casesData)[number]; index: number };
 
-function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: CaseListProps) {
+function CaseList({
+  onSelectCase,
+  selectedCaseIndex,
+  selectedCaseListSection,
+  screeningRowsByCase,
+}: CaseListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
   const [doneSectionExpanded, setDoneSectionExpanded] = useState(false);
@@ -284,6 +291,22 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
   const [caseSort, setCaseSort] = useState<CaseSortValue>("results-desc");
   const wasSelectedCaseCompleteRef = useRef(false);
 
+  const caseRowsForIndex = useCallback(
+    (index: number) => screeningRowsByCase[index] ?? getScreeningRowsForCase(index),
+    [screeningRowsByCase],
+  );
+
+  /** Results in the Level 2 queue, or reviewed count once the case is complete. */
+  const level2ResultCount = useCallback(
+    (index: number) => {
+      const rows = caseRowsForIndex(index);
+      const inQueue = rows.filter((r) => isLevel1InProcessStatus(r.status)).length;
+      if (inQueue > 0) return inQueue;
+      return rows.filter((r) => isLevel2ReviewedRow(r)).length;
+    },
+    [caseRowsForIndex],
+  );
+
   const filteredRows = useMemo(() => {
     const out: CaseListRow[] = [];
     casesData.forEach((item, index) => {
@@ -291,14 +314,9 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
         out.push({ item, index });
       }
     });
-    out.sort((a, b) => compareCasesBySort(a.index, b.index, caseSort));
+    out.sort((a, b) => compareCasesBySort(a.index, b.index, caseSort, level2ResultCount));
     return out;
-  }, [selectedCaseFilters, caseSort]);
-
-  const caseRowsForIndex = useCallback(
-    (index: number) => screeningRowsByCase[index] ?? getScreeningRowsForCase(index),
-    [screeningRowsByCase],
-  );
+  }, [selectedCaseFilters, caseSort, level2ResultCount]);
 
   const { pendingRows, doneRows } = useMemo(() => {
     const pending: CaseListRow[] = [];
@@ -313,11 +331,6 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
     });
     return { pendingRows: pending, doneRows: done };
   }, [filteredRows, caseRowsForIndex]);
-
-  const navigableRows = useMemo(() => {
-    const showDone = doneSectionExpanded || pendingRows.length === 0;
-    return showDone ? [...pendingRows, ...doneRows] : pendingRows;
-  }, [pendingRows, doneRows, doneSectionExpanded]);
 
   useEffect(() => {
     if (pendingRows.length === 0 && doneRows.length > 0) {
@@ -337,40 +350,55 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
   );
 
   useEffect(() => {
+    if (selectedCaseIndex === null) {
+      wasSelectedCaseCompleteRef.current = false;
+      return;
+    }
     wasSelectedCaseCompleteRef.current = caseIsLevel2Done(caseRowsForIndex(selectedCaseIndex));
   }, [selectedCaseIndex, caseRowsForIndex]);
 
   useEffect(() => {
+    if (selectedCaseIndex === null || selectedCaseListSection !== "todo") return;
     const complete = caseIsLevel2Done(caseRowsForIndex(selectedCaseIndex));
     if (complete && !wasSelectedCaseCompleteRef.current && pendingRows.length > 0) {
-      onSelectCase(pendingRows[0].index);
+      onSelectCase(pendingRows[0].index, "todo");
     }
     wasSelectedCaseCompleteRef.current = complete;
-  }, [screeningRowsByCase, selectedCaseIndex, pendingRows, onSelectCase, caseRowsForIndex]);
+  }, [
+    screeningRowsByCase,
+    selectedCaseIndex,
+    selectedCaseListSection,
+    pendingRows,
+    onSelectCase,
+    caseRowsForIndex,
+  ]);
 
   useEffect(() => {
-    if (navigableRows.some((r) => r.index === selectedCaseIndex)) return;
-    if (navigableRows.length > 0) {
-      onSelectCase(navigableRows[0].index);
+    if (selectedCaseIndex === null || selectedCaseListSection === null) return;
+    const activeList = selectedCaseListSection === "done" ? doneRows : pendingRows;
+    if (activeList.some((r) => r.index === selectedCaseIndex)) return;
+    if (activeList.length > 0) {
+      onSelectCase(activeList[0].index, selectedCaseListSection);
     }
-  }, [navigableRows, selectedCaseIndex, onSelectCase]);
+  }, [doneRows, pendingRows, selectedCaseIndex, selectedCaseListSection, onSelectCase]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isFocused) return;
+      if (!isFocused || selectedCaseIndex === null || selectedCaseListSection === null) return;
 
-      const pos = navigableRows.findIndex((r) => r.index === selectedCaseIndex);
+      const activeList = selectedCaseListSection === "done" ? doneRows : pendingRows;
+      const pos = activeList.findIndex((r) => r.index === selectedCaseIndex);
       if (pos < 0) return;
 
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        if (pos < navigableRows.length - 1) {
-          onSelectCase(navigableRows[pos + 1].index);
+        if (pos < activeList.length - 1) {
+          onSelectCase(activeList[pos + 1].index, selectedCaseListSection);
         }
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         if (pos > 0) {
-          onSelectCase(navigableRows[pos - 1].index);
+          onSelectCase(activeList[pos - 1].index, selectedCaseListSection);
         }
       }
     };
@@ -380,23 +408,40 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
       listElement.addEventListener('keydown', handleKeyDown);
       return () => listElement.removeEventListener('keydown', handleKeyDown);
     }
-  }, [selectedCaseIndex, onSelectCase, isFocused, navigableRows]);
+  }, [
+    selectedCaseIndex,
+    selectedCaseListSection,
+    onSelectCase,
+    isFocused,
+    pendingRows,
+    doneRows,
+  ]);
 
-  const renderCaseRow = (caseItem: (typeof casesData)[number], index: number) => {
+  const renderCaseRow = (
+    caseItem: (typeof casesData)[number],
+    index: number,
+    section: CaseListSectionContext,
+  ) => {
     const isEntity = "isEntity" in caseItem && caseItem.isEntity;
     const clientId = clientProfileForCaseIndex(index).clientId;
+    const caseRows = caseRowsForIndex(index);
+    const inQueueCount = caseRows.filter((r) => isLevel1InProcessStatus(r.status)).length;
+    const reviewedCount = caseRows.filter((r) => isLevel2ReviewedRow(r)).length;
+    const resultsCount = section === "todo" ? inQueueCount : reviewedCount;
     const { done, total } = caseReviewProgress[index] ?? { done: 0, total: 1 };
     const progressPct = total > 0 ? (done / total) * 100 : 0;
+    const isSelected =
+      selectedCaseIndex === index && selectedCaseListSection === section;
     return (
       <div
-        key={index}
+        key={`${section}-${index}`}
         className={cn(
           "group relative cursor-pointer px-4 pb-2.5 pt-1 transition-colors",
-          selectedCaseIndex === index ? "bg-[#e4e6ea] dark:bg-[#333a42]" : "hover:bg-[#e4e6ea] dark:hover:bg-[#333a42]",
+          isSelected ? "bg-[#e4e6ea] dark:bg-[#333a42]" : "hover:bg-[#e4e6ea] dark:hover:bg-[#333a42]",
         )}
-        onClick={() => onSelectCase(index)}
+        onClick={() => onSelectCase(index, section)}
       >
-        {selectedCaseIndex === index && isFocused && (
+        {isSelected && isFocused && (
           <div aria-hidden="true" className="absolute inset-0 z-20 border-[0.5px] border-[#523eb9] border-solid pointer-events-none" />
         )}
         <div className="relative z-10 flex items-center justify-between gap-3">
@@ -411,7 +456,7 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
                 {caseItem.name}
               </p>
               <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[#23262c] dark:text-[#b6c2cf] text-[10px] tracking-[0.2px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                {clientId} · {caseItem.results} results
+                {clientId} · {resultsCount} results
               </p>
             </div>
           </div>
@@ -481,12 +526,12 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
       </div>
       <div className="flex flex-col">
         <CaseListSection
-          title="To Do"
+          title="Case List - To Do"
           count={pendingRows.length}
           collapsible={false}
           emptyContent={<CaseListLevel2TodoEmptyState />}
         >
-          {pendingRows.map(({ item, index }) => renderCaseRow(item, index))}
+          {pendingRows.map(({ item, index }) => renderCaseRow(item, index, "todo"))}
         </CaseListSection>
         <CaseListSection
           title="Sent to Final Status"
@@ -495,7 +540,7 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
           onExpandedChange={setDoneSectionExpanded}
           hideWhenEmpty
         >
-          {doneRows.map(({ item, index }) => renderCaseRow(item, index))}
+          {doneRows.map(({ item, index }) => renderCaseRow(item, index, "done"))}
         </CaseListSection>
       </div>
     </div>
@@ -503,8 +548,9 @@ function CaseList({ onSelectCase, selectedCaseIndex, screeningRowsByCase }: Case
 }
 
 interface DetailPanelProps {
-  selectedCase: (typeof casesData)[number];
-  selectedCaseIndex: number;
+  selectedCase: (typeof casesData)[number] | null;
+  selectedCaseIndex: number | null;
+  caseListSection: CaseListSectionContext | null;
   screeningRows: ScreeningResultRow[];
   screeningSelectedIds: Set<string>;
   onScreeningSelectedIdsChange: Dispatch<SetStateAction<Set<string>>>;
@@ -516,6 +562,7 @@ interface DetailPanelProps {
 function DetailPanel({
   selectedCase,
   selectedCaseIndex,
+  caseListSection,
   screeningRows,
   screeningSelectedIds,
   onScreeningSelectedIdsChange,
@@ -527,19 +574,6 @@ function DetailPanel({
   const [caseActionModal, setCaseActionModal] = useState<
     null | "comments" | "history" | "reports"
   >(null);
-  const profile = clientProfileForCaseIndex(selectedCaseIndex);
-  const riskPresentation = riskBandPresentation(profile.riskBand);
-  const isCaseComplete = isCaseReviewComplete(screeningRows, "level-2");
-  const showOverdueWarning = profile.reviewTargetOverdue && !isCaseComplete;
-
-  const caseActionModalTitle =
-    caseActionModal === "comments"
-      ? "Comments"
-      : caseActionModal === "history"
-        ? "History"
-        : caseActionModal === "reports"
-          ? "Reports"
-          : "";
 
   if (awaitingLevel1Work) {
     return (
@@ -556,6 +590,28 @@ function DetailPanel({
       </div>
     );
   }
+
+  if (selectedCaseIndex === null || selectedCase === null) {
+    return (
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <Level2NoCaseSelectedState />
+      </div>
+    );
+  }
+
+  const profile = clientProfileForCaseIndex(selectedCaseIndex);
+  const caseActionModalTitle =
+    caseActionModal === "comments"
+      ? "Comments"
+      : caseActionModal === "history"
+        ? "History"
+        : caseActionModal === "reports"
+          ? "Reports"
+          : "";
+
+  const riskPresentation = riskBandPresentation(profile.riskBand);
+  const isCaseComplete = isCaseReviewComplete(screeningRows, "level-2");
+  const showOverdueWarning = profile.reviewTargetOverdue && !isCaseComplete;
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
@@ -735,6 +791,7 @@ function DetailPanel({
       <ScreeningResultsTable
         rows={screeningRows}
         flowVariant="level-2"
+        caseListSection={caseListSection ?? "todo"}
         selectedIds={screeningSelectedIds}
         onSelectedIdsChange={onScreeningSelectedIdsChange}
         onQuickClearRow={onQuickClearRow}
@@ -743,115 +800,39 @@ function DetailPanel({
   );
 }
 
-interface TaskBarProps {
-  onShowReview: () => void;
-  isReviewOpen: boolean;
-  screeningSelectionCount: number;
-  onDeselectAllScreening: () => void;
-}
-
-function TaskBar({
-  onShowReview,
-  isReviewOpen,
-  screeningSelectionCount,
-  onDeselectAllScreening,
-}: TaskBarProps) {
-  const isShowReviewDisabled = !isReviewOpen && screeningSelectionCount === 0;
-
-  const showReviewButton = (
-    <button
-      type="button"
-      disabled={isShowReviewDisabled}
-      onClick={onShowReview}
-      className={cn(
-        "shrink-0 rounded-[4px] px-4 py-2 transition-colors",
-        isShowReviewDisabled
-          ? "cursor-not-allowed bg-[#3d2e8a] opacity-50"
-          : "cursor-pointer bg-[#3d2e8a] hover:bg-[#523eb9]",
-      )}
-    >
+function Level2NoCaseSelectedState() {
+  return (
+    <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-6 py-12">
       <p
-        className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[14px] text-white"
+        className="m-0 text-center font-['Noto_Sans:Regular',sans-serif] text-[14px] leading-[1.65] text-[#464c59] dark:text-[#9fadbc]"
         style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
       >
-        {isReviewOpen ? "Hide Review" : "Show Review"}
+        Select a case from the case list to begin review.
       </p>
-    </button>
-  );
-
-  return (
-    <div
-      className={cn(
-        "flex shrink-0 items-center justify-between gap-4 rounded-[var(--radius-sm)] border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-4 py-4",
-        aceDropShadowXsClass,
-      )}
-    >
-      <div className="flex gap-4 items-center cursor-pointer min-w-0">
-        <div className="relative size-[24px] shrink-0">
-          <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
-            <path d={svgPaths.p2f74d800} fill="var(--fill-0, #7868CD)" />
-            <path d={svgPaths.p273dbb80} fill="var(--fill-0, #7868CD)" transform="translate(8.04, 5.64)" />
-            <path d={svgPaths.p212023c0} fill="var(--fill-0, #7868CD)" transform="translate(10.67, 15.72)" />
-          </svg>
-        </div>
-        <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[#7868cd] text-[14px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-          Show me how this works
-        </p>
-      </div>
-      <div className="flex shrink-0 items-center gap-3">
-        {screeningSelectionCount > 0 ? (
-          <>
-            <span
-              className="font-['Noto_Sans:Regular',sans-serif] text-[13px] tabular-nums text-[#464c59] dark:text-[#9fadbc] whitespace-nowrap"
-              style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-            >
-              {screeningSelectionCount} selected
-            </span>
-            <button
-              type="button"
-              onClick={onDeselectAllScreening}
-              className="font-['Noto_Sans:SemiBold',sans-serif] text-[13px] rounded-[4px] px-2 py-1.5 text-[#523eb9] transition-colors hover:bg-[#f4f1fc] dark:hover:bg-[#2c333a] hover:text-[#3d2e8a] dark:hover:text-[#dcd7e8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/35 focus-visible:ring-offset-2"
-              style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-            >
-              Deselect all
-            </button>
-          </>
-        ) : null}
-        {isShowReviewDisabled ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="inline-flex shrink-0">{showReviewButton}</span>
-            </TooltipTrigger>
-            <TooltipContent
-              side="top"
-              hideArrow
-              className={cn(
-                aceTypography(ACE_TYPE.captionSemiBold),
-                "border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] text-[var(--screening-text-primary)] shadow-[var(--ace-drop-shadow-xs)]",
-              )}
-            >
-              Select one or more matches
-            </TooltipContent>
-          </Tooltip>
-        ) : (
-          showReviewButton
-        )}
-      </div>
     </div>
   );
 }
 
-
 export function Level2ReviewInterface() {
   const [sidebarPinned, setSidebarPinned] = useState(true);
   const [sidebarPeek, setSidebarPeek] = useState(false);
-  const [selectedCaseIndex, setSelectedCaseIndex] = useState(0);
+  const [selectedCaseIndex, setSelectedCaseIndex] = useState<number | null>(null);
+  const [selectedCaseListSection, setSelectedCaseListSection] =
+    useState<CaseListSectionContext | null>(null);
   const [isReviewDrawerOpen, setIsReviewDrawerOpen] = useState(false);
   const [screeningSelectedIds, setScreeningSelectedIds] = useState<Set<string>>(() => new Set());
+  const handleSelectCase = useCallback((index: number, section: CaseListSectionContext) => {
+    setSelectedCaseIndex(index);
+    setSelectedCaseListSection(section);
+    setScreeningSelectedIds(new Set());
+  }, []);
   const [screeningRowsByCase, setScreeningRowsByCase] = useScreeningRowsByCase();
 
   const screeningRows = useMemo(
-    () => screeningRowsByCase[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex),
+    () =>
+      selectedCaseIndex === null
+        ? []
+        : screeningRowsByCase[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex),
     [screeningRowsByCase, selectedCaseIndex],
   );
 
@@ -927,6 +908,25 @@ export function Level2ReviewInterface() {
       });
     },
     [selectedCaseIndex, setScreeningRowsByCase],
+  );
+
+  const handleBulkQuickClear = useCallback(
+    (status: ScreeningRowStatus) => {
+      setScreeningRowsByCase((prev) => {
+        const current =
+          prev[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
+        return {
+          ...prev,
+          [selectedCaseIndex]: current.map((row) =>
+            screeningSelectedIds.has(row.id)
+              ? applyLevel2Decision(row, status, status)
+              : row,
+          ),
+        };
+      });
+      setScreeningSelectedIds(new Set());
+    },
+    [selectedCaseIndex, screeningSelectedIds, setScreeningRowsByCase],
   );
 
   const { submitReviewDecision, completeCaseConfirmDialog } = useCompleteCaseSubmit({
@@ -1026,14 +1026,18 @@ export function Level2ReviewInterface() {
             <div className="flex flex-1 min-h-0 overflow-hidden gap-4 pt-4">
               <div className="shrink-0 self-stretch flex flex-col min-h-0">
                 <CaseList
-                  onSelectCase={setSelectedCaseIndex}
+                  onSelectCase={handleSelectCase}
                   selectedCaseIndex={selectedCaseIndex}
+                  selectedCaseListSection={selectedCaseListSection}
                   screeningRowsByCase={screeningRowsByCase}
                 />
               </div>
               <DetailPanel
-                selectedCase={casesData[selectedCaseIndex]}
+                selectedCase={
+                  selectedCaseIndex === null ? null : casesData[selectedCaseIndex]
+                }
                 selectedCaseIndex={selectedCaseIndex}
+                caseListSection={selectedCaseListSection}
                 screeningRows={screeningRows}
                 screeningSelectedIds={screeningSelectedIds}
                 onScreeningSelectedIdsChange={setScreeningSelectedIds}
@@ -1043,11 +1047,13 @@ export function Level2ReviewInterface() {
               />
             </div>
             {!allCasesCleared && !awaitingLevel1Work ? (
-              <TaskBar
+              <ReviewTaskBar
+                flowVariant="level-2"
                 onShowReview={handleShowReview}
                 isReviewOpen={isReviewDrawerOpen}
                 screeningSelectionCount={screeningSelectedIds.size}
                 onDeselectAllScreening={() => setScreeningSelectedIds(new Set())}
+                onBulkQuickClear={handleBulkQuickClear}
               />
             ) : null}
           </div>
