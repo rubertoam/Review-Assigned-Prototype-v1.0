@@ -18,7 +18,7 @@ export function ReviewPanelEmptyState({ message, children }: ReviewPanelEmptySta
       )}
     >
       <p
-        className="m-0 max-w-sm font-['Noto_Sans:Regular',sans-serif] text-[14px] leading-[1.65] text-[#464c59] dark:text-[#9fadbc]"
+        className="m-0 max-w-sm font-['Noto_Sans:Regular',sans-serif] text-[14px] leading-[1.65] text-[var(--screening-text-muted)]"
         style={notoVar}
       >
         {message}

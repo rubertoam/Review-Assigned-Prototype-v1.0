@@ -118,7 +118,9 @@ export const screeningDisabledRowClass = cn(
 export function isDisabledScreeningRow(
   row: ScreeningTableDisplayRow,
   flowVariant: "level-1" | "level-2" = "level-1",
+  forceReadOnly = false,
 ): boolean {
+  if (forceReadOnly) return true;
   if (flowVariant === "level-2") return row.readOnlyHistory === true;
   return row.status !== "New";
 }
@@ -880,6 +882,8 @@ interface ScreeningResultsTableProps {
   onSelectedIdsChange?: Dispatch<SetStateAction<Set<string>>>;
   /** Clears a single row to the chosen decision status from the table's Quick Clear column. */
   onQuickClearRow?: (rowId: string, status: ScreeningRowStatus) => void;
+  /** Case is locked by another analyst — view-only, no selection or actions. */
+  readOnly?: boolean;
 }
 
 /** Per-row Quick Clear dropdown — resolves a single match to a decision status from the table. */
@@ -1214,6 +1218,7 @@ function ScreeningRowActionsMenu({
 }: {
   row: ScreeningTableDisplayRow;
   onOpenDrilldown: (row: ScreeningTableDisplayRow, view: RowDrilldownView) => void;
+  readOnly?: boolean;
 }) {
   return (
     <DropdownMenu modal={false}>
@@ -1281,6 +1286,7 @@ export function ScreeningResultsTable({
   selectedIds: selectedIdsProp,
   onSelectedIdsChange,
   onQuickClearRow,
+  readOnly = false,
 }: ScreeningResultsTableProps) {
   const isLevel2 = flowVariant === "level-2";
   /** Empty set = no filter (show all). Otherwise rows must match one of the selected status labels. */
@@ -1682,10 +1688,12 @@ export function ScreeningResultsTable({
 
   const actionableRows = useMemo(
     () =>
-      sortedRows.filter((r) =>
-        isLevel2 ? !r.readOnlyHistory && isLevel1InProcessStatus(r.status) : r.status === "New",
-      ),
-    [sortedRows, isLevel2],
+      readOnly
+        ? []
+        : sortedRows.filter((r) =>
+            isLevel2 ? !r.readOnlyHistory && isLevel1InProcessStatus(r.status) : r.status === "New",
+          ),
+    [sortedRows, isLevel2, readOnly],
   );
 
   const allVisibleSelected =
@@ -2246,9 +2254,11 @@ export function ScreeningResultsTable({
               selection={{
                 selectedIds,
                 isSelectable: (row) =>
-                  isLevel2
-                    ? !row.readOnlyHistory && isLevel1InProcessStatus(row.status)
-                    : row.status === "New",
+                  readOnly
+                    ? false
+                    : isLevel2
+                      ? !row.readOnlyHistory && isLevel1InProcessStatus(row.status)
+                      : row.status === "New",
                 onToggleRow: toggleRowSelect,
                 onHeaderSelectAll: onHeaderSelectAllChange,
                 headerCheckboxState,
@@ -2259,11 +2269,12 @@ export function ScreeningResultsTable({
                   <ScreeningRowActionsMenu
                     row={row}
                     onOpenDrilldown={openRowDrilldown}
+                    readOnly={readOnly}
                   />
                 ),
               }}
               getRowClassName={(row) => {
-                const rowDone = isDisabledScreeningRow(row, flowVariant);
+                const rowDone = isDisabledScreeningRow(row, flowVariant, readOnly);
                 const selected = selectedIds.has(row.id);
                 return cn(
                   rowDone && screeningDisabledRowClass,

@@ -134,7 +134,7 @@ export const CLIENT_PROFILES: readonly ClientProfileFields[] = [
     applicationLabel: "ISI Focus",
     reviewTargetSummary: "Level 1",
     reviewTargetOverdue: false,
-    reviewTargetPastDue: true,
+    reviewTargetPastDue: false,
     riskBand: "low",
     showIdVerified: true,
   },
@@ -284,5 +284,5 @@ export function riskBandPresentation(band: ClientRiskBand): { box: string; text:
   if (band === "medium") {
     return { box: "bg-[#fff4e8] dark:bg-[#3d3628]", text: "text-[#c2410c] dark:text-[#f0c090]", label: "Medium Risk" };
   }
-  return { box: "bg-[#f8fbf1] dark:bg-[#2a302c]", text: "text-[#87b531]", label: "Low Risk" };
+  return { box: "bg-[#f8fbf1] dark:bg-[#2a302c]", text: "text-[#87b531] dark:text-[#a8d46a]", label: "Low Risk" };
 }

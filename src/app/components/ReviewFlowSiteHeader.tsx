@@ -1,7 +1,6 @@
 import type { FinScanProfileAvatar } from "@ace-ds/lib/finscanProfileAvatars";
 import { AceSiteHeader } from "@ace-ds/components/organisms/AceSiteHeader/AceSiteHeader";
 import { useTheme } from "../context/ThemeContext";
-import { USER_FLOWS } from "../flows/flowTypes";
 import { useUserFlow } from "../flows/FlowContext";
 import { getProfileForUserFlow } from "../lib/profileAssets";
 import { aceDropShadowXsClass } from "../lib/aceShadow";
@@ -11,9 +10,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
   DropdownMenuToggleItem,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
@@ -31,7 +27,6 @@ const profileTriggerClass = cn(
 
 function ProfileMenuDropdown({ profile }: { profile: FinScanProfileAvatar }) {
   const { isDark, setIsDark } = useTheme();
-  const { flowId, setFlowId } = useUserFlow();
 
   return (
     <DropdownMenu modal={false}>
@@ -56,15 +51,6 @@ function ProfileMenuDropdown({ profile }: { profile: FinScanProfileAvatar }) {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={4}>
-        <DropdownMenuLabel>Review level</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={flowId} onValueChange={(value) => setFlowId(value as typeof flowId)}>
-          {USER_FLOWS.map((flow) => (
-            <DropdownMenuRadioItem key={flow.id} value={flow.id}>
-              {flow.label}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-        <DropdownMenuSeparator />
         <DropdownMenuLabel>Appearance</DropdownMenuLabel>
         <DropdownMenuToggleItem
           checked={isDark}

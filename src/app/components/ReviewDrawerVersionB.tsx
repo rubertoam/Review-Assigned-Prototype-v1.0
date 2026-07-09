@@ -222,7 +222,7 @@ export function ReviewDrawerVersionB({
             <span
               className={cn(
                 aceTypography(ACE_TYPE.p1Regular),
-                "inline-flex items-center gap-2 text-[#87b531]",
+                "inline-flex items-center gap-2 text-[var(--ace-success-500,#87b531)]",
               )}
               style={notoVar}
             >
@@ -241,10 +241,10 @@ export function ReviewDrawerVersionB({
             <button
               type="button"
               onClick={onReset}
-              className="flex cursor-pointer items-center justify-center rounded-[var(--radius-sm)] border border-[#3d2e8a] bg-[var(--screening-surface)] px-4 py-2 transition-colors hover:bg-[var(--screening-surface-hover)]"
+              className="flex cursor-pointer items-center justify-center rounded-[var(--radius-sm)] border border-[var(--screening-primary-hover-border)] bg-[var(--screening-surface)] px-4 py-2 transition-colors hover:bg-[var(--screening-surface-hover)]"
             >
               <p
-                className={cn(aceTypography(ACE_TYPE.p1Bold), "whitespace-nowrap text-[#523eb9]")}
+                className={cn(aceTypography(ACE_TYPE.p1Bold), "whitespace-nowrap text-[var(--screening-primary)]")}
                 style={notoVar}
               >
                 Reset
@@ -257,8 +257,8 @@ export function ReviewDrawerVersionB({
               className={cn(
                 "flex cursor-pointer items-center justify-center rounded-[var(--radius-sm)] px-4 py-2 transition-colors",
                 canSubmit
-                  ? "bg-[#87b531] hover:bg-[#76a02b]"
-                  : "cursor-not-allowed bg-[#949baa] opacity-80",
+                  ? "bg-[var(--ace-success-500,#87b531)] hover:bg-[#76a02b]"
+                  : "cursor-not-allowed bg-[var(--screening-icon-muted)] opacity-80",
               )}
             >
               <p

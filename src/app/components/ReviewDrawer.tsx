@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, History } from "lucide-react";
+import { ChevronLeft, ChevronRight, History, X } from "lucide-react";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
 import { AceButton } from "@ace-ds/components/atoms/AceButton";
 import {
@@ -8,7 +8,6 @@ import {
   type AceAttachmentLink,
 } from "@ace-ds/components/organisms/AceAttachments/AceAttachments";
 import { ReviewDrawerVersionB } from "./ReviewDrawerVersionB";
-import { ReviewPanelVersionSelect } from "./ReviewPanelVersionSelect";
 import { ReviewPanelInlineInfoMessage } from "./ReviewPanelInlineInfoMessage";
 import { ScreeningHistoryTimelineView } from "./ScreeningHistoryTimelineView";
 import { DecisionPrimaryDropdown } from "./DecisionPrimaryDropdown";
@@ -102,7 +101,7 @@ export function ReviewDrawer({
   selectedRows,
   onSubmit,
 }: ReviewDrawerProps) {
-  const [panelVersion, setPanelVersion] = useState<ReviewPanelVersion>("a");
+  const panelVersion: ReviewPanelVersion = "a";
   const [decisionExpanded, setDecisionExpanded] = useState(true);
   const [commentsExpanded, setCommentsExpanded] = useState(false);
   const [commentDraft, setCommentDraft] = useState("");
@@ -274,9 +273,18 @@ export function ReviewDrawer({
             >
               Review
             </p>
-            <div className="flex min-w-0 items-center justify-end gap-2">
-              <ReviewPanelVersionSelect value={panelVersion} onChange={setPanelVersion} />
-            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close review panel"
+              className={cn(
+                "inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius-sm)] text-[var(--screening-text-secondary)] transition-colors",
+                "hover:bg-[var(--screening-surface-hover)] hover:text-[var(--screening-text-primary)]",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--screening-primary-ring-offset)]",
+              )}
+            >
+              <X className="size-4 shrink-0" strokeWidth={2} aria-hidden />
+            </button>
           </div>
         </div>
 

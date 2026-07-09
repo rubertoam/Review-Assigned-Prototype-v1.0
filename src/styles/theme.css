@@ -79,6 +79,18 @@
   --sidebar-ring: #6b778c;
 }
 
+/* ACE DS tokens use [data-theme="dark"]; keep screening pills readable in dark mode. */
+[data-theme="dark"] {
+  --screening-pill-new-border: #4a3d6e;
+  --screening-pill-new-surface: #2a2540;
+  --screening-pill-new-dot: #9b8ed4;
+  --screening-pill-new-label: #b5aae0;
+  --screening-pill-escalated-border: #8a5a20;
+  --screening-pill-escalated-surface: #3d2e1a;
+  --screening-pill-escalated-dot: #f0a050;
+  --screening-pill-escalated-label: #f0b878;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

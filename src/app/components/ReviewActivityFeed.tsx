@@ -24,8 +24,8 @@ import { cn } from "./ui/utils";
 import { STATUS_PILL_STYLES, type ScreeningResultRow } from "./ScreeningResultsTable";
 
 const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
-const NEUTRAL_800 = "text-[#23262c]";
-const PRIMARY_PURPLE = "text-[#523eb9]";
+const NEUTRAL_800 = "text-[var(--screening-text-primary)]";
+const PRIMARY_PURPLE = "text-[var(--screening-primary)]";
 const ICON_CLASS = "size-4 shrink-0 text-[var(--screening-primary)]";
 const ACCORDION_MOTION_CLASS =
   "duration-[var(--ace-accordion-duration)] [transition-timing-function:var(--ace-accordion-ease)]";
@@ -371,10 +371,10 @@ function ActivityStatusTag({ label }: { label: string }) {
 
 function ActivityFileTag({ fileName }: { fileName: string }) {
   return (
-    <span className="inline-flex max-w-full items-center gap-2 rounded-[4px] border border-[#cfd2d9] bg-white px-2 py-1">
+    <span className="inline-flex max-w-full items-center gap-2 rounded-[4px] border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-2 py-1">
       <FileText className={cn(ICON_CLASS, "text-[#dc264b]")} strokeWidth={2} aria-hidden />
       <span
-        className="truncate text-[10px] font-normal leading-[1.65] tracking-[0.2px] text-[#23262c]"
+        className="truncate text-[10px] font-normal leading-[1.65] tracking-[0.2px] text-[var(--screening-text-primary)]"
         style={notoVar}
       >
         {fileName}

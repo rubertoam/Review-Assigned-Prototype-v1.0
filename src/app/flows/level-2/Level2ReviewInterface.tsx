@@ -14,12 +14,13 @@ import { caseActionsMenuIconClass, caseActionsMenuTriggerClass } from "../../lib
 import { AllCasesClearedState } from "../../components/AllCasesClearedState";
 import { CaseListLevel2TodoEmptyState } from "../../components/CaseListLevel2TodoEmptyState";
 import { Level2AwaitingLevel1State } from "../../components/Level2AwaitingLevel1State";
+import { CaseListFilterEmptyState } from "../../components/CaseListFilterEmptyState";
 import { CaseListSection } from "../../components/CaseListSection";
 import { ThemeProvider } from "../../context/ThemeContext";
 import { aceAccordionFixedHeaderClass } from "../../lib/aceAccordion";
 import { aceDropShadowXsClass } from "../../lib/aceShadow";
 import { aceTypography, ACE_TYPE } from "../../lib/aceTypography";
-import { ReviewFlowSiteHeader } from "../../components/ReviewFlowSiteHeader";
+import { ReviewPanelEmptyState } from "../../components/ReviewPanelEmptyState";
 import { ReviewMetaTag } from "../../components/ReviewMetaTag";
 import {
   ClientProfileAccordionHeaderTags,
@@ -251,7 +252,7 @@ function ReviewSidebar({ isOpen, sanctionMatchCount, onMouseEnter, onMouseLeave 
         className="h-full [&_nav]:gap-3"
       >
         <ReviewSidebarGroupSection
-          label="Screening Rules"
+          label="My Assigned Work"
           expanded={screeningRulesExpanded}
           onToggle={() => setScreeningRulesExpanded((open) => !open)}
           items={screeningRuleItems}
@@ -272,6 +273,7 @@ interface CaseListProps {
   selectedCaseIndex: number | null;
   selectedCaseListSection: CaseListSectionContext | null;
   screeningRowsByCase: Record<number, ScreeningResultRow[]>;
+  onFilterVisibilityChange?: (state: { filtersActive: boolean; filteredCount: number }) => void;
 }
 
 type CaseListRow = { item: (typeof casesData)[number]; index: number };
@@ -281,6 +283,7 @@ function CaseList({
   selectedCaseIndex,
   selectedCaseListSection,
   screeningRowsByCase,
+  onFilterVisibilityChange,
 }: CaseListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
@@ -317,6 +320,13 @@ function CaseList({
     out.sort((a, b) => compareCasesBySort(a.index, b.index, caseSort, level2ResultCount));
     return out;
   }, [selectedCaseFilters, caseSort, level2ResultCount]);
+
+  useEffect(() => {
+    onFilterVisibilityChange?.({
+      filtersActive: selectedCaseFilters.size > 0,
+      filteredCount: filteredRows.length,
+    });
+  }, [filteredRows.length, selectedCaseFilters.size, onFilterVisibilityChange]);
 
   const { pendingRows, doneRows } = useMemo(() => {
     const pending: CaseListRow[] = [];
@@ -423,7 +433,8 @@ function CaseList({
     section: CaseListSectionContext,
   ) => {
     const isEntity = "isEntity" in caseItem && caseItem.isEntity;
-    const clientId = clientProfileForCaseIndex(index).clientId;
+    const profile = clientProfileForCaseIndex(index);
+    const clientId = profile.clientId;
     const caseRows = caseRowsForIndex(index);
     const inQueueCount = caseRows.filter((r) => isLevel1InProcessStatus(r.status)).length;
     const reviewedCount = caseRows.filter((r) => isLevel2ReviewedRow(r)).length;
@@ -460,10 +471,16 @@ function CaseList({
               </p>
             </div>
           </div>
-          {caseItem.name === "John Smith" && caseHasLevel2QueueWork(caseRowsForIndex(index)) ? (
-            <span className="shrink-0" title="Overdue warning">
+          {(profile.reviewTargetOverdue || profile.reviewTargetPastDue) &&
+          caseHasLevel2QueueWork(caseRowsForIndex(index)) ? (
+            <span
+              className="shrink-0"
+              title={profile.reviewTargetPastDue ? "Overdue" : "Overdue warning"}
+            >
               <OverdueWarningIcon />
-              <span className="sr-only">Overdue warning</span>
+              <span className="sr-only">
+                {profile.reviewTargetPastDue ? "Overdue" : "Overdue warning"}
+              </span>
             </span>
           ) : null}
         </div>
@@ -492,14 +509,14 @@ function CaseList({
       )}
     >
       <div className="flex items-center justify-between px-3 pb-3 pt-5">
-        <p className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[14px] text-black dark:text-[#b6c2cf]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
+        <p className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[14px] text-[var(--screening-text-primary)]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
           Sanction Matches
         </p>
-        <div className="flex items-center justify-center border border-[#d6cef5] bg-[#f4f1fc] dark:border-[#454c59] dark:bg-[#333a42] px-2 py-1 rounded-[4px] min-w-[25px]">
-          <p className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[#523eb9] dark:text-[#9fadbc] text-[14px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>{pendingRows.length}</p>
+        <div className="flex items-center justify-center rounded-[4px] border border-[var(--screening-pill-new-border)] bg-[var(--screening-pill-new-surface)] px-2 py-1 min-w-[25px]">
+          <p className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[var(--screening-pill-new-label)] text-[14px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>{pendingRows.length}</p>
         </div>
       </div>
-      <div className="shrink-0 border-b border-[#cfd2d9] dark:border-[#38414a] bg-white dark:bg-[#22272b] px-3 py-2.5">
+      <div className="shrink-0 border-b border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-3 py-2.5">
         <div className="flex items-end gap-2">
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
             <span
@@ -529,7 +546,13 @@ function CaseList({
           title="Case List - To Do"
           count={pendingRows.length}
           collapsible={false}
-          emptyContent={<CaseListLevel2TodoEmptyState />}
+          emptyContent={
+            selectedCaseFilters.size > 0 ? (
+              <CaseListFilterEmptyState />
+            ) : (
+              <CaseListLevel2TodoEmptyState />
+            )
+          }
         >
           {pendingRows.map(({ item, index }) => renderCaseRow(item, index, "todo"))}
         </CaseListSection>
@@ -539,6 +562,9 @@ function CaseList({
           expanded={doneSectionExpanded}
           onExpandedChange={setDoneSectionExpanded}
           hideWhenEmpty
+          emptyContent={
+            selectedCaseFilters.size > 0 ? <CaseListFilterEmptyState /> : undefined
+          }
         >
           {doneRows.map(({ item, index }) => renderCaseRow(item, index, "done"))}
         </CaseListSection>
@@ -557,6 +583,7 @@ interface DetailPanelProps {
   allCasesCleared: boolean;
   awaitingLevel1Work: boolean;
   onQuickClearRow: (rowId: string, status: ScreeningRowStatus) => void;
+  showFilterEmptyState?: boolean;
 }
 
 function DetailPanel({
@@ -569,11 +596,20 @@ function DetailPanel({
   allCasesCleared,
   awaitingLevel1Work,
   onQuickClearRow,
+  showFilterEmptyState = false,
 }: DetailPanelProps) {
   const [clientExpanded, setClientExpanded] = useState(false);
   const [caseActionModal, setCaseActionModal] = useState<
     null | "comments" | "history" | "reports"
   >(null);
+
+  if (showFilterEmptyState) {
+    return (
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <ReviewPanelEmptyState message="No cases match the selected filters." />
+      </div>
+    );
+  }
 
   if (awaitingLevel1Work) {
     return (
@@ -821,6 +857,10 @@ export function Level2ReviewInterface() {
     useState<CaseListSectionContext | null>(null);
   const [isReviewDrawerOpen, setIsReviewDrawerOpen] = useState(false);
   const [screeningSelectedIds, setScreeningSelectedIds] = useState<Set<string>>(() => new Set());
+  const [caseFilterVisibility, setCaseFilterVisibility] = useState({
+    filtersActive: false,
+    filteredCount: casesData.length,
+  });
   const handleSelectCase = useCallback((index: number, section: CaseListSectionContext) => {
     setSelectedCaseIndex(index);
     setSelectedCaseListSection(section);
@@ -1030,6 +1070,7 @@ export function Level2ReviewInterface() {
                   selectedCaseIndex={selectedCaseIndex}
                   selectedCaseListSection={selectedCaseListSection}
                   screeningRowsByCase={screeningRowsByCase}
+                  onFilterVisibilityChange={setCaseFilterVisibility}
                 />
               </div>
               <DetailPanel
@@ -1044,6 +1085,9 @@ export function Level2ReviewInterface() {
                 allCasesCleared={allCasesCleared}
                 awaitingLevel1Work={awaitingLevel1Work}
                 onQuickClearRow={handleQuickClearRow}
+                showFilterEmptyState={
+                  caseFilterVisibility.filtersActive && caseFilterVisibility.filteredCount === 0
+                }
               />
             </div>
             {!allCasesCleared && !awaitingLevel1Work ? (
