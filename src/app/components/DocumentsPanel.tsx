@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronLeft } from "lucide-react";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import {
   AceAttachments,
   type AceAttachmentFile,
@@ -42,7 +42,7 @@ export function DocumentsPanel({ row, onBack }: DocumentsPanelProps) {
             "hover:text-[var(--dialog-modal-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2",
           )}
         >
-          <ChevronLeft className="size-4 shrink-0" strokeWidth={2} aria-hidden />
+          <MaterialSymbol name="keyboard_arrow_left" size="md" />
           <span
             className={cn(aceTypography(ACE_TYPE.p1Bold), "text-[var(--screening-primary)]")}
             style={notoVar}

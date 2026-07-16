@@ -9,15 +9,21 @@ import {
   type SetStateAction,
 } from "react";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
-import { Check, Eye, EyeOff, GripVertical, List, MoreVertical, Zap } from "lucide-react";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { AceInputField } from "@ace-ds/components/atoms/AceInputField";
 import { Toggle } from "@ace-ds/components/atoms/Toggle/Toggle";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
+import { AceFilterToggleChip } from "@ace-ds/components/molecules/AceFiltering/AceFilterToggleChip";
 import { AcePagination } from "@ace-ds/components/molecules/AcePagination/AcePagination";
+import {
+  screeningStatusFilterLabelClass,
+  screeningToolbarIconButtonClass,
+} from "@ace-ds/components/organisms/ScreeningResultsTable/screeningTableToolbar";
 import { aceAccordionFixedHeaderClass, aceAccordionPanelFillClass } from "../lib/aceAccordion";
 import { aceDropShadowXsClass } from "../lib/aceShadow";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { cn } from "./ui/utils";
+import { ScreeningStatusBadge } from "./ScreeningStatusBadge";
 import {
   LEVEL1_DECISION_STATUSES,
   LEVEL1_STATUS_DISPLAY_ORDER,
@@ -366,9 +372,6 @@ const screeningColumnDropLineClass = cn(
   screeningColumnDragMotionClass,
 );
 
-const screeningToolbarIconButtonClass =
-  "inline-flex size-8 shrink-0 items-center justify-center rounded-[4px] border transition-colors duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/35 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#22272b] cursor-pointer border-[#cfd2d9] bg-white text-[#464c59] hover:border-[#949baa] hover:bg-[#eff0f2] hover:text-[#23262c] dark:border-[#38414a] dark:bg-[#22272b] dark:text-[#9fadbc] dark:hover:border-[#5c6773] dark:hover:bg-[#2c333a] dark:hover:text-[#b6c2cf]";
-
 const FINSCAN_CATEGORY_ROTATION = ["Sanctions", "PEP", "Financial Crime"] as const;
 
 function reorderScreeningColumnKeys(
@@ -458,6 +461,15 @@ function ScreeningColumnReorderMenuItem({
         onDraggedColumnKeyChange(null);
       }}
     >
+      <Toggle
+        size="sm"
+        checked={checked}
+        disabled={disabled}
+        tabIndex={-1}
+        className="pointer-events-none"
+        aria-hidden
+      />
+      <span className="min-w-0 flex-1 truncate text-left">{label}</span>
       <button
         type="button"
         draggable
@@ -487,17 +499,8 @@ function ScreeningColumnReorderMenuItem({
         }}
         onPointerDown={(event) => event.stopPropagation()}
       >
-        <GripVertical className="size-3.5" strokeWidth={2} aria-hidden />
+        <MaterialSymbol name="drag_handle" size="sm" className="size-3.5" />
       </button>
-      <Toggle
-        size="sm"
-        checked={checked}
-        disabled={disabled}
-        tabIndex={-1}
-        className="pointer-events-none"
-        aria-hidden
-      />
-      <span className="min-w-0 flex-1 truncate text-left">{label}</span>
     </DropdownMenuPrimitive.Item>
   );
 }
@@ -939,7 +942,7 @@ function ScreeningRowQuickClear({
                     "cursor-not-allowed border-[#cfd2d9] bg-[#f5f6f8] text-[#949baa] opacity-60 dark:border-[#38414a] dark:bg-[#2c333a] dark:text-[#6a7285]",
                 )}
               >
-                <Zap className="size-4" strokeWidth={2} aria-hidden />
+                <MaterialSymbol name="flash_on" size="md" weight={300} />
               </button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
@@ -967,28 +970,6 @@ function ScreeningRowQuickClear({
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
-  );
-}
-
-const statusPillShellClass =
-  "inline-flex w-fit max-w-none shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full pl-1.5 pr-2 py-1 transition-colors duration-200 ease-out";
-
-const statusPillLabelClass =
-  "shrink-0 whitespace-nowrap font-['Noto_Sans:SemiBold',sans-serif] text-[11px] leading-none sm:text-[12px]";
-
-function safeStatusPill(label = "Safe") {
-  return (
-    <span
-      className={cn(
-        statusPillShellClass,
-        "border border-[#a5d6a7] bg-[#e8f4ea]",
-      )}
-    >
-      <span className="size-2 shrink-0 rounded-full bg-[#2e7d32]" />
-      <span className={cn(statusPillLabelClass, "text-[#2d6a3e]")} style={notoVar}>
-        {label}
-      </span>
-    </span>
   );
 }
 
@@ -1037,102 +1018,6 @@ function mapLevel2ReviewedDisplayRow(r: ScreeningResultRow): ScreeningTableDispl
     readOnlyHistory: true,
     ...(r.status === "Safe" ? { displayStatus: "Confirmed Safe" as const } : {}),
   };
-}
-
-export const STATUS_PILL_STYLES: Record<
-  string,
-  { border: string; bg: string; dot: string; text: string }
-> = {
-  New: {
-    border: "border-[var(--screening-pill-new-border)]",
-    bg: "bg-[var(--screening-pill-new-surface)]",
-    dot: "bg-[#523eb9]",
-    text: "text-[var(--screening-pill-new-label)]",
-  },
-  "Confirmed Safe": {
-    border: "border-[#a5d6a7]",
-    bg: "bg-[#e8f4ea]",
-    dot: "bg-[#2e7d32]",
-    text: "text-[#2d6a3e]",
-  },
-  Escalate: {
-    border: "border-[#ffcc80]",
-    bg: "bg-[#fff4e8]",
-    dot: "bg-[#ef6c00]",
-    text: "text-[#e65100]",
-  },
-  "Flag for EDD": {
-    border: "border-[#ffe082]",
-    bg: "bg-[#fff8e1]",
-    dot: "bg-[#f9a825]",
-    text: "text-[#f57f17]",
-  },
-  "Research (Internal)": {
-    border: "border-[#90caf9]",
-    bg: "bg-[#e3f2fd]",
-    dot: "bg-[#1976d2]",
-    text: "text-[#1565c0]",
-  },
-  "Research (External)": {
-    border: "border-[#80cbc4]",
-    bg: "bg-[#e0f2f1]",
-    dot: "bg-[#00897b]",
-    text: "text-[#00695c]",
-  },
-  "Route to Supervisor": {
-    border: "border-[#ce93d8]",
-    bg: "bg-[#f3e5f5]",
-    dot: "bg-[#8e24aa]",
-    text: "text-[#6a1b9a]",
-  },
-  Safe: {
-    border: "border-[#a5d6a7]",
-    bg: "bg-[#e8f4ea]",
-    dot: "bg-[#2e7d32]",
-    text: "text-[#2d6a3e]",
-  },
-  "False Positive": {
-    border: "border-[#cfd2d9]",
-    bg: "bg-[#f5f6f8]",
-    dot: "bg-[#6a7285]",
-    text: "text-[#464c59]",
-  },
-  Remediate: {
-    border: "border-[#ef9a9a]",
-    bg: "bg-[#fdecea]",
-    dot: "bg-[#c62828]",
-    text: "text-[#b71c1c]",
-  },
-};
-
-function statusPill(status: ScreeningRowStatus) {
-  if (status === "New") {
-    return (
-      <span className={cn(statusPillShellClass, screeningNewPillSurfaceClass)}>
-        <span className="size-2 shrink-0 rounded-full bg-[#523eb9]" />
-        <span className={cn(statusPillLabelClass, screeningNewPillLabelClass)} style={notoVar}>
-          New
-        </span>
-      </span>
-    );
-  }
-  const style = STATUS_PILL_STYLES[status] ?? STATUS_PILL_STYLES.Escalate;
-  return (
-    <span
-      className={cn(
-        statusPillShellClass,
-        "border",
-        style.border,
-        style.bg,
-      )}
-      title={status}
-    >
-      <span className={cn("size-2 shrink-0 rounded-full", style.dot)} />
-      <span className={cn(statusPillLabelClass, style.text)} style={notoVar}>
-        {status}
-      </span>
-    </span>
-  );
 }
 
 function buildLevel1DisplayRows(
@@ -1229,7 +1114,12 @@ function ScreeningRowActionsMenu({
           onClick={(e) => e.stopPropagation()}
           className={screeningRowActionsMenuTriggerClass}
         >
-          <MoreVertical className={caseActionsMenuIconClass} strokeWidth={2} aria-hidden />
+          <MaterialSymbol
+            name="more_horiz"
+            size="md"
+            weight={300}
+            className={caseActionsMenuIconClass}
+          />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -1744,10 +1634,16 @@ export function ScreeningResultsTable({
         headerClassName: "whitespace-nowrap",
         cellClassName: "whitespace-nowrap align-middle",
         render: (row) => {
-          if (row.displayStatus === "Confirmed Safe") return safeStatusPill("Confirmed Safe");
-          if (row.displayStatus === "Safe") return safeStatusPill();
-          if (isRemediatedActiveRow(row)) return statusPill("Remediate");
-          return statusPill(row.status);
+          if (row.displayStatus === "Confirmed Safe") {
+            return <ScreeningStatusBadge status="Confirmed Safe" />;
+          }
+          if (row.displayStatus === "Safe") {
+            return <ScreeningStatusBadge status="Safe" />;
+          }
+          if (isRemediatedActiveRow(row)) {
+            return <ScreeningStatusBadge status="Remediate" />;
+          }
+          return <ScreeningStatusBadge status={row.status} />;
         },
       },
       name: {
@@ -1968,7 +1864,7 @@ export function ScreeningResultsTable({
             className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-[#e8f4ea] dark:bg-[#2a302c]"
             aria-hidden
           >
-            <Check className="size-3 stroke-[3] text-[#87b531]" />
+            <MaterialSymbol name="check" size="sm" className="text-[#87b531]" />
           </span>
           <span
             className={cn(
@@ -2056,36 +1952,20 @@ export function ScreeningResultsTable({
                   aria-hidden={drilldownVisible}
                 >
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-            <div className="shrink-0 border-b border-[#cfd2d9] dark:border-[#38414a] bg-white dark:bg-[#22272b] px-4 py-3">
+            <div className="shrink-0 border-b border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-4 py-3">
               <div className="flex flex-nowrap items-center justify-between gap-3">
                 {showStatusFilter ? (
                   <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                    <span
-                      className="font-['Noto_Sans:SemiBold',sans-serif] text-[14px] text-[#23262c] dark:text-[#b6c2cf] shrink-0"
-                      style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-                    >
-                      Filter by
-                    </span>
+                    <span className={screeningStatusFilterLabelClass}>Filter by</span>
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      {statusChips.map((st) => {
-                        const active = statusFilters.has(st);
-                        return (
-                          <button
-                            key={st}
-                            type="button"
-                            onClick={() => toggleStatusFilter(st)}
-                            className={cn(
-                              "inline-flex w-fit shrink-0 cursor-pointer whitespace-nowrap rounded-[4px] px-3.5 py-1.5 text-[13px] font-['Noto_Sans:SemiBold',sans-serif] font-semibold transition-all duration-200 ease-out border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/40 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#22272b]",
-                              active
-                                ? "bg-[#efeef9] border-[#523eb9] text-[#523eb9] hover:bg-[#e4dff3] hover:border-[#4334a3] dark:bg-[#2a2540] dark:border-[#7c6bc4] dark:text-[#dcd7e8] dark:hover:bg-[#352f4d] dark:hover:border-[#9b8ed4]"
-                                : "bg-white dark:bg-[#22272b] border-[#cfd2d9] dark:border-[#38414a] text-[#23262c] dark:text-[#b6c2cf] hover:border-[#949baa] hover:bg-[#f5f6f8] dark:hover:border-[#5c6773] dark:hover:bg-[#2c333a]",
-                            )}
-                            style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-                          >
-                            {st}
-                          </button>
-                        );
-                      })}
+                      {statusChips.map((st) => (
+                        <AceFilterToggleChip
+                          key={st}
+                          label={st}
+                          pressed={statusFilters.has(st)}
+                          onClick={() => toggleStatusFilter(st)}
+                        />
+                      ))}
                     </div>
                   </div>
                 ) : (
@@ -2109,7 +1989,7 @@ export function ScreeningResultsTable({
                             aria-label="Show or hide columns"
                             className={screeningToolbarIconButtonClass}
                           >
-                            <List className="size-4" strokeWidth={2} aria-hidden />
+                            <MaterialSymbol name="view_list" size="md" weight={300} />
                           </button>
                         </DropdownMenuTrigger>
                       </TooltipTrigger>
@@ -2188,9 +2068,9 @@ export function ScreeningResultsTable({
                             )}
                           >
                             {showReviewHistory && !historyToggleDisabled ? (
-                              <EyeOff className="size-4" strokeWidth={2} aria-hidden />
+                              <MaterialSymbol name="visibility_off" size="md" weight={300} />
                             ) : (
-                              <Eye className="size-4" strokeWidth={2} aria-hidden />
+                              <MaterialSymbol name="visibility" size="md" weight={300} />
                             )}
                           </button>
                         </span>
@@ -2218,7 +2098,7 @@ export function ScreeningResultsTable({
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     aria-label="Search screening results"
-                    className="w-[12rem] shrink-0"
+                    className="w-[12rem] shrink-0 bg-[var(--screening-surface)]"
                   />
                 </div>
               </div>

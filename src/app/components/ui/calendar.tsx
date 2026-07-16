@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { DayPicker } from "react-day-picker";
 
 import { cn } from "./utils";
@@ -60,11 +60,11 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        IconLeft: ({ className, ...props }) => (
-          <ChevronLeft className={cn("size-4", className)} {...props} />
+        IconLeft: ({ className }) => (
+          <MaterialSymbol name="keyboard_arrow_left" size="md" className={className} />
         ),
-        IconRight: ({ className, ...props }) => (
-          <ChevronRight className={cn("size-4", className)} {...props} />
+        IconRight: ({ className }) => (
+          <MaterialSymbol name="keyboard_arrow_right" size="md" className={className} />
         ),
       }}
       {...props}

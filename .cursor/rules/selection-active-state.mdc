@@ -1,0 +1,13 @@
+---
+description: Selected/active UI states only when the user is on that screen or item
+alwaysApply: true
+---
+
+# Selection and active states
+
+Never show a selected, active, or “current” visual treatment by default.
+
+- Nav items, menu items, tabs, cards, sidebar rows, and similar controls look selected **only** when the user is actually on that screen or has explicitly selected that item.
+- Do not pre-highlight “All Settings”, Overview, or any landing/feature entry just because it is first in a list or a common destination.
+- Soft-background / purple / underline selected styles must be gated on real app state (e.g. `appView === "all-settings"`), not applied unconditionally.
+- Default local selection state should be empty/`null` unless the screen’s primary content requires an initial selection to render (e.g. a dashboard that must show one selected report’s widgets).

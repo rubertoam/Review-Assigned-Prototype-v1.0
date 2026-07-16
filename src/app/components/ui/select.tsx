@@ -5,7 +5,8 @@
 import * as React from "react";
 import { useMemo } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { ChevronDown } from "lucide-react";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
+import { aceChevronIconClass } from "@ace-ds/lib/aceChevron";
 import { cn } from "./utils";
 
 type SelectItemConfig = {
@@ -147,7 +148,7 @@ function Select({
           )}
         >
           <span className="min-w-0 flex-1 truncate text-left">{selectedLabel}</span>
-          <ChevronDown className="ml-auto size-4 opacity-70" aria-hidden />
+          <MaterialSymbol name="keyboard_arrow_down" size="md" className={cn(aceChevronIconClass, "ml-auto opacity-70")} />
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>

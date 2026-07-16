@@ -1,4 +1,4 @@
-import svgPaths from "../../imports/ReviewAssignedAllCollapsed/svg-e16bopzh98";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { aceDropShadowXsClass } from "../lib/aceShadow";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { TaskBarQuickClear } from "./TaskBarQuickClear";
@@ -54,26 +54,27 @@ export function ReviewTaskBar({
         aceDropShadowXsClass,
       )}
     >
-      <div className="flex min-w-0 cursor-pointer items-center gap-4">
-        <div className="relative size-[24px] shrink-0">
-          <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
-            <path d={svgPaths.p2f74d800} fill="var(--fill-0, #7868CD)" />
-            <path d={svgPaths.p273dbb80} fill="var(--fill-0, #7868CD)" transform="translate(8.04, 5.64)" />
-            <path d={svgPaths.p212023c0} fill="var(--fill-0, #7868CD)" transform="translate(10.67, 15.72)" />
-          </svg>
-        </div>
+      <button
+        type="button"
+        className="flex min-w-0 cursor-pointer items-center gap-3 rounded-[var(--radius-sm)] border-0 bg-transparent p-0 text-left transition-colors hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)]"
+      >
+        <MaterialSymbol
+          name="lightbulb"
+          size="lg"
+          className="text-[var(--screening-primary)]"
+        />
         <p
-          className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[#7868cd] text-[14px]"
+          className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[var(--screening-primary)] text-[14px]"
           style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
         >
           Show me how this works
         </p>
-      </div>
+      </button>
       <div className="flex shrink-0 items-center gap-3">
         {screeningSelectionCount > 0 ? (
           <>
             <span
-              className="whitespace-nowrap font-['Noto_Sans:Regular',sans-serif] text-[13px] tabular-nums text-[#464c59] dark:text-[#9fadbc]"
+              className="whitespace-nowrap font-['Noto_Sans:Regular',sans-serif] text-[13px] tabular-nums text-[var(--screening-text-secondary)]"
               style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
             >
               {screeningSelectionCount} selected
@@ -81,7 +82,7 @@ export function ReviewTaskBar({
             <button
               type="button"
               onClick={onDeselectAllScreening}
-              className="rounded-[4px] px-2 py-1.5 font-['Noto_Sans:SemiBold',sans-serif] text-[13px] text-[#523eb9] transition-colors hover:bg-[#f4f1fc] hover:text-[#3d2e8a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/35 focus-visible:ring-offset-2 dark:hover:bg-[#2c333a] dark:hover:text-[#dcd7e8]"
+              className="rounded-[4px] px-2 py-1.5 font-['Noto_Sans:SemiBold',sans-serif] text-[13px] text-[var(--screening-primary)] transition-colors hover:bg-[var(--screening-primary-soft-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)]"
               style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
             >
               Deselect all

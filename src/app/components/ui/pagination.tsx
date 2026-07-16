@@ -1,9 +1,5 @@
 import * as React from "react";
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  MoreHorizontalIcon,
-} from "lucide-react";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 
 import { cn } from "./utils";
 import { Button, buttonVariants } from "./button";
@@ -76,7 +72,7 @@ function PaginationPrevious({
       className={cn("gap-1 px-2.5 sm:pl-2.5", className)}
       {...props}
     >
-      <ChevronLeftIcon />
+      <MaterialSymbol name="keyboard_arrow_left" size="md" />
       <span className="hidden sm:block">Previous</span>
     </PaginationLink>
   );
@@ -94,7 +90,7 @@ function PaginationNext({
       {...props}
     >
       <span className="hidden sm:block">Next</span>
-      <ChevronRightIcon />
+      <MaterialSymbol name="keyboard_arrow_right" size="md" />
     </PaginationLink>
   );
 }
@@ -110,7 +106,7 @@ function PaginationEllipsis({
       className={cn("flex size-9 items-center justify-center", className)}
       {...props}
     >
-      <MoreHorizontalIcon className="size-4" />
+      <MaterialSymbol name="more_horiz" size="md" weight={300} />
       <span className="sr-only">More pages</span>
     </span>
   );

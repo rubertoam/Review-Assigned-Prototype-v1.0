@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Info } from "lucide-react";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { cn } from "./ui/utils";
 
@@ -19,7 +19,7 @@ export function ReviewPanelInlineInfoMessage({ children }: { children: ReactNode
         className="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-[var(--screening-primary)] text-white dark:bg-[#7c6bc4]"
         aria-hidden
       >
-        <Info className="size-2.5" strokeWidth={2.5} />
+        <MaterialSymbol name="info" size="sm" className="text-white" />
       </span>
       <span
         className={cn(

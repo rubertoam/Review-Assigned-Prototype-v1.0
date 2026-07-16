@@ -1,0 +1,13 @@
+---
+description: Reuse landing feature card layout sizing across screens
+alwaysApply: true
+---
+
+# Feature card layout
+
+All feature/settings card grids must match the product landing cards (Watchlist, Payments, KYC, Reporting).
+
+- Use `LandingFeatureCardView`, `landingFeatureCardGridClass`, and ACE landing-page card tokens (`--ace-landing-page-card-width`, min-height, radius, shadow) from `ProductLandingPage.tsx`.
+- Do not invent alternate card widths, paddings, or responsive grid breakpoints for the same card type.
+- A muted/gray page background (no colored hero) is fine — keep card chrome identical; only the page shell may differ.
+- Prefer the shared exports over duplicating AceLandingPageCard wrappers.

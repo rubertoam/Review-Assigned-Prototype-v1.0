@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, History, X } from "lucide-react";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
 import { AceButton } from "@ace-ds/components/atoms/AceButton";
 import {
@@ -33,6 +33,7 @@ import {
   REVIEW_EMPTY_FIELD,
   REVIEW_MULTIPLE_MESSAGE,
 } from "../lib/reviewLastUpdated";
+import { aceIconButtonHoverClass } from "../lib/aceIconButton";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { cn } from "./ui/utils";
 import {
@@ -277,13 +278,9 @@ export function ReviewDrawer({
               type="button"
               onClick={onClose}
               aria-label="Close review panel"
-              className={cn(
-                "inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius-sm)] text-[var(--screening-text-secondary)] transition-colors",
-                "hover:bg-[var(--screening-surface-hover)] hover:text-[var(--screening-text-primary)]",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--screening-primary-ring-offset)]",
-              )}
+              className={aceIconButtonHoverClass}
             >
-              <X className="size-4 shrink-0" strokeWidth={2} aria-hidden />
+              <MaterialSymbol name="close" size="md" />
             </button>
           </div>
         </div>
@@ -375,7 +372,7 @@ export function ReviewDrawer({
                         if (selectedCount > 0) setScreeningHistoryOpen(true);
                       }}
                     >
-                      <History className="size-4 shrink-0" aria-hidden />
+                      <MaterialSymbol name="history" size="md" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent
@@ -636,7 +633,7 @@ export function ReviewDrawer({
                     historyPageIndex === 0 && "cursor-not-allowed opacity-50",
                   )}
                 >
-                  <ChevronLeft className="size-4" aria-hidden />
+                  <MaterialSymbol name="keyboard_arrow_left" size="md" />
                 </button>
               ) : null}
 
@@ -674,7 +671,7 @@ export function ReviewDrawer({
                     historyPageIndex >= selectedRows.length - 1 && "cursor-not-allowed opacity-50",
                   )}
                 >
-                  <ChevronRight className="size-4" aria-hidden />
+                  <MaterialSymbol name="keyboard_arrow_right" size="md" />
                 </button>
               ) : null}
             </div>

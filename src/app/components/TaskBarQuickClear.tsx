@@ -1,4 +1,5 @@
-import { ChevronDown } from "lucide-react";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
+import { aceChevronIconClass } from "@ace-ds/lib/aceChevron";
 import {
   LEVEL1_DECISION_STATUSES,
   LEVEL2_DECISION_STATUSES,
@@ -50,7 +51,7 @@ export function TaskBarQuickClear({
       <DropdownMenuTrigger asChild disabled={disabled}>
         <button type="button" className={fieldTriggerClass}>
           <span className="whitespace-nowrap">Quick Clear</span>
-          <ChevronDown className="size-4 shrink-0 opacity-70" strokeWidth={2} aria-hidden />
+          <MaterialSymbol name="keyboard_arrow_down" size="md" className={cn(aceChevronIconClass, "opacity-70")} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" side="top" sideOffset={8} className="min-w-[12rem]">

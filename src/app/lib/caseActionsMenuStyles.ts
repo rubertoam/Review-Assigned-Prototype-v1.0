@@ -7,7 +7,7 @@ export const caseActionsMenuTriggerClass = cn(
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2",
 );
 
-export const caseActionsMenuIconClass = "size-4 shrink-0 rotate-90";
+export const caseActionsMenuIconClass = "text-current";
 
 /** Same trigger as client profile, with row hover + open-state visibility for screening table rows. */
 export const screeningRowActionsMenuTriggerClass = cn(

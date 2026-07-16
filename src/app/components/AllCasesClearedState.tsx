@@ -1,4 +1,4 @@
-import { RefreshCw } from "lucide-react";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { Button } from "./ui/button";
 import { ReviewPanelEmptyState } from "./ReviewPanelEmptyState";
 import { cn } from "./ui/utils";
@@ -18,7 +18,7 @@ export function AllCasesClearedState() {
         )}
         style={notoVar}
       >
-        <RefreshCw className="size-3.5 shrink-0" aria-hidden />
+        <MaterialSymbol name="autorenew" size="sm" />
         Refresh
       </Button>
     </ReviewPanelEmptyState>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CircleCheck } from "lucide-react";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
 import {
   AceAttachments,
@@ -226,7 +226,7 @@ export function ReviewDrawerVersionB({
               )}
               style={notoVar}
             >
-              <CircleCheck className="size-3 shrink-0" strokeWidth={2} aria-hidden />
+              <MaterialSymbol name="check_circle" size="sm" />
               Ready to submit
             </span>
           ) : (

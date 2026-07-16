@@ -9,7 +9,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { MoreVertical } from "lucide-react";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { caseActionsMenuIconClass, caseActionsMenuTriggerClass } from "../../lib/caseActionsMenuStyles";
 import { AllCasesClearedState } from "../../components/AllCasesClearedState";
 import { CaseListFilterEmptyState } from "../../components/CaseListFilterEmptyState";
@@ -70,6 +70,7 @@ import {
   isCaseLockedByAnotherUser,
   lockedCaseReviewer,
 } from "../../lib/caseLockConfig";
+import { LEVEL1_STATIC_SCREENING_RULE_COUNTS } from "../../lib/assignedWorkCounts";
 import { cn } from "../../components/ui/utils";
 import { ReviewDrawer } from "../../components/ReviewDrawer";
 import { ReviewTaskBar } from "../../components/ReviewTaskBar";
@@ -79,6 +80,7 @@ import {
   type Level1ScreeningStatus,
 } from "../../lib/reviewDecisionConfig";
 import { AceSidebar } from "@ace-ds/components/organisms/AceSidebar/AceSidebar";
+import { sidebarIconButtonClass } from "@ace-ds/components/organisms/AceSidebar/sidebarRowActions";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
 
 interface PageHeaderProps {
@@ -86,8 +88,6 @@ interface PageHeaderProps {
   sidebarPinned: boolean;
   levelLabel: string;
   onTriggerClick: () => void;
-  onTriggerMouseEnter: () => void;
-  onTriggerMouseLeave: () => void;
 }
 
 function PageHeader({
@@ -95,8 +95,6 @@ function PageHeader({
   sidebarPinned,
   levelLabel,
   onTriggerClick,
-  onTriggerMouseEnter,
-  onTriggerMouseLeave,
 }: PageHeaderProps) {
   return (
     <div className="flex shrink-0 items-center justify-between border-b border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-4 py-3 md:px-8">
@@ -104,19 +102,18 @@ function PageHeader({
         <button
           type="button"
           aria-expanded={isSidebarOpen}
-          aria-label={
-            isSidebarOpen
-              ? "Sidebar is open. Click to close and unpin."
-              : "Open sidebar. Hover to preview; click to pin open."
-          }
-          className={`size-[16px] cursor-pointer border-0 bg-transparent p-0 text-[#23262c] transition-transform duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-[#b6c2cf] dark:focus-visible:ring-offset-[#22272b] rounded ${sidebarPinned ? "" : "rotate-180"}`}
+          aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+          className={sidebarIconButtonClass}
           onClick={onTriggerClick}
-          onMouseEnter={onTriggerMouseEnter}
-          onMouseLeave={onTriggerMouseLeave}
         >
-          <svg className="block size-full pointer-events-none" fill="none" preserveAspectRatio="none" viewBox="0 0 16 16">
-            <path d={svgPaths.p3f53b460} fill="currentColor" />
-          </svg>
+          <MaterialSymbol
+            name="left_panel_close"
+            size="md"
+            className={cn(
+              "text-current transition-transform duration-[var(--ace-motion-duration-medium)] [transition-timing-function:var(--ace-motion-ease-standard)] motion-reduce:transition-none",
+              !sidebarPinned && "rotate-180",
+            )}
+          />
         </button>
         <div className="flex items-center gap-2">
           <p className={cn(aceTypography(ACE_TYPE.h6Bold), "leading-[1.65] text-[var(--screening-text-primary)]")}>
@@ -173,9 +170,7 @@ const SIDEBAR_NAV_ITEMS: readonly Omit<SidebarNavItemConfig, "count">[] = [
 ];
 
 const STATIC_SIDEBAR_COUNTS: Record<string, number> = {
-  pep: 53,
-  "new-clients": 27,
-  financial: 19,
+  ...LEVEL1_STATIC_SCREENING_RULE_COUNTS,
 };
 
 function ReviewSidebarNavRow({
@@ -229,11 +224,9 @@ function ReviewSidebarNavRow({
 interface ReviewSidebarProps {
   isOpen: boolean;
   sanctionMatchCount: number;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
 }
 
-function ReviewSidebar({ isOpen, sanctionMatchCount, onMouseEnter, onMouseLeave }: ReviewSidebarProps) {
+function ReviewSidebar({ isOpen, sanctionMatchCount }: ReviewSidebarProps) {
   const [selectedOrgId, setSelectedOrgId] = useState<string>(SIDEBAR_ORGANIZATIONS[0].id);
   const [selectedNavId, setSelectedNavId] = useState<string>(SIDEBAR_NAV_ITEMS[0].id);
 
@@ -247,7 +240,7 @@ function ReviewSidebar({ isOpen, sanctionMatchCount, onMouseEnter, onMouseLeave 
   );
 
   return (
-    <div className="h-full shrink-0" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+    <div className="h-full shrink-0">
       <AceSidebar
         open={isOpen}
         variant="navigation"
@@ -700,7 +693,7 @@ function DetailPanel({
                   className={caseActionsMenuTriggerClass}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <MoreVertical className={caseActionsMenuIconClass} strokeWidth={2} aria-hidden />
+                  <MaterialSymbol name="more_horiz" size="md" weight={300} className={caseActionsMenuIconClass} />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -846,7 +839,6 @@ function DetailPanel({
 
 export function Level1ReviewInterface() {
   const [sidebarPinned, setSidebarPinned] = useState(true);
-  const [sidebarPeek, setSidebarPeek] = useState(false);
   const [selectedCaseIndex, setSelectedCaseIndex] = useState(0);
   const [selectedCaseListSection, setSelectedCaseListSection] =
     useState<CaseListSectionContext>("todo");
@@ -992,86 +984,24 @@ export function Level1ReviewInterface() {
     setScreeningSelectedIds(new Set());
   }, [selectedCaseIndex]);
 
-  const sidebarPinnedRef = useRef(sidebarPinned);
-  sidebarPinnedRef.current = sidebarPinned;
-
-  const peekCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const clearPeekCloseTimer = useCallback(() => {
-    if (peekCloseTimerRef.current !== null) {
-      clearTimeout(peekCloseTimerRef.current);
-      peekCloseTimerRef.current = null;
-    }
-  }, []);
-
-  const schedulePeekClose = useCallback(() => {
-    clearPeekCloseTimer();
-    peekCloseTimerRef.current = setTimeout(() => {
-      peekCloseTimerRef.current = null;
-      if (!sidebarPinnedRef.current) {
-        setSidebarPeek(false);
-      }
-    }, 280);
-  }, [clearPeekCloseTimer]);
-
-  useEffect(() => () => clearPeekCloseTimer(), [clearPeekCloseTimer]);
-
-  const sidebarOpen = sidebarPinned || sidebarPeek;
-
   const handleTriggerClick = useCallback(() => {
-    clearPeekCloseTimer();
-    if (sidebarPinnedRef.current) {
-      setSidebarPinned(false);
-      setSidebarPeek(false);
-    } else {
-      setSidebarPinned(true);
-    }
-  }, [clearPeekCloseTimer]);
-
-  const handleTriggerMouseEnter = useCallback(() => {
-    clearPeekCloseTimer();
-    if (!sidebarPinnedRef.current) {
-      setSidebarPeek(true);
-    }
-  }, [clearPeekCloseTimer]);
-
-  const handleTriggerMouseLeave = useCallback(() => {
-    if (!sidebarPinnedRef.current) {
-      schedulePeekClose();
-    }
-  }, [schedulePeekClose]);
-
-  const handleSidebarMouseEnter = useCallback(() => {
-    clearPeekCloseTimer();
-    if (!sidebarPinnedRef.current) {
-      setSidebarPeek(true);
-    }
-  }, [clearPeekCloseTimer]);
-
-  const handleSidebarMouseLeave = useCallback(() => {
-    if (!sidebarPinnedRef.current) {
-      schedulePeekClose();
-    }
-  }, [schedulePeekClose]);
+    setSidebarPinned((pinned) => !pinned);
+  }, []);
 
   return (
     <ThemeProvider>
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-[var(--screening-surface-muted)] text-[var(--screening-text-primary)]">
       <ReviewFlowSiteHeader />
       <PageHeader
-        isSidebarOpen={sidebarOpen}
+        isSidebarOpen={sidebarPinned}
         sidebarPinned={sidebarPinned}
         levelLabel="Level 1"
         onTriggerClick={handleTriggerClick}
-        onTriggerMouseEnter={handleTriggerMouseEnter}
-        onTriggerMouseLeave={handleTriggerMouseLeave}
       />
       <div className="flex flex-1 overflow-hidden">
         <ReviewSidebar
-          isOpen={sidebarOpen}
+          isOpen={sidebarPinned}
           sanctionMatchCount={pendingSanctionCount}
-          onMouseEnter={handleSidebarMouseEnter}
-          onMouseLeave={handleSidebarMouseLeave}
         />
         <div className="flex flex-1 overflow-hidden">
           <div className="flex flex-col flex-1 min-h-0 overflow-hidden px-4 pb-4 gap-4">

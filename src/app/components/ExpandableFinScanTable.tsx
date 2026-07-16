@@ -7,8 +7,13 @@ import {
   type ReactNode,
   type SetStateAction,
 } from "react";
-import { ArrowDown, ArrowDownUp, ArrowUp, ChevronDown, ChevronRight } from "lucide-react";
-import { Checkbox } from "./ui/checkbox";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
+import { aceChevronIconClass } from "@ace-ds/lib/aceChevron";
+import {
+  screeningTableHeaderLabelClass,
+  screeningTableHeaderSortButtonClass,
+} from "@ace-ds/components/organisms/ScreeningResultsTable/screeningTableHeader";
+import { Checkbox } from "@ace-ds/components/atoms/Checkbox/Checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { AceGridExpandPanel } from "./AceGridExpandPanel";
 import { cn } from "./ui/utils";
@@ -17,20 +22,38 @@ import { cn } from "./ui/utils";
 export const easeAccordion = "[transition-timing-function:var(--ace-accordion-ease)]";
 export const durationAccordion = "duration-[var(--ace-accordion-duration)]";
 
+const headerLabelClass = screeningTableHeaderLabelClass;
+const headerLabelCompactClass = cn(screeningTableHeaderLabelClass, "text-[10px] leading-tight");
 const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 
-const headerLabelBase =
-  "font-['Noto_Sans:Bold',sans-serif] font-bold uppercase tracking-wide text-[#6a7285] dark:text-[#8696a7]";
-const headerLabelClass = cn(headerLabelBase, "text-[12px]");
-const headerLabelCompactClass = cn(headerLabelBase, "text-[10px] leading-tight");
+/** Sort glyphs — `sm` keeps swap_vert optically aligned with header labels. */
+const sortIconIdleClass = "shrink-0 text-[var(--screening-icon-muted)] leading-none";
+const sortIconActiveClass = "shrink-0 text-[var(--screening-primary)] leading-none";
 
-const expandBtnClass =
-  "inline-flex size-[26px] shrink-0 cursor-pointer items-center justify-center rounded p-1 transition-colors duration-200 ease-out hover:bg-[#eff0f2] dark:hover:bg-[#2c333a] text-[#23262c] dark:text-[#b6c2cf] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/35 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#22272b]";
+const expandBtnClass = cn(
+  "inline-flex size-[26px] shrink-0 cursor-pointer items-center justify-center rounded p-1 transition-colors duration-200 ease-out",
+  "text-[var(--screening-text-primary)] hover:bg-[var(--screening-surface-hover)]",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--screening-primary-ring-offset)]",
+);
 
-const chevronClass = cn("size-[18px]", durationAccordion, easeAccordion, "transition-transform");
+function ExpandChevronIcon({ expanded }: { expanded: boolean }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center justify-center transition-transform",
+        durationAccordion,
+        easeAccordion,
+        expanded ? "rotate-0" : "-rotate-90",
+      )}
+      aria-hidden
+    >
+      <MaterialSymbol name="keyboard_arrow_down" size="md" className={aceChevronIconClass} />
+    </span>
+  );
+}
 
 const expandColClass = "w-[34px] px-0 align-middle";
-const selectColClass = "w-7 px-0 align-middle";
+const selectColClass = "w-9 px-0 align-middle";
 const leadingHeaderPad = (isCompact: boolean) => (isCompact ? "py-0.5" : "py-1");
 const leadingBodyPad = (isCompact: boolean) => (isCompact ? "py-1.5" : "py-3");
 
@@ -43,18 +66,20 @@ function SelectCheckboxCell({
 }) {
   return (
     <div className="flex items-center justify-center">
-      <span className={cn(checkboxPadWrapClass, visible ? "opacity-100" : "opacity-0 group-hover/row:opacity-100")}>
+      <span
+        className={cn(
+          checkboxPadWrapClass,
+          visible ? "opacity-100" : "opacity-0 group-hover/row:opacity-100",
+        )}
+      >
         {children}
       </span>
     </div>
   );
 }
 
-const checkboxClass =
-  "h-4 w-4 shrink-0 cursor-pointer rounded-[3px] border-[#523eb9] border bg-white dark:bg-[#22272b] text-white transition-all duration-200 ease-out data-[state=checked]:bg-[#523eb9] data-[state=checked]:border-[#523eb9] data-[state=indeterminate]:bg-[#523eb9] data-[state=indeterminate]:border-[#523eb9] focus-visible:ring-2 focus-visible:ring-[#523eb9]/35 [&_svg]:size-3 disabled:cursor-not-allowed disabled:opacity-50 disabled:border-[#cfd2d9] dark:disabled:border-[#454c59] disabled:data-[state=checked]:bg-[#d4d6db] disabled:data-[state=checked]:border-[#cfd2d9] disabled:data-[state=indeterminate]:bg-[#d4d6db] disabled:data-[state=indeterminate]:border-[#cfd2d9]";
-
 const checkboxPadWrapClass =
-  "inline-flex items-center justify-center rounded p-0.5 transition-opacity duration-200 ease-out";
+  "inline-flex items-center justify-center rounded p-[var(--space-1)] transition-opacity duration-200 ease-out";
 
 export type FinScanTableColumn<T> = {
   key: string;
@@ -209,11 +234,7 @@ export function ExpandableFinScanTable<T extends { id: string }>({
         aria-label={allVisibleExpanded ? "Collapse all rows" : "Expand all rows"}
         onClick={toggleExpandAll}
       >
-        {allVisibleExpanded ? (
-          <ChevronDown className={chevronClass} />
-        ) : (
-          <ChevronRight className={chevronClass} />
-        )}
+        <ExpandChevronIcon expanded={allVisibleExpanded} />
       </button>
     );
 
@@ -222,7 +243,11 @@ export function ExpandableFinScanTable<T extends { id: string }>({
     return (
       <Tooltip>
         <TooltipTrigger asChild>{button}</TooltipTrigger>
-        <TooltipContent side="top" hideArrow className="border border-[#cfd2d9] bg-white text-[#23262c] shadow-sm dark:border-[#38414a] dark:bg-[#22272b] dark:text-[#b6c2cf]">
+        <TooltipContent
+          side="top"
+          hideArrow
+          className="border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] text-[var(--screening-text-primary)] shadow-sm"
+        >
           {allVisibleExpanded ? expandTooltips.expandAll.hide : expandTooltips.expandAll.show}
         </TooltipContent>
       </Tooltip>
@@ -243,11 +268,7 @@ export function ExpandableFinScanTable<T extends { id: string }>({
             : "opacity-0 pointer-events-none group-hover/row:opacity-100 group-hover/row:pointer-events-auto",
         )}
       >
-        {expanded ? (
-          <ChevronDown className={chevronClass} />
-        ) : (
-          <ChevronRight className={chevronClass} />
-        )}
+        <ExpandChevronIcon expanded={expanded} />
       </button>
     );
 
@@ -256,7 +277,11 @@ export function ExpandableFinScanTable<T extends { id: string }>({
     return (
       <Tooltip>
         <TooltipTrigger asChild>{button}</TooltipTrigger>
-        <TooltipContent side="top" hideArrow className="border border-[#cfd2d9] bg-white text-[#23262c] shadow-sm dark:border-[#38414a] dark:bg-[#22272b] dark:text-[#b6c2cf]">
+        <TooltipContent
+          side="top"
+          hideArrow
+          className="border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] text-[var(--screening-text-primary)] shadow-sm"
+        >
           {expanded ? expandTooltips.expandRow.close : expandTooltips.expandRow.open}
         </TooltipContent>
       </Tooltip>
@@ -290,7 +315,7 @@ export function ExpandableFinScanTable<T extends { id: string }>({
           ))}
           {trailingColumn ? <col className="w-10" /> : null}
         </colgroup>
-        <thead className="sticky top-0 z-[1] border-b border-[#cfd2d9] bg-[#fafafb] shadow-[0_1px_0_rgba(207,210,217,0.6)] dark:border-[#38414a] dark:bg-[#1d2125] dark:shadow-[0_1px_0_rgba(0,0,0,0.45)]">
+        <thead className="sticky top-0 z-[1] border-b border-[var(--screening-border-strong)] bg-[var(--screening-surface-muted)] shadow-[var(--screening-shadow-thead)]">
           <tr className={headerRowH}>
             {showExpandCol ? (
               <th scope="col" className={cn(expandColClass, leadingHeaderPad(isCompact))}>
@@ -304,7 +329,7 @@ export function ExpandableFinScanTable<T extends { id: string }>({
               <th scope="col" className={cn(selectColClass, leadingHeaderPad(isCompact))}>
                 <SelectCheckboxCell>
                   <Checkbox
-                    className={checkboxClass}
+                    size="md"
                     checked={selection.headerCheckboxState}
                     disabled={selection.actionableCount === 0}
                     onCheckedChange={selection.onHeaderSelectAll}
@@ -337,23 +362,21 @@ export function ExpandableFinScanTable<T extends { id: string }>({
                   <button
                     type="button"
                     onClick={() => sort.onToggleSort(col.sortKey!)}
-                    className="inline-flex cursor-pointer items-center gap-1.5 rounded px-1 py-0.5 -mx-1 transition-colors duration-200 ease-out hover:bg-[#eff0f2] dark:hover:bg-[#2c333a] text-[#23262c] dark:text-[#b6c2cf] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#523eb9]/35 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#22272b]"
+                    className={cn(screeningTableHeaderSortButtonClass, "gap-1")}
                   >
-                    <span className={headerLabel} style={notoVar}>
-                      {col.label}
-                    </span>
+                    <span className={headerLabel}>{col.label}</span>
                     {sort.sortKey === col.sortKey ? (
                       sort.sortDir === "asc" ? (
-                        <ArrowUp className="size-4 shrink-0 text-[#523eb9] transition-transform duration-200 ease-out" strokeWidth={2} />
+                        <MaterialSymbol name="arrow_upward" size="sm" className={sortIconActiveClass} />
                       ) : (
-                        <ArrowDown className="size-4 shrink-0 text-[#523eb9] transition-transform duration-200 ease-out" strokeWidth={2} />
+                        <MaterialSymbol name="arrow_downward" size="sm" className={sortIconActiveClass} />
                       )
                     ) : (
-                      <ArrowDownUp className="size-4 shrink-0 text-[#949baa] transition-colors duration-200 ease-out" strokeWidth={2} />
+                      <MaterialSymbol name="swap_vert" size="sm" className={sortIconIdleClass} />
                     )}
                   </button>
                 ) : (
-                  <span className={headerLabel} style={notoVar} title={col.label}>
+                  <span className={headerLabel} title={col.label}>
                     {col.label}
                   </span>
                 )}
@@ -391,7 +414,7 @@ export function ExpandableFinScanTable<T extends { id: string }>({
                   <td className={cn(selectColClass, leadingBodyPad(isCompact))}>
                     <SelectCheckboxCell visible={showControls}>
                       <Checkbox
-                        className={checkboxClass}
+                        size="md"
                         checked={selected}
                         disabled={!selectable}
                         onCheckedChange={(v) => {

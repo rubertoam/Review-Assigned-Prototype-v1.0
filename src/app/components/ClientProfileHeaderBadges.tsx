@@ -1,22 +1,13 @@
-import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
+import { AceBadge } from "@ace-ds/components/atoms/AceBadge/AceBadge";
+import { aceBadgeWarningIconClass } from "@ace-ds/components/atoms/AceBadge/badgeFieldStyles";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { ReviewMetaTag } from "./ReviewMetaTag";
 import { cn } from "./ui/utils";
 
-const clientBodyLineTextClass =
-  "m-0 font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[14px] text-[#23262c] dark:text-[#b6c2cf]";
-
-const clientBodyNotoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
-
-/** Filled circular alert (Escalated orange) for overdue indicators. */
-export function OverdueWarningIcon({ className = "size-4 text-[10px]" }: { className?: string }) {
+/** ACE badge warning “!” — used in case list overdue affordance. */
+export function OverdueWarningIcon({ className }: { className?: string }) {
   return (
-    <span
-      className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-full bg-[#ef6c00] font-['Noto_Sans:Bold',sans-serif] font-bold leading-none text-white",
-        className,
-      )}
-      aria-hidden
-    >
+    <span className={cn(aceBadgeWarningIconClass, className)} aria-hidden>
       !
     </span>
   );
@@ -24,16 +15,9 @@ export function OverdueWarningIcon({ className = "size-4 text-[10px]" }: { class
 
 export function ClientProfileOverdueBadge() {
   return (
-    <span
-      className={cn(
-        aceTypography(ACE_TYPE.captionBold),
-        "inline-flex shrink-0 items-center gap-1.5 rounded-[var(--radius-sm)] border px-2 py-0.5",
-        "border-[var(--screening-pill-escalated-dot)] bg-[var(--ace-warning-50)] text-[var(--screening-pill-escalated-label)]",
-      )}
-    >
-      <OverdueWarningIcon className="size-3 text-[8px]" />
+    <AceBadge appearance="tag" variant="orange" showWarningIcon>
       Overdue Warning
-    </span>
+    </AceBadge>
   );
 }
 
@@ -58,19 +42,19 @@ export function ClientProfileAccordionHeaderTags({
   );
 }
 
+const clientBodyLineTextClass =
+  "m-0 font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[14px] text-[var(--screening-text-primary)]";
+
+const clientBodyNotoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
+
 export function ClientProfileClientIdRow({ clientId }: { clientId: string }) {
   return (
     <div className="flex items-center gap-2.5">
-      <svg
-        viewBox="0 0 16 16"
-        className="size-4 shrink-0 text-[#523eb9] dark:text-[#b5aae0]"
-        aria-hidden
-      >
-        <path
-          fill="currentColor"
-          d="M8 8a3.25 3.25 0 1 0 0-6.5 3.25 3.25 0 0 0 0 6.5Zm-5.5 6.25a5.5 5.5 0 0 1 11 0H2.5Z"
-        />
-      </svg>
+      <MaterialSymbol
+        name="account_circle"
+        size="md"
+        className="text-[var(--screening-primary)]"
+      />
       <p className={clientBodyLineTextClass} style={clientBodyNotoVar}>
         Client ID · {clientId}
       </p>

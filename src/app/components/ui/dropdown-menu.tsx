@@ -4,7 +4,8 @@
 
 import * as React from "react";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
-import { ChevronRightIcon } from "lucide-react";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
+import { aceChevronIconClass } from "@ace-ds/lib/aceChevron";
 import { aceDropdownMenuPanelClass } from "@ace-ds/components/molecules/AceDropdownMenu/AceDropdownMenu";
 import { Checkbox } from "@ace-ds/components/atoms/Checkbox/Checkbox";
 import { Toggle } from "@ace-ds/components/atoms/Toggle/Toggle";
@@ -352,7 +353,7 @@ function DropdownMenuSubTrigger({
       {...props}
     >
       {children}
-      <ChevronRightIcon className="ml-auto size-4 opacity-70" />
+      <MaterialSymbol name="keyboard_arrow_right" size="md" className={cn(aceChevronIconClass, "ml-auto opacity-70")} />
     </DropdownMenuPrimitive.SubTrigger>
   );
 }

@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useMemo, useState } from "react";
-import { Check } from "lucide-react";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
 import { AceTable } from "@ace-ds/components/molecules/AceTable/AceTable";
 import {
@@ -67,7 +67,7 @@ function GeneralMatchCheck() {
       className="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-[#2e7d32]"
       aria-hidden
     >
-      <Check className="size-2.5 stroke-[3] text-white" />
+      <MaterialSymbol name="check" size="sm" className="text-white" />
     </span>
   );
 }

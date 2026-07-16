@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
-import { ChevronRight, MoreHorizontal } from "lucide-react";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 
 import { cn } from "./utils";
 
@@ -72,10 +72,10 @@ function BreadcrumbSeparator({
       data-slot="breadcrumb-separator"
       role="presentation"
       aria-hidden="true"
-      className={cn("[&>svg]:size-3.5", className)}
+      className={cn("[&_.material-symbols-outlined]:text-[14px]", className)}
       {...props}
     >
-      {children ?? <ChevronRight />}
+      {children ?? <MaterialSymbol name="keyboard_arrow_right" size="md" />}
     </li>
   );
 }
@@ -92,7 +92,7 @@ function BreadcrumbEllipsis({
       className={cn("flex size-9 items-center justify-center", className)}
       {...props}
     >
-      <MoreHorizontal className="size-4" />
+      <MaterialSymbol name="more_horiz" size="md" weight={300} />
       <span className="sr-only">More</span>
     </span>
   );

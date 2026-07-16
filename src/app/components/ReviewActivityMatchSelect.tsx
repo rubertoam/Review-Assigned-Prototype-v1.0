@@ -1,4 +1,5 @@
-import { ChevronDown } from "lucide-react";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
+import { aceChevronIconClass } from "@ace-ds/lib/aceChevron";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import {
   DropdownMenu,
@@ -56,7 +57,7 @@ export function ReviewActivityMatchSelect({
             style={notoVar}
           >
             <span className="whitespace-nowrap">{triggerLabel}</span>
-            <ChevronDown className="size-4 shrink-0 opacity-70" strokeWidth={2} aria-hidden />
+            <MaterialSymbol name="keyboard_arrow_down" size="md" className={cn(aceChevronIconClass, "opacity-70")} />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent

@@ -45,6 +45,10 @@ Organisms: `ScreeningResultsTable`, `AceSidebar`, `AceSiteHeader`, `AceDatePicke
 
 | Area | Status | Notes |
 |---|---|---|
+| **Ask Chatty / AI chat bubble** | Missing in ACE DS | Local `AskChattyBubble` uses `AceInputField` + `AceButton`; no DS chat/assistant organism yet. |
+| **`GroupFormDialog` contextual titles** | Partial | Edit/Copy titles are fixed to “Edit/Copy Group”. Reporting pages need page-specific wording (e.g. report category); delete confirm already uses local contextual copy. Prefer optional `title` / `description` props on `GroupFormDialog`. |
+| **`AceSiteHeader` logo click** | Missing | No `onLogoClick` / home action. Prototype overlays a hit target in `ReviewFlowSiteHeader` to open the selected start page. |
+| **`AceSidebar` hide New Group** | Missing | Groups variant always renders the top “New Group” control. Data Manager hides it via a local CSS selector until DS adds e.g. `showNewGroup`. |
 | **Case list, task bar, review drawer** | Custom | Figma-derived markup; not yet migrated to DS organisms. |
 | **Full screening table cells** | Partial | Section shell uses `AceAccordion`; row/table chrome still has hardcoded colors in places. |
 | **Typography & colors (shell)** | Partial | Top nav, page header, pills, and accordion headers use `--ace-type-*` / `--screening-*` tokens. Many detail panels and table cells still use legacy hex / `font-['Noto_Sans:…']`. |

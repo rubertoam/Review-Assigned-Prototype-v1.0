@@ -1,12 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  ArrowUp,
-  ChevronDown,
-  CircleCheck,
-  CloudUpload,
-  FileText,
-  Link2,
-} from "lucide-react";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { AceInputField } from "@ace-ds/components/atoms/AceInputField";
 import {
   type ActivityComment,
@@ -21,12 +14,13 @@ import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { AceGridExpandPanel } from "./AceGridExpandPanel";
 import { ReviewActivityMatchSelect } from "./ReviewActivityMatchSelect";
 import { cn } from "./ui/utils";
-import { STATUS_PILL_STYLES, type ScreeningResultRow } from "./ScreeningResultsTable";
+import { ScreeningStatusBadge } from "./ScreeningStatusBadge";
+import type { ScreeningResultRow } from "./ScreeningResultsTable";
 
 const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 const NEUTRAL_800 = "text-[var(--screening-text-primary)]";
 const PRIMARY_PURPLE = "text-[var(--screening-primary)]";
-const ICON_CLASS = "size-4 shrink-0 text-[var(--screening-primary)]";
+const ICON_CLASS = "text-[var(--screening-primary)]";
 const ACCORDION_MOTION_CLASS =
   "duration-[var(--ace-accordion-duration)] [transition-timing-function:var(--ace-accordion-ease)]";
 
@@ -162,7 +156,7 @@ function ActivityReplyField({
           !canSubmit && "cursor-not-allowed opacity-50",
         )}
       >
-        <ArrowUp className="size-3" strokeWidth={2} aria-hidden />
+        <MaterialSymbol name="arrow_upward" size="sm" className="text-white" />
       </button>
     </div>
   );
@@ -319,7 +313,11 @@ function ActivityCommentBlock({
                 )}
                 aria-hidden
               >
-                <ChevronDown className={cn(ICON_CLASS, PRIMARY_PURPLE)} strokeWidth={2} />
+                <MaterialSymbol
+                  name="keyboard_arrow_down"
+                  size="md"
+                  className={cn(ICON_CLASS, PRIMARY_PURPLE)}
+                />
               </span>
               <span
                 className={cn(aceTypography(ACE_TYPE.p1Bold), PRIMARY_PURPLE)}
@@ -351,28 +349,14 @@ const ACTIVITY_STATUS_STYLE_ALIAS: Record<string, string> = {
 };
 
 function ActivityStatusTag({ label }: { label: string }) {
-  const styleKey = ACTIVITY_STATUS_STYLE_ALIAS[label] ?? label;
-  const style = STATUS_PILL_STYLES[styleKey] ?? STATUS_PILL_STYLES.Escalate;
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-[4px] border px-2 py-1",
-        style.border,
-        style.bg,
-        "text-[10px] font-normal leading-[1.65] tracking-[0.2px]",
-        style.text,
-      )}
-      style={notoVar}
-    >
-      {label}
-    </span>
-  );
+  const statusKey = ACTIVITY_STATUS_STYLE_ALIAS[label] ?? label;
+  return <ScreeningStatusBadge status={statusKey}>{label}</ScreeningStatusBadge>;
 }
 
 function ActivityFileTag({ fileName }: { fileName: string }) {
   return (
     <span className="inline-flex max-w-full items-center gap-2 rounded-[4px] border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-2 py-1">
-      <FileText className={cn(ICON_CLASS, "text-[#dc264b]")} strokeWidth={2} aria-hidden />
+      <MaterialSymbol name="draft" size="md" className={cn(ICON_CLASS, "text-[#dc264b]")} />
       <span
         className="truncate text-[10px] font-normal leading-[1.65] tracking-[0.2px] text-[var(--screening-text-primary)]"
         style={notoVar}
@@ -393,7 +377,7 @@ function ActivityLogRow({ item }: { item: ActivityLogItem }) {
   if (item.kind === "upload") {
     return (
       <article className="flex items-center gap-2">
-        <CloudUpload className={ICON_CLASS} strokeWidth={2} aria-hidden />
+        <MaterialSymbol name="cloud_upload" size="md" className={ICON_CLASS} />
         <p className={cn(aceTypography(ACE_TYPE.p1Regular), "m-0 inline", NEUTRAL_800)} style={notoVar}>
           <ActivityFileTag fileName={item.fileName ?? "attachment"} />
           {mutedTime}
@@ -405,7 +389,7 @@ function ActivityLogRow({ item }: { item: ActivityLogItem }) {
   if (item.kind === "url") {
     return (
       <article className="flex items-center gap-2">
-        <Link2 className={ICON_CLASS} strokeWidth={2} aria-hidden />
+        <MaterialSymbol name="link" size="md" className={ICON_CLASS} />
         <p className={cn(aceTypography(ACE_TYPE.p1Regular), "m-0 inline", NEUTRAL_800)} style={notoVar}>
           <span>{item.url}</span>
           {mutedTime}
@@ -417,7 +401,7 @@ function ActivityLogRow({ item }: { item: ActivityLogItem }) {
   if (item.kind === "screening") {
     return (
       <article className="flex items-center gap-2">
-        <CircleCheck className={ICON_CLASS} strokeWidth={2} aria-hidden />
+        <MaterialSymbol name="check_circle" size="md" className={ICON_CLASS} />
         <p className={cn(aceTypography(ACE_TYPE.p1Regular), "m-0 inline", NEUTRAL_800)} style={notoVar}>
           <span>Screened by screening rule </span>
           <span className="font-bold">{item.screeningRule}</span>
@@ -429,7 +413,7 @@ function ActivityLogRow({ item }: { item: ActivityLogItem }) {
 
   return (
     <article className="flex items-center gap-2">
-      <CircleCheck className={ICON_CLASS} strokeWidth={2} aria-hidden />
+      <MaterialSymbol name="check_circle" size="md" className={ICON_CLASS} />
       <p className={cn(aceTypography(ACE_TYPE.p1Regular), "m-0 inline", NEUTRAL_800)} style={notoVar}>
         <span>{item.author} moved status to </span>
         {item.statusLabel ? <ActivityStatusTag label={item.statusLabel} /> : null}

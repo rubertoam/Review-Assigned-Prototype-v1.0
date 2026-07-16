@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { VariantProps, cva } from "class-variance-authority";
-import { PanelLeftIcon } from "lucide-react";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 
 import { useIsMobile } from "./use-mobile";
 import { cn } from "./utils";
@@ -273,7 +273,7 @@ function SidebarTrigger({
       }}
       {...props}
     >
-      <PanelLeftIcon />
+      <MaterialSymbol name="left_panel_close" size="md" />
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   );

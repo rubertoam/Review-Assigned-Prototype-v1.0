@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { ChevronRight } from "lucide-react";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
+import { aceChevronIconClass } from "@ace-ds/lib/aceChevron";
 import { AnimatedCollapse } from "./AnimatedCollapse";
 import { durationAccordion, easeAccordion } from "./ExpandableFinScanTable";
 import { cn } from "./ui/utils";
@@ -78,15 +79,17 @@ export function CaseListSection({
         onClick={() => onExpandedChange?.(!expanded)}
         className="flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 text-left transition-colors hover:bg-[#eff0f2] dark:hover:bg-[#2c333a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#523eb9]/35"
       >
-        <ChevronRight
+        <MaterialSymbol
+          name="keyboard_arrow_right"
+          size="md"
           className={cn(
-            "size-4 shrink-0 text-[#464c59] dark:text-[#9fadbc]",
+            aceChevronIconClass,
+            "text-[#464c59] dark:text-[#9fadbc]",
             "origin-center transition-transform",
             durationAccordion,
             easeAccordion,
             expanded && "rotate-90",
           )}
-          aria-hidden
         />
         {headerLabel}
         <SectionCountBadge count={count} />

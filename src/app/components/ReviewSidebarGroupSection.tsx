@@ -1,4 +1,5 @@
-import { ChevronRight } from "lucide-react";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
+import { aceChevronIconClass } from "@ace-ds/lib/aceChevron";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { SidebarNavCountBadge } from "./SidebarNavCountBadge";
 import { cn } from "./ui/utils";
@@ -48,13 +49,15 @@ export function ReviewSidebarGroupSection({
           "focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-1",
         )}
       >
-        <ChevronRight
+        <MaterialSymbol
+          name="keyboard_arrow_right"
+          size="md"
           className={cn(
-            "size-4 shrink-0 text-[var(--screening-text-primary)] transition-transform duration-[var(--ace-sidebar-duration-expand)]",
+            aceChevronIconClass,
+            "text-[var(--screening-text-primary)] transition-transform duration-[var(--ace-sidebar-duration-expand)]",
             ease,
             expanded && "rotate-90",
           )}
-          aria-hidden
         />
         <span
           className={cn(

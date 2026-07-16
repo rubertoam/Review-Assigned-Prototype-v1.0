@@ -1,7 +1,7 @@
 import * as React from "react";
 import * as NavigationMenuPrimitive from "@radix-ui/react-navigation-menu";
 import { cva } from "class-variance-authority";
-import { ChevronDownIcon } from "lucide-react";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 
 import { cn } from "./utils";
 
@@ -74,9 +74,10 @@ function NavigationMenuTrigger({
       {...props}
     >
       {children}{" "}
-      <ChevronDownIcon
-        className="relative top-[1px] ml-1 size-3 transition duration-300 group-data-[state=open]:rotate-180"
-        aria-hidden="true"
+      <MaterialSymbol
+        name="keyboard_arrow_down"
+        size="sm"
+        className="relative top-[1px] ml-1 transition duration-300 group-data-[state=open]:rotate-180"
       />
     </NavigationMenuPrimitive.Trigger>
   );

@@ -1,0 +1,29 @@
+---
+description: Import UI from ACE Design System; never duplicate components that exist in ds-github
+alwaysApply: true
+---
+
+# ACE Design System components
+
+## Components
+
+All UI components must be imported from:
+
+`C:\UX Design\Design System\ds-github`
+
+Never create local components if an equivalent exists there.
+
+If something is missing, flag it in `DESIGN_SYSTEM_GAPS.md` and tell the user — don't improvise.
+
+## Local setup (this repo)
+
+- **Vite/TS alias:** `@ace-ds` → `../../Design System/Design System Sandbox/src`
+- **Until `ds-github` is cloned locally**, use the sandbox path above (same ACEDesignSystem repo).
+- **Re-export shims** in `src/app/components/ui/` may wrap `@ace-ds` imports so app code keeps stable paths.
+- **Tokens:** import `@ace-ds/styles/variables.css` and `typography-tokens.css` in `src/main.tsx`.
+
+## Rules
+
+1. Prefer `@ace-ds/components/...` over new files under `src/app/components/ui/`.
+2. Do not change layout, flow, or screen structure when swapping components — API-compatible re-exports only.
+3. Known gaps (local shims only): `dialog`, `dropdown-menu`, `select` — see `DESIGN_SYSTEM_GAPS.md`.

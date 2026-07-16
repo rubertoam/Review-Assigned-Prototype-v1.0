@@ -1,0 +1,34 @@
+---
+description: Follow ACE AceSidebar usage and visual tokens exactly
+alwaysApply: true
+---
+
+# AceSidebar usage (ACE Design System)
+
+Use `@ace-ds/components/organisms/AceSidebar/AceSidebar` exactly as documented in the DS Sidebar lab / implementation rules. Do not restyle the panel away from ACE tokens.
+
+## Surface and chrome
+
+- **Panel background is white / `--screening-surface`**, never `--screening-surface-muted` or other gray page fills.
+- Do not override `bg-*` on `AceSidebar` except to disable its own box-shadow when a parent wrapper hosts `--ace-sidebar-shadow` (overflow clipping workaround).
+- Keep DS border and width: `--ace-sidebar-border`, `--ace-sidebar-width` (290px). Shadow: `--ace-sidebar-shadow`.
+- Page/main chrome may use muted gray; the **sidebar panel itself must not**.
+
+## Variants and structure
+
+- `variant="navigation"` — org switcher/label + flat `navItems` (or `children`).
+- `variant="groups"` — optional New Group CTA + expandable `groups` with nested items.
+- Parent owns `open`, selection, and group `expanded` / `onToggle`.
+- Use `menuPortalContainer` when the shell clips overflow.
+- Toggle in the page header with `sidebarIconButtonClass` + `left_panel_close` (rotate when closed), matching the lab.
+
+## Groups behavior
+
+- Prefer DS defaults: `showGroupAdd={false}` unless + is required with `onAdd`.
+- Empty expanded groups use DS empty copy (or a short `emptyGroupMessage`).
+- Omit `onMenuAction` when Edit/Copy/Delete are not part of the screen; hide overflow triggers only when the product explicitly has no group actions (settings).
+- Do not invent alternate sidebar backgrounds, widths, or item selected/hover colors — use `--ace-sidebar-item-*` / `--ace-sidebar-group-*`.
+
+## Reference
+
+DS source: `AceSidebar.tsx` panel class uses `bg-[var(--screening-surface)]`. Lab main content uses muted gray beside the sidebar — not on the sidebar.
