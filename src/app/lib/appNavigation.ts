@@ -16,7 +16,8 @@ export const LANDING_PRODUCTS = ["watchlist", "payments", "kyc", "reporting"] as
 
 export type LandingProduct = (typeof LANDING_PRODUCTS)[number];
 
-export const DEFAULT_APP_VIEW: AppView = "landing";
+/** Shared GitHub Pages build opens Review Assigned directly (other shells stay in-repo for later). */
+export const DEFAULT_APP_VIEW: AppView = "review";
 export const DEFAULT_LANDING_PRODUCT: LandingProduct = "watchlist";
 
 export function isAppView(value: string): value is AppView {

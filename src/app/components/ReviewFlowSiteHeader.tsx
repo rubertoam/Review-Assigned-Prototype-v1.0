@@ -239,7 +239,7 @@ function ProfileMenuDropdown({ profile }: { profile: FinScanProfileAvatar }) {
 function HeaderTrailingActions({ profile }: { profile: FinScanProfileAvatar }) {
   return (
     <div className="flex items-center gap-[var(--ace-site-header-toolbar-gap)] overflow-visible py-1">
-      <SettingsMenuDropdown />
+      {/* Settings / product landings hidden until those screens are ready to share. */}
       <ToolbarIconButton label="Notifications">
         <MaterialSymbol name="notifications" size="md" />
       </ToolbarIconButton>
@@ -523,24 +523,12 @@ function ProductNav({ activeId }: { activeId: ProductNavId }) {
 }
 
 export function ReviewFlowSiteHeader({
-  activeProduct,
+  activeProduct: _activeProduct,
 }: {
   activeProduct?: ProductNavId;
 } = {}) {
-  const { flowId, appView, landingProduct, openStartPage } = useUserFlow();
+  const { flowId } = useUserFlow();
   const profile = getProfileForUserFlow(flowId);
-
-  const resolvedProduct: ProductNavId =
-    activeProduct ??
-    (appView === "review"
-      ? "watchlist"
-      : appView === "payments-management"
-        ? "payments"
-        : appView === "reporting-dashboard" ||
-            appView === "reporting-report-library" ||
-            appView === "reporting-data-manager"
-          ? "reporting"
-          : landingProduct);
 
   return (
     <div className="relative shrink-0">
@@ -550,15 +538,6 @@ export function ReviewFlowSiteHeader({
         showHelp={false}
         showProfile={false}
         trailing={<HeaderTrailingActions profile={profile} />}
-      >
-        <ProductNav activeId={resolvedProduct} />
-      </AceSiteHeader>
-      {/* AceSiteHeader logo has no onClick prop yet — overlay navigates to start page. */}
-      <button
-        type="button"
-        aria-label="Go to start page"
-        onClick={openStartPage}
-        className="absolute left-[var(--ace-site-header-px)] top-1/2 z-20 h-8 w-[7.75rem] -translate-y-1/2 rounded-[var(--radius-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)]"
       />
       <div className="pointer-events-none absolute inset-x-0 top-0 flex h-[var(--ace-site-header-height)] items-center justify-center">
         <span
