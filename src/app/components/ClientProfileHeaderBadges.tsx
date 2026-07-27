@@ -1,7 +1,6 @@
 import { AceBadge } from "@ace-ds/components/atoms/AceBadge/AceBadge";
 import { aceBadgeWarningIconClass } from "@ace-ds/components/atoms/AceBadge/badgeFieldStyles";
 import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
-import { ReviewMetaTag } from "./ReviewMetaTag";
 import { cn } from "./ui/utils";
 
 /** ACE badge warning “!” — used in case list overdue affordance. */
@@ -34,9 +33,11 @@ export function ClientProfileAccordionHeaderTags({
 }) {
   return (
     <div className="flex min-w-0 flex-nowrap items-center gap-1.5 overflow-hidden">
-      <ReviewMetaTag>{`Client ID · ${clientId}`}</ReviewMetaTag>
-      <ReviewMetaTag>{countryLabel}</ReviewMetaTag>
-      {dob ? <ReviewMetaTag>{`DOB · ${dob}`}</ReviewMetaTag> : null}
+      <AceBadge appearance="tag" variant="purple">{`Client ID · ${clientId}`}</AceBadge>
+      <AceBadge appearance="tag" variant="purple">{`Country · ${countryLabel}`}</AceBadge>
+      {dob ? (
+        <AceBadge appearance="tag" variant="purple">{`DOB · ${dob}`}</AceBadge>
+      ) : null}
       {showOverdueWarning ? <ClientProfileOverdueBadge /> : null}
     </div>
   );

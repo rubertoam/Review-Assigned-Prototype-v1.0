@@ -260,7 +260,7 @@ export function ReviewDrawer({
       onClose={onClose}
       widthStorageKey="review-assigned-review-drawer-width"
       defaultWidth={480}
-      className="self-stretch"
+      className="min-h-0 self-stretch"
     >
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="relative w-full shrink-0 bg-[var(--screening-surface)]">

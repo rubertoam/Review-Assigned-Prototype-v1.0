@@ -1,11 +1,15 @@
 import { useMemo, useState } from "react";
 import {
+  AceTooltip,
+  AceTooltipContent,
+  AceTooltipTrigger,
+} from "@ace-ds/components/atoms/AceTooltip/AceTooltip";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { cn } from "./ui/utils";
 
@@ -45,8 +49,8 @@ export function ClientProfileAddressSection({
 
   return (
     <>
-      <Tooltip>
-        <TooltipTrigger asChild>
+      <AceTooltip>
+        <AceTooltipTrigger asChild>
           <button
             type="button"
             onClick={() => setMapOpen(true)}
@@ -74,18 +78,11 @@ export function ClientProfileAddressSection({
               ))}
             </div>
           </button>
-        </TooltipTrigger>
-        <TooltipContent
-          side="top"
-          hideArrow
-          className={cn(
-            aceTypography(ACE_TYPE.captionSemiBold),
-            "border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] text-[var(--screening-text-primary)] shadow-[var(--ace-drop-shadow-xs)]",
-          )}
-        >
+        </AceTooltipTrigger>
+        <AceTooltipContent side="top" variant="screening-toolbar">
           View Map
-        </TooltipContent>
-      </Tooltip>
+        </AceTooltipContent>
+      </AceTooltip>
 
       <Dialog open={mapOpen} onOpenChange={setMapOpen}>
         <DialogContent className="flex !h-[min(85vh,780px)] !max-h-[min(85vh,780px)] !max-w-[min(calc(100vw-2rem),875px)] flex-col gap-0 overflow-hidden rounded-[4px] border-[#cfd2d9] bg-white p-0 dark:border-[#38414a] dark:bg-[#22272b] sm:!max-w-[min(calc(100vw-2rem),875px)]">

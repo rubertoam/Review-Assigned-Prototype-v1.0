@@ -62,6 +62,7 @@ import {
 import { ListProfileInlineContent } from "./ListProfileInlineContent";
 import { MatchSimulatorPanel } from "./MatchSimulatorPanel";
 import { DocumentsPanel } from "./DocumentsPanel";
+import { ListHistoryPanel } from "./ListHistoryPanel";
 import { ScreeningHistoryPanel } from "./ScreeningHistoryPanel";
 
 export { easeAccordion, durationAccordion } from "./ExpandableFinScanTable";
@@ -72,14 +73,16 @@ const ROW_DRILLDOWN_VIEWS = [
   "screening-history",
   "documents",
   "match-simulator",
+  "list-history",
 ] as const;
 
 type RowDrilldownView = (typeof ROW_DRILLDOWN_VIEWS)[number];
 
 const ROW_DRILLDOWN_TRANSLATE: Record<RowDrilldownView, string> = {
-  "screening-history": "-translate-x-[25%]",
-  documents: "-translate-x-[50%]",
-  "match-simulator": "-translate-x-[75%]",
+  "screening-history": "-translate-x-[20%]",
+  documents: "-translate-x-[40%]",
+  "match-simulator": "-translate-x-[60%]",
+  "list-history": "-translate-x-[80%]",
 };
 
 /** Level 1 decision outcomes plus Level 2 terminal statuses. */
@@ -1146,6 +1149,12 @@ function ScreeningRowActionsMenu({
         >
           Match Simulator
         </DropdownMenuItem>
+        <DropdownMenuItem
+          className={screeningRowActionsMenuItemClass}
+          onSelect={() => onOpenDrilldown(row, "list-history")}
+        >
+          List History
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -1169,7 +1178,7 @@ export function isCaseScreeningComplete(rows: ScreeningResultRow[]): boolean {
 
 export function ScreeningResultsTable({
   rows = MOCK_ROWS,
-  title = "Screening Results",
+  title = "Matches",
   flowVariant = "level-1",
   caseListSection = "todo",
   className,
@@ -1937,7 +1946,7 @@ export function ScreeningResultsTable({
             <div className="relative flex min-h-0 flex-1 overflow-hidden">
               <div
                 className={cn(
-                  "flex min-h-0 w-[400%] shrink-0 transition-transform will-change-transform",
+                  "flex min-h-0 w-[500%] shrink-0 transition-transform will-change-transform",
                   durationAccordion,
                   easeAccordion,
                   !drilldownVisible
@@ -1948,7 +1957,7 @@ export function ScreeningResultsTable({
                 )}
               >
                 <div
-                  className="flex min-h-0 w-1/4 min-w-0 flex-col overflow-hidden self-stretch"
+                  className="flex min-h-0 w-1/5 min-w-0 flex-col overflow-hidden self-stretch"
                   aria-hidden={drilldownVisible}
                 >
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
@@ -2181,7 +2190,7 @@ export function ScreeningResultsTable({
             </div>
                 </div>
                 <div
-                  className="flex h-full min-h-0 w-1/4 min-w-0 flex-col overflow-hidden"
+                  className="flex h-full min-h-0 w-1/5 min-w-0 flex-col overflow-hidden"
                   aria-hidden={!drilldownVisible || drilldownView !== "screening-history"}
                 >
                   {drilldownRow && drilldownView === "screening-history" ? (
@@ -2189,7 +2198,7 @@ export function ScreeningResultsTable({
                   ) : null}
                 </div>
                 <div
-                  className="flex h-full min-h-0 w-1/4 min-w-0 flex-col overflow-hidden"
+                  className="flex h-full min-h-0 w-1/5 min-w-0 flex-col overflow-hidden"
                   aria-hidden={!drilldownVisible || drilldownView !== "documents"}
                 >
                   {drilldownRow && drilldownView === "documents" ? (
@@ -2197,11 +2206,19 @@ export function ScreeningResultsTable({
                   ) : null}
                 </div>
                 <div
-                  className="flex h-full min-h-0 w-1/4 min-w-0 flex-col overflow-hidden"
+                  className="flex h-full min-h-0 w-1/5 min-w-0 flex-col overflow-hidden"
                   aria-hidden={!drilldownVisible || drilldownView !== "match-simulator"}
                 >
                   {drilldownRow && drilldownView === "match-simulator" ? (
                     <MatchSimulatorPanel row={drilldownRow} onBack={closeRowDrilldown} />
+                  ) : null}
+                </div>
+                <div
+                  className="flex h-full min-h-0 w-1/5 min-w-0 flex-col overflow-hidden"
+                  aria-hidden={!drilldownVisible || drilldownView !== "list-history"}
+                >
+                  {drilldownRow && drilldownView === "list-history" ? (
+                    <ListHistoryPanel row={drilldownRow} onBack={closeRowDrilldown} />
                   ) : null}
                 </div>
               </div>

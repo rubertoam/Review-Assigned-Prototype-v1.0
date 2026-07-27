@@ -9,9 +9,25 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
+import { AceBadge } from "@ace-ds/components/atoms/AceBadge/AceBadge";
+import {
+  AceTooltip,
+  AceTooltipContent,
+  AceTooltipTrigger,
+} from "@ace-ds/components/atoms/AceTooltip/AceTooltip";
 import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
-import { caseActionsMenuIconClass, caseActionsMenuTriggerClass } from "../../lib/caseActionsMenuStyles";
+import {
+  caseActionsMenuContentClass,
+  caseActionsMenuIconClass,
+  caseActionsMenuItemClass,
+  caseActionsMenuTriggerClass,
+} from "../../lib/caseActionsMenuStyles";
+import {
+  CLIENT_PROFILE_ACTIONS,
+  type ClientProfileActionId,
+} from "../../lib/clientProfileActions";
 import { AllCasesClearedState } from "../../components/AllCasesClearedState";
+import { ClientProfileActionDrawer } from "../../components/ClientProfileActionDrawer";
 import { CaseListLevel2TodoEmptyState } from "../../components/CaseListLevel2TodoEmptyState";
 import { Level2AwaitingLevel1State } from "../../components/Level2AwaitingLevel1State";
 import { CaseListFilterEmptyState } from "../../components/CaseListFilterEmptyState";
@@ -22,7 +38,6 @@ import { aceDropShadowXsClass } from "../../lib/aceShadow";
 import { aceTypography, ACE_TYPE } from "../../lib/aceTypography";
 import { ReviewPanelEmptyState } from "../../components/ReviewPanelEmptyState";
 import { ReviewFlowSiteHeader } from "../../components/ReviewFlowSiteHeader";
-import { ReviewMetaTag } from "../../components/ReviewMetaTag";
 import {
   ClientProfileAccordionHeaderTags,
   ClientProfileClientIdRow,
@@ -38,12 +53,6 @@ import {
 } from "../../components/ui/dropdown-menu";
 import { CaseListFilterSelect } from "../../components/CaseListFilterSelect";
 import { CaseListSortSelect } from "../../components/CaseListSortSelect";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "../../components/ui/dialog";
 import {
   ScreeningResultsTable,
   caseHasLevel2Activity,
@@ -143,7 +152,9 @@ function PageHeader({
           <p className={cn(aceTypography(ACE_TYPE.h6Bold), "leading-[1.65] text-[var(--screening-text-primary)]")}>
             Review Assigned
           </p>
-          <ReviewMetaTag>{levelLabel}</ReviewMetaTag>
+          <AceBadge appearance="tag" variant="gray">
+            {levelLabel}
+          </AceBadge>
         </div>
       </div>
       <div className="flex gap-2 md:gap-4 items-center">
@@ -579,6 +590,7 @@ interface DetailPanelProps {
   awaitingLevel1Work: boolean;
   onQuickClearRow: (rowId: string, status: ScreeningRowStatus) => void;
   showFilterEmptyState?: boolean;
+  onOpenClientProfileAction?: (action: ClientProfileActionId) => void;
 }
 
 function DetailPanel({
@@ -592,11 +604,9 @@ function DetailPanel({
   awaitingLevel1Work,
   onQuickClearRow,
   showFilterEmptyState = false,
+  onOpenClientProfileAction,
 }: DetailPanelProps) {
   const [clientExpanded, setClientExpanded] = useState(false);
-  const [caseActionModal, setCaseActionModal] = useState<
-    null | "comments" | "history" | "reports"
-  >(null);
 
   if (showFilterEmptyState) {
     return (
@@ -631,21 +641,21 @@ function DetailPanel({
   }
 
   const profile = clientProfileForCaseIndex(selectedCaseIndex);
-  const caseActionModalTitle =
-    caseActionModal === "comments"
-      ? "Comments"
-      : caseActionModal === "history"
-        ? "History"
-        : caseActionModal === "reports"
-          ? "Reports"
-          : "";
-
   const riskPresentation = riskBandPresentation(profile.riskBand);
   const isCaseComplete = isCaseReviewComplete(screeningRows, "level-2");
   const showOverdueWarning = profile.reviewTargetOverdue && !isCaseComplete;
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
+      <div className="flex shrink-0 flex-col gap-2">
+        <p
+          className={cn(
+            aceTypography(ACE_TYPE.labelBold),
+            "m-0 text-[var(--screening-text-primary)]",
+          )}
+        >
+          Client Profile
+        </p>
       <AceAccordion
         className={cn(
           "shrink-0 border-[var(--screening-border-strong)]",
@@ -694,17 +704,18 @@ function DetailPanel({
               <DropdownMenuContent
                 align="end"
                 variant="compact"
+                className={caseActionsMenuContentClass}
                 onClick={(e) => e.stopPropagation()}
               >
-                <DropdownMenuItem onSelect={() => setCaseActionModal("comments")}>
-                  Comments
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setCaseActionModal("history")}>
-                  History
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setCaseActionModal("reports")}>
-                  Reports
-                </DropdownMenuItem>
+                {CLIENT_PROFILE_ACTIONS.map((entry) => (
+                  <DropdownMenuItem
+                    key={entry.id}
+                    className={caseActionsMenuItemClass}
+                    onSelect={() => onOpenClientProfileAction?.(entry.id)}
+                  >
+                    {entry.label}
+                  </DropdownMenuItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -722,22 +733,34 @@ function DetailPanel({
                     In Process
                   </p>
                 </div>
-                <div
-                  className={cn(
-                    "flex min-h-[120px] flex-1 flex-col items-center justify-center rounded p-6",
-                    riskPresentation.box,
-                  )}
-                >
-                  <p
-                    className={cn(
-                      "font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[20px]",
-                      riskPresentation.text,
-                    )}
-                    style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-                  >
-                    {riskPresentation.label}
-                  </p>
-                </div>
+                <AceTooltip>
+                  <AceTooltipTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="View Risk Rating"
+                      onClick={() => onOpenClientProfileAction?.("risk-rating")}
+                      className={cn(
+                        "flex min-h-[120px] flex-1 flex-col items-center justify-center rounded p-6",
+                        "cursor-pointer border-0 transition-opacity hover:opacity-90",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2",
+                        riskPresentation.box,
+                      )}
+                    >
+                      <p
+                        className={cn(
+                          "font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[20px]",
+                          riskPresentation.text,
+                        )}
+                        style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+                      >
+                        {riskPresentation.label}
+                      </p>
+                    </button>
+                  </AceTooltipTrigger>
+                  <AceTooltipContent side="top" variant="screening-toolbar">
+                    View Risk Rating
+                  </AceTooltipContent>
+                </AceTooltip>
               </div>
 
               <div className="flex min-h-0 flex-1 flex-col gap-2 self-stretch rounded border border-[#cfd2d9] dark:border-[#38414a] bg-white dark:bg-[#22272b] p-6">
@@ -799,34 +822,27 @@ function DetailPanel({
               </div>
             </div>
       </AceAccordion>
+      </div>
 
-      <Dialog
-        open={caseActionModal !== null}
-        onOpenChange={(open) => {
-          if (!open) setCaseActionModal(null);
-        }}
-      >
-        <DialogContent className="max-w-lg gap-0 overflow-hidden rounded-[4px] border-[#cfd2d9] dark:border-[#38414a] bg-white dark:bg-[#22272b] p-0 sm:max-w-lg">
-          <DialogHeader className="border-b border-[#cfd2d9] dark:border-[#38414a] px-6 py-4 text-left">
-            <DialogTitle
-              className="font-['Noto_Sans:Bold',sans-serif] text-[18px] font-bold text-[#23262c] dark:text-[#b6c2cf]"
-              style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-            >
-              {caseActionModalTitle}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="min-h-[200px] px-6 py-6" />
-        </DialogContent>
-      </Dialog>
-
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+        <p
+          className={cn(
+            aceTypography(ACE_TYPE.labelBold),
+            "m-0 shrink-0 text-[var(--screening-text-primary)]",
+          )}
+        >
+          Screening Results
+        </p>
       <ScreeningResultsTable
         rows={screeningRows}
+        title="Matches"
         flowVariant="level-2"
         caseListSection={caseListSection ?? "todo"}
         selectedIds={screeningSelectedIds}
         onSelectedIdsChange={onScreeningSelectedIdsChange}
         onQuickClearRow={onQuickClearRow}
       />
+      </div>
     </div>
   );
 }
@@ -850,6 +866,9 @@ export function Level2ReviewInterface() {
   const [selectedCaseListSection, setSelectedCaseListSection] =
     useState<CaseListSectionContext | null>(null);
   const [isReviewDrawerOpen, setIsReviewDrawerOpen] = useState(false);
+  const [clientProfileAction, setClientProfileAction] = useState<ClientProfileActionId | null>(
+    null,
+  );
   const [screeningSelectedIds, setScreeningSelectedIds] = useState<Set<string>>(() => new Set());
   const [caseFilterVisibility, setCaseFilterVisibility] = useState({
     filtersActive: false,
@@ -859,6 +878,7 @@ export function Level2ReviewInterface() {
     setSelectedCaseIndex(index);
     setSelectedCaseListSection(section);
     setScreeningSelectedIds(new Set());
+    setClientProfileAction(null);
   }, []);
   const [screeningRowsByCase, setScreeningRowsByCase] = useScreeningRowsByCase();
 
@@ -988,12 +1008,12 @@ export function Level2ReviewInterface() {
         levelLabel="Level 2"
         onTriggerClick={handleTriggerClick}
       />
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         <ReviewSidebar
           isOpen={sidebarPinned}
           sanctionMatchCount={pendingSanctionCount}
         />
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex min-h-0 flex-1 overflow-hidden">
           <div className="flex flex-col flex-1 min-h-0 overflow-hidden px-4 pb-4 gap-4">
             <div className="flex flex-1 min-h-0 overflow-hidden gap-4 pt-4">
               <div className="shrink-0 self-stretch flex flex-col min-h-0">
@@ -1020,6 +1040,7 @@ export function Level2ReviewInterface() {
                 showFilterEmptyState={
                   caseFilterVisibility.filtersActive && caseFilterVisibility.filteredCount === 0
                 }
+                onOpenClientProfileAction={setClientProfileAction}
               />
             </div>
             {!allCasesCleared && !awaitingLevel1Work ? (
@@ -1033,6 +1054,13 @@ export function Level2ReviewInterface() {
               />
             ) : null}
           </div>
+          <ClientProfileActionDrawer
+            open={clientProfileAction !== null}
+            action={clientProfileAction ?? "notes"}
+            onActionChange={setClientProfileAction}
+            onClose={() => setClientProfileAction(null)}
+            caseIndex={selectedCaseIndex ?? 0}
+          />
           <ReviewDrawer
             isOpen={isReviewDrawerOpen}
             onClose={() => setIsReviewDrawerOpen(false)}

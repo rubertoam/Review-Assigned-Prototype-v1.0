@@ -23,3 +23,7 @@ export const screeningRowActionsMenuContentClass =
   "w-max min-w-[var(--radix-dropdown-menu-trigger-width)]";
 
 export const screeningRowActionsMenuItemClass = "w-full whitespace-nowrap";
+
+/** Client profile overflow — same sizing so longer labels (e.g. View Networks) fit. */
+export const caseActionsMenuContentClass = screeningRowActionsMenuContentClass;
+export const caseActionsMenuItemClass = screeningRowActionsMenuItemClass;

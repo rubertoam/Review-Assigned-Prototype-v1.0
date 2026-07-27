@@ -547,7 +547,7 @@ export function ReviewFlowSiteHeader({
             aceDropShadowXsClass,
           )}
         >
-          UX Concept
+          UX Prototype
         </span>
       </div>
     </div>

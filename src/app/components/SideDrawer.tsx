@@ -102,7 +102,7 @@ export function SideDrawer({
   return (
     <div
       className={cn(
-        "relative flex shrink-0 flex-col overflow-hidden bg-white dark:bg-[#22272b] border-[#cfd2d9] dark:border-[#38414a]",
+        "relative flex max-h-full min-h-0 shrink-0 flex-col self-stretch overflow-hidden bg-white dark:bg-[#22272b] border-[#cfd2d9] dark:border-[#38414a]",
         isResizing
           ? "transition-opacity duration-200 ease-out"
           : "transition-[width,opacity] duration-200 ease-out",

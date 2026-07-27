@@ -11,15 +11,12 @@ import {
 } from "@ace-ds/components/organisms/AceAttachments/AceAttachments";
 import {
   formatDocumentModifyDate,
-  initialDocumentsForMatch,
-  type MatchDocumentItem,
-} from "../lib/matchDocumentsData";
+  initialDocumentsForCase,
+  type ClientDocumentItem,
+} from "../lib/clientDocumentsData";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import noDocumentsEmptyImage from "../../assets/client-documents/no-documents-empty.png";
 import { cn } from "./ui/utils";
-import type { ScreeningResultRow } from "./ScreeningResultsTable";
-
-const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 
 const drawerAccordionClass = "border-[var(--ace-accordion-border)] shadow-none";
 
@@ -28,6 +25,7 @@ const drawerAccordionTitleClass = cn(
   "text-[var(--screening-text-primary)]",
 );
 
+/** Matches AceAccordion header ActionButton chrome. */
 const accordionHeaderIconButtonClass = cn(
   "inline-flex size-6 shrink-0 items-center justify-center rounded-[var(--radius-sm)] transition-colors",
   "hover:bg-[var(--screening-surface-hover)]",
@@ -71,7 +69,7 @@ function DocumentAccordion({
   onDelete,
   onDownload,
 }: {
-  document: MatchDocumentItem;
+  document: ClientDocumentItem;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDelete: () => void;
@@ -138,28 +136,24 @@ function DocumentAccordion({
   );
 }
 
-export interface DocumentsPanelProps {
-  row: ScreeningResultRow;
-  onBack: () => void;
-  modifyUser?: string;
-}
-
-export function DocumentsPanel({
-  row,
-  onBack,
+export function ClientDocumentsDrawerContent({
+  caseIndex,
   modifyUser = "antonio",
-}: DocumentsPanelProps) {
-  const [documents, setDocuments] = useState(() => initialDocumentsForMatch(row.id));
+}: {
+  caseIndex: number;
+  modifyUser?: string;
+}) {
+  const [documents, setDocuments] = useState(() => initialDocumentsForCase(caseIndex));
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(() => new Set());
   const [uploadOpen, setUploadOpen] = useState(false);
   const [draftFiles, setDraftFiles] = useState<AceAttachmentFile[]>([]);
   const [draftLinks, setDraftLinks] = useState<AceAttachmentLink[]>([]);
   const [urlDraft, setUrlDraft] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState<MatchDocumentItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ClientDocumentItem | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   useEffect(() => {
-    setDocuments(initialDocumentsForMatch(row.id));
+    setDocuments(initialDocumentsForCase(caseIndex));
     setExpandedIds(new Set());
     setUploadOpen(false);
     setDraftFiles([]);
@@ -167,7 +161,7 @@ export function DocumentsPanel({
     setUrlDraft("");
     setDeleteTarget(null);
     setDeleteConfirmText("");
-  }, [row.id]);
+  }, [caseIndex]);
 
   const hasDocuments = documents.length > 0;
   const allExpanded =
@@ -222,7 +216,7 @@ export function DocumentsPanel({
 
   const commitUpload = () => {
     const modifyDate = formatDocumentModifyDate();
-    const fromFiles: MatchDocumentItem[] = draftFiles.map((file) => ({
+    const fromFiles: ClientDocumentItem[] = draftFiles.map((file) => ({
       id: file.id,
       title: file.name,
       category: "Unknown",
@@ -232,7 +226,7 @@ export function DocumentsPanel({
       modifyDate,
       modifyUser,
     }));
-    const fromLinks: MatchDocumentItem[] = draftLinks.map((link) => ({
+    const fromLinks: ClientDocumentItem[] = draftLinks.map((link) => ({
       id: link.id,
       title: link.url,
       category: "Unknown",
@@ -261,93 +255,64 @@ export function DocumentsPanel({
   );
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      <div className="shrink-0 bg-[var(--screening-surface)] px-4 pb-2 pt-3">
-        <button
-          type="button"
-          onClick={onBack}
-          className={cn(
-            "mb-3 inline-flex cursor-pointer items-center gap-1 rounded-[var(--radius-sm)] border-0 bg-transparent p-0 text-[var(--screening-primary)] transition-colors",
-            "hover:text-[var(--dialog-modal-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2",
-          )}
-        >
-          <MaterialSymbol name="keyboard_arrow_left" size="md" />
-          <span
-            className={cn(aceTypography(ACE_TYPE.p1Bold), "text-[var(--screening-primary)]")}
-            style={notoVar}
-          >
-            Back to List
-          </span>
-        </button>
-        <p
-          className={cn(aceTypography(ACE_TYPE.p1SemiBold), "text-[var(--screening-text-primary)]")}
-          style={notoVar}
-        >
-          Documents
-        </p>
-        <p className="sr-only">Selected match: {row.name}</p>
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--screening-surface)] px-4 py-4">
-        {hasDocuments ? (
+    <>
+      {hasDocuments ? (
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-            {documents.length > 1 ? (
-              <div className="flex shrink-0 justify-end">
-                <button
-                  type="button"
-                  onClick={toggleExpandAll}
-                  className={cn(
-                    aceTypography(ACE_TYPE.p1SemiBold),
-                    "cursor-pointer rounded-[var(--radius-sm)] border-0 bg-transparent p-0 text-[var(--screening-primary)]",
-                    "hover:text-[var(--dialog-modal-primary-hover)]",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2",
-                  )}
-                >
-                  {allExpanded ? "Collapse all" : "Expand all"}
-                </button>
-              </div>
-            ) : null}
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              <div className="flex flex-col gap-4">
-                {documents.map((document) => (
-                  <DocumentAccordion
-                    key={document.id}
-                    document={document}
-                    open={expandedIds.has(document.id)}
-                    onOpenChange={(open) => setDocumentOpen(document.id, open)}
-                    onDelete={() => {
-                      setDeleteConfirmText("");
-                      setDeleteTarget(document);
-                    }}
-                    onDownload={() => {
-                      // Prototype: download action wired for later.
-                    }}
-                  />
-                ))}
-              </div>
+          {documents.length > 1 ? (
+            <div className="flex shrink-0 justify-end">
+              <button
+                type="button"
+                onClick={toggleExpandAll}
+                className={cn(
+                  aceTypography(ACE_TYPE.p1SemiBold),
+                  "cursor-pointer rounded-[var(--radius-sm)] border-0 bg-transparent p-0 text-[var(--screening-primary)]",
+                  "hover:text-[var(--dialog-modal-primary-hover)]",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2",
+                )}
+              >
+                {allExpanded ? "Collapse all" : "Expand all"}
+              </button>
             </div>
-            <div className="flex shrink-0 justify-end">{uploadButton}</div>
+          ) : null}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="flex flex-col gap-4">
+              {documents.map((document) => (
+                <DocumentAccordion
+                  key={document.id}
+                  document={document}
+                  open={expandedIds.has(document.id)}
+                  onOpenChange={(open) => setDocumentOpen(document.id, open)}
+                  onDelete={() => {
+                    setDeleteConfirmText("");
+                    setDeleteTarget(document);
+                  }}
+                  onDownload={() => {
+                    // Prototype: download action wired for later.
+                  }}
+                />
+              ))}
+            </div>
           </div>
-        ) : (
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-4 text-center">
-            <img
-              src={noDocumentsEmptyImage}
-              alt=""
-              className="h-auto w-full max-w-[16rem] object-contain"
-            />
-            <p
-              className={cn(
-                aceTypography(ACE_TYPE.p1Regular),
-                "m-0 max-w-xs text-[var(--screening-text-muted)]",
-              )}
-              style={notoVar}
-            >
-              Please click Upload to add match documents
-            </p>
-            {uploadButton}
-          </div>
-        )}
-      </div>
+          <div className="flex shrink-0 justify-end">{uploadButton}</div>
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-4 text-center">
+          <img
+            src={noDocumentsEmptyImage}
+            alt=""
+            className="h-auto w-full max-w-[16rem] object-contain"
+          />
+          <p
+            className={cn(
+              aceTypography(ACE_TYPE.p1Regular),
+              "m-0 max-w-xs text-[var(--screening-text-muted)]",
+            )}
+          >
+            Please click Upload to add client documents
+          </p>
+          {uploadButton}
+        </div>
+      )}
 
       <DialogModal
         open={uploadOpen}
@@ -436,7 +401,7 @@ export function DocumentsPanel({
         }
       >
         <AceInputField
-          id="match-document-delete-confirm"
+          id="client-document-delete-confirm"
           label="Confirmation"
           value={deleteConfirmText}
           onChange={(event) => setDeleteConfirmText(event.target.value)}
@@ -445,6 +410,6 @@ export function DocumentsPanel({
           fieldSize="md"
         />
       </DialogModal>
-    </div>
+    </>
   );
 }
