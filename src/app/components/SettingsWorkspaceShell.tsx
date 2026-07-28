@@ -62,10 +62,7 @@ export function SettingsWorkspaceShell({
                   <MaterialSymbol
                     name="left_panel_close"
                     size="md"
-                    className={cn(
-                      "text-current transition-transform duration-[var(--ace-motion-duration-medium)] [transition-timing-function:var(--ace-motion-ease-standard)] motion-reduce:transition-none",
-                      !sidebarOpen && "rotate-180",
-                    )}
+                    className={cn("text-current", !sidebarOpen && "rotate-180")}
                   />
                 </button>
                 <MaterialSymbol

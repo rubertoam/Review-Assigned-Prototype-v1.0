@@ -3,26 +3,17 @@ import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { cn } from "./ui/utils";
 import { Checkbox } from "./ui/checkbox";
 
+/** In-memory only — refresh clears “don’t show again”. */
+let skipCompleteCaseDialog = false;
+
 export const SKIP_COMPLETE_CASE_DIALOG_KEY = "finscan-review-assigned-skip-complete-case-dialog";
 
 export function shouldSkipCompleteCaseDialog(): boolean {
-  try {
-    return sessionStorage.getItem(SKIP_COMPLETE_CASE_DIALOG_KEY) === "true";
-  } catch {
-    return false;
-  }
+  return skipCompleteCaseDialog;
 }
 
 export function setSkipCompleteCaseDialog(skip: boolean) {
-  try {
-    if (skip) {
-      sessionStorage.setItem(SKIP_COMPLETE_CASE_DIALOG_KEY, "true");
-    } else {
-      sessionStorage.removeItem(SKIP_COMPLETE_CASE_DIALOG_KEY);
-    }
-  } catch {
-    /* storage unavailable */
-  }
+  skipCompleteCaseDialog = skip;
 }
 
 const bodyBtnClass = cn(

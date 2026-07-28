@@ -8,32 +8,24 @@ import {
   type ReviewFlowVariant,
 } from "./reviewActivityData";
 
-const STORAGE_KEY = "review-assigned-row-activity-v3";
-
 export type StoredRowActivity = {
   comments: ActivityComment[];
   logs: ActivityLogItem[];
   timeline: Array<{ type: "comment" | "log"; id: string }>;
 };
 
+/** In-memory only — refresh resets the prototype. */
+const activityByRowId: Record<string, StoredRowActivity> = {};
+
 function readAll(): Record<string, StoredRowActivity> {
-  if (typeof sessionStorage === "undefined") return {};
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
-    return JSON.parse(raw) as Record<string, StoredRowActivity>;
-  } catch {
-    return {};
-  }
+  return activityByRowId;
 }
 
 function writeAll(data: Record<string, StoredRowActivity>): void {
-  if (typeof sessionStorage === "undefined") return;
-  try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch {
-    // Ignore quota / private mode errors in prototype.
+  for (const key of Object.keys(activityByRowId)) {
+    delete activityByRowId[key];
   }
+  Object.assign(activityByRowId, data);
 }
 
 export function getPersistedRowActivity(rowId: string): StoredRowActivity | null {

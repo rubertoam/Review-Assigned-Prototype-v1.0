@@ -223,7 +223,7 @@ const DOCUMENTS_REQUIRED_SEED: ReadonlySet<string> = new Set([
   "1-2", // Mr. Jose A Gonzalez
   "2-4", // Muammar Qadhafi
   "3-1", // Jane Doe
-  "4-0", // Bank of Iran
+  // Bank of Iran stays in Sanction Matches only (locked by Laura).
 ]);
 
 function initialOpenStatusForRow(
@@ -1412,8 +1412,8 @@ export function ScreeningResultsTable({
     return buildLevel1DisplayRows(rows, effectiveShowReviewHistory);
   }, [isLevel2, rows, effectiveShowReviewHistory, isCaseComplete, caseListSection]);
 
-  const showReviewHistoryToggle =
-    !isCaseComplete && !viewingDoneCaseListSection && !viewingDocumentsRequiredSection;
+  // Temporarily hide Show/Hide review-history control in the matches toolbar.
+  const showReviewHistoryToggle = false;
 
   // Chips = one per status label in the current table view. Multi-select: OR semantics. Empty selection = show all rows.
   const statusChips = useMemo(() => {

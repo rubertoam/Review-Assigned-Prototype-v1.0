@@ -17,7 +17,7 @@ export function ReviewPanelInlineInfoMessage({
   return (
     <div
       className={cn(
-        "inline-flex w-fit max-w-full items-center gap-3 rounded-[var(--radius-sm)] border border-[var(--screening-primary)] bg-[var(--screening-primary-soft-bg)] px-4 py-2",
+        "flex w-full items-center gap-3 rounded-[var(--radius-sm)] border border-[var(--screening-primary)] bg-[var(--screening-primary-soft-bg)] px-4 py-2",
         "dark:border-[#7c6bc4] dark:bg-[#2a2540]",
       )}
       role="status"
@@ -31,13 +31,13 @@ export function ReviewPanelInlineInfoMessage({
       <span
         className={cn(
           aceTypography(ACE_TYPE.p1Regular),
-          "min-w-0 leading-[1.65] text-[var(--screening-text-primary)]",
+          "min-w-0 flex-1 leading-[1.65] text-[var(--screening-text-primary)]",
         )}
         style={notoVar}
       >
         {children}
       </span>
-      {trailing ? <div className="shrink-0">{trailing}</div> : null}
+      {trailing ? <div className="ml-auto shrink-0">{trailing}</div> : null}
     </div>
   );
 }

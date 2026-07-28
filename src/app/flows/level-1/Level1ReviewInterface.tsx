@@ -134,10 +134,7 @@ function PageHeader({
           <MaterialSymbol
             name="left_panel_close"
             size="md"
-            className={cn(
-              "text-current transition-transform duration-[var(--ace-motion-duration-medium)] [transition-timing-function:var(--ace-motion-ease-standard)] motion-reduce:transition-none",
-              !sidebarPinned && "rotate-180",
-            )}
+            className={cn("text-current", !sidebarPinned && "rotate-180")}
           />
         </button>
         <div className="flex items-center gap-2">
@@ -161,30 +158,32 @@ function PageHeader({
 
 const SIDEBAR_ORGANIZATIONS = [{ id: "level-1-users", label: "Level 1 Users" }] as const;
 
+const MY_WORK_BADGE = "text-[#523eb9]";
+
 const SIDEBAR_WORK_CATEGORIES = [
   {
     id: "sanction",
     label: "Sanction Matches",
     selectable: true,
-    badgeLabelClass: "text-[#523eb9]",
+    badgeLabelClass: MY_WORK_BADGE,
   },
   {
     id: "pep",
     label: "PEP Screening",
     selectable: false,
-    badgeLabelClass: "text-[#92278f]",
+    badgeLabelClass: MY_WORK_BADGE,
   },
   {
     id: "new-clients",
     label: "New Clients",
     selectable: false,
-    badgeLabelClass: "text-[#87b531]",
+    badgeLabelClass: MY_WORK_BADGE,
   },
   {
     id: "financial",
     label: "Financial Crime",
     selectable: false,
-    badgeLabelClass: "text-[#0672a3]",
+    badgeLabelClass: MY_WORK_BADGE,
   },
 ] as const;
 
@@ -630,20 +629,23 @@ function DetailPanel({
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
       {isWorkflowView ? (
-        <div className="flex shrink-0 items-center justify-start gap-3">
-          <ReviewPanelInlineInfoMessage>
-            This case is part of an active workflow.
-          </ReviewPanelInlineInfoMessage>
-          <AceButton
-            type="button"
-            variant="primary"
-            palette="purple"
-            size="md"
-            onClick={() => setWorkflowModalOpen(true)}
-          >
-            View Workflow
-          </AceButton>
-        </div>
+        <ReviewPanelInlineInfoMessage
+          trailing={
+            <AceButton
+              type="button"
+              variant="primary"
+              palette="purple"
+              size="sm"
+              onClick={() => setWorkflowModalOpen(true)}
+            >
+              View Workflow
+            </AceButton>
+          }
+        >
+          {isCaseReadOnly
+            ? "Read only. This case is part of an active workflow but is under review by another user."
+            : "This case is part of an active workflow."}
+        </ReviewPanelInlineInfoMessage>
       ) : isCaseReadOnly ? (
         <ReviewPanelInlineInfoMessage>
           Read only. This case is locked and in review by another user.

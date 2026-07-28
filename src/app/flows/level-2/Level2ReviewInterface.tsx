@@ -150,10 +150,7 @@ function PageHeader({
           <MaterialSymbol
             name="left_panel_close"
             size="md"
-            className={cn(
-              "text-current transition-transform duration-[var(--ace-motion-duration-medium)] [transition-timing-function:var(--ace-motion-ease-standard)] motion-reduce:transition-none",
-              !sidebarPinned && "rotate-180",
-            )}
+            className={cn("text-current", !sidebarPinned && "rotate-180")}
           />
         </button>
         <div className="flex items-center gap-2">
@@ -177,24 +174,26 @@ function PageHeader({
 
 const SIDEBAR_ORGANIZATIONS = [{ id: "level-2-users", label: "Level 2 Users" }] as const;
 
+const MY_WORK_BADGE = "text-[#523eb9]";
+
 const SIDEBAR_WORK_CATEGORIES = [
   {
     id: "sanction",
     label: "Escalated Sanctions",
     selectable: true,
-    badgeLabelClass: "text-[#523eb9]",
+    badgeLabelClass: MY_WORK_BADGE,
   },
   {
     id: "pep",
     label: "Escalated PEPs",
     selectable: false,
-    badgeLabelClass: "text-[#92278f]",
+    badgeLabelClass: MY_WORK_BADGE,
   },
   {
     id: "financial",
     label: "Escalated Financial Crime",
     selectable: false,
-    badgeLabelClass: "text-[#0672a3]",
+    badgeLabelClass: MY_WORK_BADGE,
   },
 ] as const;
 

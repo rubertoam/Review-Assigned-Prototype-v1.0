@@ -14,9 +14,19 @@ export type ReviewSidebarWorkflowItem = {
 
 const WORKFLOW_BADGE = "text-[#523eb9]";
 
+function bumpCaseCount(
+  counts: Map<string, { label: string; count: number }>,
+  id: string,
+  label: string,
+): void {
+  const current = counts.get(id) ?? { label, count: 0 };
+  current.count += 1;
+  counts.set(id, current);
+}
+
 /**
  * Workflow destinations that have received cleared / routed work
- * (including Documents Required).
+ * (including Documents Required). Counts are cases in each workflow’s case list.
  */
 export function deriveReviewSidebarWorkflows(
   screeningRowsByCase: Record<number, ScreeningResultRow[]>,
@@ -26,12 +36,12 @@ export function deriveReviewSidebarWorkflows(
 
   if (flowVariant === "level-1") {
     for (const rows of Object.values(screeningRowsByCase)) {
+      const workflowsForCase = new Set<string>();
       for (const row of rows) {
         const workflow = getWorkflowForLevel1Status(row.status);
-        if (!workflow) continue;
-        const current = counts.get(workflow.id) ?? { label: workflow.label, count: 0 };
-        current.count += 1;
-        counts.set(workflow.id, current);
+        if (!workflow || workflowsForCase.has(workflow.id)) continue;
+        workflowsForCase.add(workflow.id);
+        bumpCaseCount(counts, workflow.id, workflow.label);
       }
     }
 
@@ -46,27 +56,17 @@ export function deriveReviewSidebarWorkflows(
   }
 
   for (const rows of Object.values(screeningRowsByCase)) {
+    let hasRemediate = false;
+    let hasFalsePositive = false;
+    let hasSafe = false;
     for (const row of rows) {
-      if (row.status === "Remediate") {
-        const current = counts.get("level-1-remediation") ?? {
-          label: "Level 1 Remediation",
-          count: 0,
-        };
-        current.count += 1;
-        counts.set("level-1-remediation", current);
-      } else if (row.status === "False Positive") {
-        const current = counts.get("false-positive") ?? {
-          label: "False Positive",
-          count: 0,
-        };
-        current.count += 1;
-        counts.set("false-positive", current);
-      } else if (row.status === "Safe" && row.decisionReviewer) {
-        const current = counts.get("safe") ?? { label: "Safe", count: 0 };
-        current.count += 1;
-        counts.set("safe", current);
-      }
+      if (row.status === "Remediate") hasRemediate = true;
+      else if (row.status === "False Positive") hasFalsePositive = true;
+      else if (row.status === "Safe" && row.decisionReviewer) hasSafe = true;
     }
+    if (hasRemediate) bumpCaseCount(counts, "level-1-remediation", "Level 1 Remediation");
+    if (hasFalsePositive) bumpCaseCount(counts, "false-positive", "False Positive");
+    if (hasSafe) bumpCaseCount(counts, "safe", "Safe");
   }
 
   return [...counts.entries()].map(([id, { label, count }]) => ({
