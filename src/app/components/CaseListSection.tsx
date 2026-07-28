@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { AceBadge } from "@ace-ds/components/atoms/AceBadge/AceBadge";
 import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { aceChevronIconClass } from "@ace-ds/lib/aceChevron";
 import { AnimatedCollapse } from "./AnimatedCollapse";
@@ -7,19 +8,11 @@ import { cn } from "./ui/utils";
 
 const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 
-const countBadgeClass =
-  "ms-auto flex items-center justify-center rounded-[4px] border border-[#cfd2d9] bg-[#f5f6f8] px-1.5 py-0.5 dark:border-[#38414a] dark:bg-[#333a42]";
-
 function SectionCountBadge({ count }: { count: number }) {
   return (
-    <span className={countBadgeClass}>
-      <span
-        className="font-['Noto_Sans:Bold',sans-serif] text-[12px] text-[#6a7285] dark:text-[#9fadbc]"
-        style={notoVar}
-      >
-        {count}
-      </span>
-    </span>
+    <AceBadge appearance="tag" variant="gray" className="ms-auto">
+      {count}
+    </AceBadge>
   );
 }
 

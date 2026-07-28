@@ -508,14 +508,9 @@ function CaseList({
         >
           {listTitle}
         </p>
-        <div className="flex min-w-[25px] items-center justify-center rounded-[4px] border border-[var(--screening-pill-new-border)] bg-[var(--screening-pill-new-surface)] px-2 py-1">
-          <p
-            className="font-['Noto_Sans:Bold',sans-serif] text-[14px] font-bold leading-[1.65] text-[var(--screening-pill-new-label)]"
-            style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-          >
-            {visibleRows.length}
-          </p>
-        </div>
+        <AceBadge appearance="tag" variant="purple">
+          {visibleRows.length}
+        </AceBadge>
       </div>
       <div className="shrink-0 border-b border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-3 py-2.5">
         <div className="flex items-end gap-2">

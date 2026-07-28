@@ -216,7 +216,7 @@ function randomDobForRow(caseIndex: number, rowIndex: number): string {
 
 /**
  * Seed Documents Required matches for the workflow demo.
- * These leave My Work and appear under Workflows → Documents Required.
+ * These leave My Work and appear under Workflows → Compliance Workbench.
  */
 const DOCUMENTS_REQUIRED_SEED: ReadonlySet<string> = new Set([
   "0-7", // John Smith — last match

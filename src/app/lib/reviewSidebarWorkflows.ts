@@ -26,7 +26,7 @@ function bumpCaseCount(
 
 /**
  * Workflow destinations that have received cleared / routed work
- * (including Documents Required). Counts are cases in each workflow’s case list.
+ * (including Compliance Workbench). Counts are cases in each workflow’s case list.
  */
 export function deriveReviewSidebarWorkflows(
   screeningRowsByCase: Record<number, ScreeningResultRow[]>,

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { AceBadge } from "@ace-ds/components/atoms/AceBadge/AceBadge";
 import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
 import {
@@ -25,11 +26,10 @@ const drawerAccordionClass = "shrink-0 border-[var(--ace-accordion-border)] shad
 
 function ActivityNewBadge({ count }: { count: number }) {
   return (
-    <span
-      className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#d32f2f] px-1 text-[10px] font-semibold leading-none text-white"
-      aria-label={`${count} new activity item${count === 1 ? "" : "s"}`}
-    >
-      {count}
+    <span aria-label={`${count} new activity item${count === 1 ? "" : "s"}`}>
+      <AceBadge appearance="pill" variant="red" showDot={false}>
+        {count}
+      </AceBadge>
     </span>
   );
 }

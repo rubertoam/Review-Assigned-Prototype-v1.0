@@ -479,9 +479,9 @@ function CaseList({
         <p className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[14px] text-[var(--screening-text-primary)]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
           Sanction Matches
         </p>
-        <div className="flex items-center justify-center rounded-[4px] border border-[var(--screening-pill-new-border)] bg-[var(--screening-pill-new-surface)] px-2 py-1 min-w-[25px]">
-          <p className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[var(--screening-pill-new-label)] text-[14px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>{pendingRows.length}</p>
-        </div>
+        <AceBadge appearance="tag" variant="purple">
+          {pendingRows.length}
+        </AceBadge>
       </div>
       <div className="shrink-0 border-b border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-3 py-2.5">
         <div className="flex items-end gap-2">
