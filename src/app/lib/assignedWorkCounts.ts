@@ -1,7 +1,7 @@
 import { casesData } from "./reviewCaseData";
 
 /**
- * Screening-rule counts shown under “My Assigned Work” on Review Assigned (Level 1).
+ * Screening-rule counts shown under “My Work” on Review Assigned (Level 1).
  * Sanction Matches is dynamic (open cases); the rest are static prototype values.
  */
 export const LEVEL1_STATIC_SCREENING_RULE_COUNTS = {

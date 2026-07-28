@@ -228,7 +228,7 @@ export function ClientNetworksDrawerContent({ caseIndex }: { caseIndex: number }
         <p
           className={cn(
             aceTypography(ACE_TYPE.p1Regular),
-            "m-0 max-w-xs text-[var(--screening-text-muted)]",
+            "m-0 max-w-xs text-[var(--ace-neutral-800)]",
           )}
           style={notoVar}
         >

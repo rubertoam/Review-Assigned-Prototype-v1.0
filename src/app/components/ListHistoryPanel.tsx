@@ -4,6 +4,7 @@ import {
   AceDropdownMenu,
   type AceDropdownMenuEntry,
 } from "@ace-ds/components/molecules/AceDropdownMenu/AceDropdownMenu";
+import { AceButton } from "@ace-ds/components/atoms/AceButton";
 import { AceInlineMessage } from "@ace-ds/components/molecules/AceInlineMessage/AceInlineMessage";
 import { DialogModal } from "@ace-ds/components/molecules/DialogModal/DialogModal";
 import {
@@ -20,21 +21,16 @@ import type { ScreeningResultRow } from "./ScreeningResultsTable";
 
 const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 
-const differencesModalClass =
-  "!h-fit !w-[min(96vw,90rem)] !max-h-none !max-w-[min(96vw,90rem)]";
-
-const differencesBodyMinClass = "min-h-[28rem]";
+const differencesModalClass = cn(
+  "!flex !h-[min(85vh,calc(100dvh-2rem))] !max-h-[min(85vh,calc(100dvh-2rem))]",
+  "!w-[min(96vw,90rem)] !max-w-[min(96vw,90rem)]",
+);
 
 const pagerIconButtonClass = cn(
   "inline-flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border-0 bg-transparent text-[var(--screening-text-secondary)] transition-colors",
   "hover:bg-[var(--screening-surface-hover)] hover:text-[var(--screening-text-primary)]",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)]",
   "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[var(--screening-text-secondary)]",
-);
-
-const versionIconButtonClass = cn(
-  "inline-flex size-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-[var(--screening-text-secondary)]",
-  "pointer-events-none",
 );
 
 const diffHighlightClass = "bg-[var(--ace-notice-100)]";
@@ -80,25 +76,20 @@ function HistoryVersionSelect({
       >
         {label}
       </p>
-      <div className="flex min-w-0 items-center gap-2">
-        <AceDropdownMenu
-          triggerLabel={selectedLabel}
-          triggerMode="field"
-          size="sm"
-          panelWidth="wide"
-          align="start"
-          disabled={disabled || options.length === 0}
-          className={cn(
-            "min-w-0 flex-1 !w-full !max-w-full font-['Noto_Sans:Regular',sans-serif] font-normal",
-            (disabled || options.length === 0 || !value) &&
-              "text-[var(--screening-text-muted)]",
-          )}
-          items={items}
-        />
-        <span className={versionIconButtonClass} aria-hidden>
-          <MaterialSymbol name="contact_page" size="md" className="text-current" />
-        </span>
-      </div>
+      <AceDropdownMenu
+        triggerLabel={selectedLabel}
+        triggerMode="field"
+        size="sm"
+        panelWidth="wide"
+        align="start"
+        disabled={disabled || options.length === 0}
+        className={cn(
+          "min-w-0 !w-full !max-w-full font-['Noto_Sans:Regular',sans-serif] font-normal",
+          (disabled || options.length === 0 || !value) &&
+            "text-[var(--screening-text-muted)]",
+        )}
+        items={items}
+      />
     </div>
   );
 }
@@ -114,6 +105,7 @@ export function ListDifferencesModal({
 }) {
   const [newerId, setNewerId] = useState<string | null>(null);
   const [olderId, setOlderId] = useState<string | null>(null);
+  const [changesOnly, setChangesOnly] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -121,6 +113,7 @@ export function ListDifferencesModal({
     setNewerId(initialNewer);
     const older = olderListHistoryVersions(versions, initialNewer);
     setOlderId(older[0]?.id ?? null);
+    setChangesOnly(false);
   }, [open, versions]);
 
   const olderOptions = useMemo(
@@ -136,6 +129,11 @@ export function ListDifferencesModal({
     return diffListHistoryVersions(newerVersion, olderVersion);
   }, [newerVersion, olderVersion]);
 
+  const visibleDiffRows = useMemo(
+    () => (changesOnly ? diffRows.filter((row) => row.changed) : diffRows),
+    [changesOnly, diffRows],
+  );
+
   const handleNewerChange = (id: string) => {
     setNewerId(id);
     const older = olderListHistoryVersions(versions, id);
@@ -148,11 +146,11 @@ export function ListDifferencesModal({
       onClose={onClose}
       title="List Differences"
       size="lg"
-      fitContent
       primaryAction={{ label: "Close", onClick: onClose }}
       className={differencesModalClass}
+      bodyClassName="[&>div]:flex [&>div]:min-h-0 [&>div]:flex-1 [&>div]:flex-col"
     >
-      <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
+      <div className="flex w-full shrink-0 flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
         <HistoryVersionSelect
           label="Newer Version"
           value={newerId}
@@ -170,67 +168,91 @@ export function ListDifferencesModal({
         />
       </div>
 
-      <div className={cn("flex w-full flex-col", differencesBodyMinClass)}>
+      <div className="flex min-h-0 w-full flex-1 flex-col">
         {newerVersion && olderVersion ? (
           <div className="flex w-full flex-col gap-4">
-            <AceInlineMessage tone="info">
-              List differences are highlighted in Yellow
-            </AceInlineMessage>
-            <div className="w-full overflow-hidden rounded-[var(--radius-sm)] border border-solid border-[var(--screening-border-subtle)]">
-              <table className="w-full border-collapse text-left">
-                <caption className="sr-only">Differences between list history versions</caption>
-                <thead className="border-b border-solid border-[var(--screening-border-strong)] bg-[var(--screening-surface-muted)]">
-                  <tr className="h-8">
-                    {["Field", "Newer Version", "Older Version"].map((header) => (
-                      <th
-                        key={header}
-                        scope="col"
-                        className="px-[var(--space-3)] py-[var(--space-1)] align-middle"
-                      >
-                        <span
-                          className={cn(
-                            aceTypography(ACE_TYPE.labelBold),
-                            "uppercase text-[var(--screening-text-muted)]",
-                          )}
+            <div className="flex w-full flex-wrap items-center justify-between gap-3">
+              <AceInlineMessage tone="info" className="!w-fit max-w-full">
+                List differences are highlighted in Yellow
+              </AceInlineMessage>
+              <AceButton
+                type="button"
+                variant="tertiary"
+                palette="purple"
+                size="sm"
+                onClick={() => setChangesOnly((value) => !value)}
+                aria-pressed={changesOnly}
+              >
+                {changesOnly ? "Show all fields" : "View changes only"}
+              </AceButton>
+            </div>
+            <div className="w-full overflow-x-auto rounded-[var(--radius-sm)] border border-solid border-[var(--screening-border-subtle)]">
+              {visibleDiffRows.length > 0 ? (
+                <table className="w-full border-collapse text-left">
+                  <caption className="sr-only">Differences between list history versions</caption>
+                  <thead className="sticky top-0 z-[1] border-b border-solid border-[var(--screening-border-strong)] bg-[var(--screening-surface-muted)]">
+                    <tr className="h-8">
+                      {["Field", "Newer Version", "Older Version"].map((header) => (
+                        <th
+                          key={header}
+                          scope="col"
+                          className="px-[var(--space-3)] py-[var(--space-1)] align-middle"
                         >
-                          {header}
-                        </span>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {diffRows.map((row) => (
-                    <tr
-                      key={row.label}
-                      className="border-b border-solid border-[var(--screening-border-row)] bg-[var(--screening-surface)] last:border-b-0"
-                    >
-                      <td
-                        className={cn(
-                          "whitespace-nowrap px-[var(--space-3)] py-[var(--space-3)] align-middle",
-                          aceTypography(ACE_TYPE.p1Bold),
-                          "w-[1%] text-[var(--screening-text-primary)]",
-                        )}
-                        style={notoVar}
-                      >
-                        {row.label}
-                      </td>
-                      <td
-                        className={cn(diffCellClass, row.changed && diffHighlightClass)}
-                        style={notoVar}
-                      >
-                        {row.newerValue}
-                      </td>
-                      <td
-                        className={cn(diffCellClass, row.changed && diffHighlightClass)}
-                        style={notoVar}
-                      >
-                        {row.olderValue}
-                      </td>
+                          <span
+                            className={cn(
+                              aceTypography(ACE_TYPE.labelBold),
+                              "uppercase text-[var(--screening-text-muted)]",
+                            )}
+                          >
+                            {header}
+                          </span>
+                        </th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {visibleDiffRows.map((row) => (
+                      <tr
+                        key={row.label}
+                        className="border-b border-solid border-[var(--screening-border-row)] bg-[var(--screening-surface)] last:border-b-0"
+                      >
+                        <td
+                          className={cn(
+                            "whitespace-nowrap px-[var(--space-3)] py-[var(--space-3)] align-middle",
+                            aceTypography(ACE_TYPE.p1Bold),
+                            "w-[1%] text-[var(--screening-text-primary)]",
+                          )}
+                          style={notoVar}
+                        >
+                          {row.label}
+                        </td>
+                        <td
+                          className={cn(diffCellClass, row.changed && diffHighlightClass)}
+                          style={notoVar}
+                        >
+                          {row.newerValue}
+                        </td>
+                        <td
+                          className={cn(diffCellClass, row.changed && diffHighlightClass)}
+                          style={notoVar}
+                        >
+                          {row.olderValue}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p
+                  className={cn(
+                    aceTypography(ACE_TYPE.p1Regular),
+                    "m-0 px-[var(--space-3)] py-[var(--space-4)] text-[var(--screening-text-muted)]",
+                  )}
+                  style={notoVar}
+                >
+                  No field changes between these versions.
+                </p>
+              )}
             </div>
           </div>
         ) : (
@@ -243,7 +265,7 @@ export function ListDifferencesModal({
             <p
               className={cn(
                 aceTypography(ACE_TYPE.p1Regular),
-                "m-0 max-w-xs text-[var(--screening-text-muted)]",
+                "m-0 max-w-xs text-[var(--ace-neutral-800)]",
               )}
               style={notoVar}
             >
@@ -318,63 +340,46 @@ export function ListHistoryPanel({
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden bg-[var(--screening-surface)] px-4 py-4">
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-            <p
+        <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1">
+          <p
+            className={cn(
+              aceTypography(ACE_TYPE.p1Regular),
+              "m-0 text-[var(--screening-text-primary)]",
+            )}
+            style={notoVar}
+          >
+            Viewing list record
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              aria-label="Previous list history version"
+              disabled={safeIndex <= 0}
+              onClick={() => setPageIndex((index) => Math.max(0, index - 1))}
+              className={pagerIconButtonClass}
+            >
+              <MaterialSymbol name="keyboard_arrow_left" size="md" className="text-current" />
+            </button>
+            <span
               className={cn(
                 aceTypography(ACE_TYPE.p1Regular),
-                "m-0 text-[var(--screening-text-primary)]",
+                "min-w-[3.5rem] text-center tabular-nums text-[var(--screening-text-primary)]",
               )}
               style={notoVar}
+              aria-live="polite"
             >
-              Viewing list record
-            </p>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                aria-label="Previous list history version"
-                disabled={safeIndex <= 0}
-                onClick={() => setPageIndex((index) => Math.max(0, index - 1))}
-                className={pagerIconButtonClass}
-              >
-                <MaterialSymbol name="keyboard_arrow_left" size="md" className="text-current" />
-              </button>
-              <span
-                className={cn(
-                  aceTypography(ACE_TYPE.p1Regular),
-                  "min-w-[3.5rem] text-center tabular-nums text-[var(--screening-text-primary)]",
-                )}
-                style={notoVar}
-                aria-live="polite"
-              >
-                {total === 0 ? "0 of 0" : `${safeIndex + 1} of ${total}`}
-              </span>
-              <button
-                type="button"
-                aria-label="Next list history version"
-                disabled={safeIndex >= total - 1}
-                onClick={() => setPageIndex((index) => Math.min(total - 1, index + 1))}
-                className={pagerIconButtonClass}
-              >
-                <MaterialSymbol name="keyboard_arrow_right" size="md" className="text-current" />
-              </button>
-            </div>
+              {total === 0 ? "0 of 0" : `${safeIndex + 1} of ${total}`}
+            </span>
+            <button
+              type="button"
+              aria-label="Next list history version"
+              disabled={safeIndex >= total - 1}
+              onClick={() => setPageIndex((index) => Math.min(total - 1, index + 1))}
+              className={pagerIconButtonClass}
+            >
+              <MaterialSymbol name="keyboard_arrow_right" size="md" className="text-current" />
+            </button>
           </div>
-
-          <button
-            type="button"
-            onClick={() => setDifferencesOpenSafe(true)}
-            disabled={total === 0}
-            className={cn(
-              aceTypography(ACE_TYPE.p1SemiBold),
-              "cursor-pointer rounded-[var(--radius-sm)] border-0 bg-transparent p-0 text-[var(--screening-primary)]",
-              "hover:text-[var(--dialog-modal-primary-hover)]",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2",
-              "disabled:cursor-not-allowed disabled:opacity-40",
-            )}
-          >
-            View Differences
-          </button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -382,17 +387,48 @@ export function ListHistoryPanel({
             <ListProfileAllTabView
               key={activeVersion.id}
               profile={activeVersion.profile}
+              leadingAction={
+                <button
+                  type="button"
+                  onClick={() => setDifferencesOpenSafe(true)}
+                  disabled={total === 0}
+                  className={cn(
+                    aceTypography(ACE_TYPE.p1SemiBold),
+                    "cursor-pointer rounded-[var(--radius-sm)] border-0 bg-transparent p-0 text-[var(--screening-primary)]",
+                    "hover:text-[var(--dialog-modal-primary-hover)]",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2",
+                    "disabled:cursor-not-allowed disabled:opacity-40",
+                  )}
+                >
+                  View Differences
+                </button>
+              }
             />
           ) : (
-            <p
-              className={cn(
-                aceTypography(ACE_TYPE.p1Regular),
-                "m-0 text-[var(--screening-text-muted)]",
-              )}
-              style={notoVar}
-            >
-              There is no list history for this record.
-            </p>
+            <div className="flex flex-col gap-4">
+              <div className="flex shrink-0 justify-start">
+                <button
+                  type="button"
+                  onClick={() => setDifferencesOpenSafe(true)}
+                  disabled
+                  className={cn(
+                    aceTypography(ACE_TYPE.p1SemiBold),
+                    "cursor-not-allowed rounded-[var(--radius-sm)] border-0 bg-transparent p-0 text-[var(--screening-primary)] opacity-40",
+                  )}
+                >
+                  View Differences
+                </button>
+              </div>
+              <p
+                className={cn(
+                  aceTypography(ACE_TYPE.p1Regular),
+                  "m-0 text-[var(--ace-neutral-800)]",
+                )}
+                style={notoVar}
+              >
+                There is no list history for this record.
+              </p>
+            </div>
           )}
         </div>
       </div>

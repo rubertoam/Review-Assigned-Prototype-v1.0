@@ -305,7 +305,7 @@ export function ClientDocumentsDrawerContent({
           <p
             className={cn(
               aceTypography(ACE_TYPE.p1Regular),
-              "m-0 max-w-xs text-[var(--screening-text-muted)]",
+              "m-0 max-w-xs text-[var(--ace-neutral-800)]",
             )}
           >
             Please click Upload to add client documents

@@ -17,7 +17,7 @@ const fieldTriggerClass = cn(
   "inline-flex w-max max-w-full shrink-0 items-center justify-between gap-2",
   "rounded-[var(--radius-sm)] border border-solid border-[var(--screening-border-strong)]",
   "bg-[var(--screening-surface)] px-[var(--ace-button-px-sm)] py-[var(--ace-button-py-sm)]",
-  "text-xs font-semibold leading-[1.65] text-[#23262c]",
+  "text-xs font-normal leading-[1.65] text-[#23262c]",
   "[font-family:var(--font-screening)] outline-none transition-colors",
   "hover:bg-[var(--screening-surface-hover)]",
   "focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--screening-primary-ring-offset)]",

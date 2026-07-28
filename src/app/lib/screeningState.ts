@@ -4,7 +4,7 @@ import {
   type ScreeningResultRow,
 } from "../components/ScreeningResultsTable";
 
-const STORAGE_KEY = "review-assigned-screening-rows-by-case";
+const STORAGE_KEY = "review-assigned-screening-rows-by-case-v5";
 
 export function buildInitialScreeningRowsByCase(): Record<number, ScreeningResultRow[]> {
   const out: Record<number, ScreeningResultRow[]> = {};

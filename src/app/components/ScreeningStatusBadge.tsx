@@ -5,12 +5,16 @@ import { AceBadge } from "@ace-ds/components/atoms/AceBadge/AceBadge";
 /** Map screening decision statuses to ACE badge color variants. */
 export const SCREENING_STATUS_BADGE_VARIANT: Record<string, AceBadgeVariant> = {
   New: "purple",
+  "Documents Required": "yellow",
+  Safe: "green",
+  "Escalate to Team Lead": "orange",
+  "Documents Uploaded": "blue",
+  /** Legacy / history display */
   Escalate: "orange",
   "Flag for EDD": "yellow",
   "Research (Internal)": "blue",
   "Research (External)": "teal",
   "Route to Supervisor": "pink",
-  Safe: "green",
   "Confirmed Safe": "green",
   "False Positive": "gray",
   Remediate: "red",

@@ -345,7 +345,7 @@ function ActivityCommentBlock({
 const ACTIVITY_STATUS_STYLE_ALIAS: Record<string, string> = {
   "In Process": "New",
   "Pending Review": "New",
-  "Confirmed Match": "Escalate",
+  "Confirmed Match": "Escalate to Team Lead",
 };
 
 function ActivityStatusTag({ label }: { label: string }) {

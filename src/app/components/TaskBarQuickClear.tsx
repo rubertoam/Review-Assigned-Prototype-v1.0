@@ -1,8 +1,8 @@
 import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { aceChevronIconClass } from "@ace-ds/lib/aceChevron";
 import {
-  LEVEL1_DECISION_STATUSES,
   LEVEL2_DECISION_STATUSES,
+  getLevel1DecisionStatusesForRows,
 } from "../lib/reviewDecisionConfig";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import {
@@ -14,7 +14,7 @@ import {
 } from "./ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { cn } from "./ui/utils";
-import type { ScreeningRowStatus } from "./ScreeningResultsTable";
+import type { ScreeningResultRow, ScreeningRowStatus } from "./ScreeningResultsTable";
 
 const fieldTriggerClass = cn(
   aceTypography(ACE_TYPE.p1Regular),
@@ -34,6 +34,7 @@ const fieldTriggerClass = cn(
 interface TaskBarQuickClearProps {
   disabled: boolean;
   flowVariant: "level-1" | "level-2";
+  selectedRows: readonly ScreeningResultRow[];
   onSelect: (status: ScreeningRowStatus) => void;
 }
 
@@ -41,10 +42,13 @@ interface TaskBarQuickClearProps {
 export function TaskBarQuickClear({
   disabled,
   flowVariant,
+  selectedRows,
   onSelect,
 }: TaskBarQuickClearProps) {
   const options =
-    flowVariant === "level-2" ? LEVEL2_DECISION_STATUSES : LEVEL1_DECISION_STATUSES;
+    flowVariant === "level-2"
+      ? LEVEL2_DECISION_STATUSES
+      : getLevel1DecisionStatusesForRows(selectedRows);
 
   const trigger = (
     <DropdownMenu>

@@ -113,6 +113,7 @@ export function ReportingWorkspaceShell({
               groups={sidebarGroups}
               showGroupAdd={false}
               addLabel={newGroupLabel}
+              onNewGroup={showNewGroupControl ? () => undefined : undefined}
               emptyGroupMessage={emptyGroupMessage}
               menuPortalContainer={menuHost}
               className={cn(
@@ -131,9 +132,6 @@ export function ReportingWorkspaceShell({
                     "[&>div>div:first-child>button>span:not(.material-symbols-outlined)]:!leading-none",
                     "[&>div>div:first-child>button>span:not(.material-symbols-outlined)]:!py-0",
                   ].join(" "),
-                // Hiding the control removes its py-4; restore top inset so groups aren't clipped.
-                !showNewGroupControl &&
-                  "[&>div>div:first-child]:hidden [&>div>nav]:pt-5",
               )}
             />
           </div>

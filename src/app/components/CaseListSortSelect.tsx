@@ -7,7 +7,7 @@ import { CASE_SORT_OPTIONS, type CaseSortValue } from "../lib/reviewCaseData";
 
 function sortTriggerLabel(value: CaseSortValue): string {
   const match = CASE_SORT_OPTIONS.find((option) => option.value === value);
-  return match ? `Sort: ${match.label}` : "Sort";
+  return match?.label ?? CASE_SORT_OPTIONS[0]?.label ?? "";
 }
 
 export function CaseListSortSelect({

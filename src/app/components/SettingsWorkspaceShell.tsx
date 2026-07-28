@@ -107,8 +107,6 @@ export function SettingsWorkspaceShell({
               className={cn(
                 // Keep DS panel surface (--screening-surface); only relocate shadow to wrapper.
                 "h-full min-h-0 !shadow-none",
-                // Hide New Group; restore top inset so first group isn’t clipped.
-                "[&>div>div:first-child]:hidden [&>div>nav]:pt-5",
                 // Settings groups have no Edit/Copy/Delete — hide ACE overflow triggers.
                 "[&_button[aria-label^='Actions for']]:hidden",
               )}

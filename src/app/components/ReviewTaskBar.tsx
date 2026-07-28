@@ -4,13 +4,14 @@ import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { TaskBarQuickClear } from "./TaskBarQuickClear";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { cn } from "./ui/utils";
-import type { ScreeningRowStatus } from "./ScreeningResultsTable";
+import type { ScreeningResultRow, ScreeningRowStatus } from "./ScreeningResultsTable";
 
 interface ReviewTaskBarProps {
   flowVariant: "level-1" | "level-2";
   onShowReview: () => void;
   isReviewOpen: boolean;
   screeningSelectionCount: number;
+  selectedRows: readonly ScreeningResultRow[];
   onDeselectAllScreening: () => void;
   onBulkQuickClear: (status: ScreeningRowStatus) => void;
 }
@@ -20,6 +21,7 @@ export function ReviewTaskBar({
   onShowReview,
   isReviewOpen,
   screeningSelectionCount,
+  selectedRows,
   onDeselectAllScreening,
   onBulkQuickClear,
 }: ReviewTaskBarProps) {
@@ -92,6 +94,7 @@ export function ReviewTaskBar({
         <TaskBarQuickClear
           disabled={isSelectionEmpty}
           flowVariant={flowVariant}
+          selectedRows={selectedRows}
           onSelect={onBulkQuickClear}
         />
         {isShowReviewDisabled ? (

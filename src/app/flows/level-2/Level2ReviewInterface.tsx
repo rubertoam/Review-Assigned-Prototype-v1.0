@@ -71,6 +71,10 @@ import { isLevel1InProcessStatus } from "../../lib/reviewDecisionConfig";
 import { useScreeningRowsByCase } from "../../lib/screeningState";
 import { useCompleteCaseSubmit } from "../../lib/useCompleteCaseSubmit";
 import {
+  buildSubmitUndoSnapshot,
+  useBulkSubmitUndoToast,
+} from "../../lib/useBulkSubmitUndoToast";
+import {
   caseMatchesFilters,
   casesData,
   clientProfileForCaseIndex,
@@ -82,9 +86,13 @@ import {
 import { cn } from "../../components/ui/utils";
 import { ReviewDrawer } from "../../components/ReviewDrawer";
 import { ReviewTaskBar } from "../../components/ReviewTaskBar";
-import { AceSidebar } from "@ace-ds/components/organisms/AceSidebar/AceSidebar";
+import {
+  ReviewAssignedSidebar,
+  withSanctionCount,
+  type ReviewAssignedSidebarSelection,
+} from "../../components/ReviewAssignedSidebar";
 import { sidebarIconButtonClass } from "@ace-ds/components/organisms/AceSidebar/sidebarRowActions";
-import { ReviewSidebarGroupSection } from "../../components/ReviewSidebarGroupSection";
+import { deriveReviewSidebarWorkflows } from "../../lib/reviewSidebarWorkflows";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
 
 interface PageHeaderProps {
@@ -169,15 +177,7 @@ function PageHeader({
 
 const SIDEBAR_ORGANIZATIONS = [{ id: "level-2-users", label: "Level 2 Users" }] as const;
 
-type SidebarNavItemConfig = {
-  id: string;
-  label: string;
-  count: number;
-  selectable: boolean;
-  badgeLabelClass: string;
-};
-
-const SIDEBAR_NAV_ITEMS: readonly Omit<SidebarNavItemConfig, "count">[] = [
+const SIDEBAR_WORK_CATEGORIES = [
   {
     id: "sanction",
     label: "Escalated Sanctions",
@@ -196,81 +196,43 @@ const SIDEBAR_NAV_ITEMS: readonly Omit<SidebarNavItemConfig, "count">[] = [
     selectable: false,
     badgeLabelClass: "text-[#0672a3]",
   },
-];
+] as const;
 
 const STATIC_SIDEBAR_COUNTS: Record<string, number> = {
   pep: 18,
   financial: 8,
 };
 
-const REVIEW_QUERY_ITEMS = [
-  { id: "assigned", label: "Assigned to Me", count: 5, badgeLabelClass: "text-[#523eb9]" },
-  { id: "escalated", label: "Escalations - New Clients", count: 2, badgeLabelClass: "text-[#92278f]" },
-  { id: "overdue", label: "Overdue Items", count: 1, badgeLabelClass: "text-[#ef6c00]" },
-] as const;
-
 interface ReviewSidebarProps {
   isOpen: boolean;
   sanctionMatchCount: number;
+  workflowItems: ReturnType<typeof deriveReviewSidebarWorkflows>;
 }
 
-function ReviewSidebar({ isOpen, sanctionMatchCount }: ReviewSidebarProps) {
-  const [selectedOrgId, setSelectedOrgId] = useState<string>(SIDEBAR_ORGANIZATIONS[0].id);
-  const [selectedNavId, setSelectedNavId] = useState<string>(SIDEBAR_NAV_ITEMS[0].id);
-  const [screeningRulesExpanded, setScreeningRulesExpanded] = useState(true);
-  const [reviewQueriesExpanded, setReviewQueriesExpanded] = useState(true);
-
-  const screeningRuleItems = useMemo(
+function ReviewSidebar({ isOpen, sanctionMatchCount, workflowItems }: ReviewSidebarProps) {
+  const [selection, setSelection] = useState<ReviewAssignedSidebarSelection>({
+    kind: "work",
+    id: "sanction",
+  });
+  const workCategories = useMemo(
     () =>
-      SIDEBAR_NAV_ITEMS.map((item) => ({
-        id: item.id,
-        label: item.label,
-        count: item.id === "sanction" ? sanctionMatchCount : (STATIC_SIDEBAR_COUNTS[item.id] ?? 0),
-        badgeLabelClass: item.badgeLabelClass,
-        selected: selectedNavId === item.id,
-        disabled: !item.selectable,
-        onSelect: item.selectable ? () => setSelectedNavId(item.id) : undefined,
-      })),
-    [sanctionMatchCount, selectedNavId],
-  );
-
-  const reviewQueryItems = useMemo(
-    () =>
-      REVIEW_QUERY_ITEMS.map((item) => ({
-        id: item.id,
-        label: item.label,
-        count: item.count,
-        badgeLabelClass: item.badgeLabelClass,
-        disabled: true,
-      })),
-    [],
+      withSanctionCount(
+        SIDEBAR_WORK_CATEGORIES,
+        STATIC_SIDEBAR_COUNTS,
+        sanctionMatchCount,
+      ),
+    [sanctionMatchCount],
   );
 
   return (
-    <div className="h-full shrink-0">
-      <AceSidebar
-        open={isOpen}
-        variant="navigation"
-        organizations={[...SIDEBAR_ORGANIZATIONS]}
-        selectedOrganizationId={selectedOrgId}
-        onOrganizationChange={setSelectedOrgId}
-        navItems={[]}
-        className="h-full [&_nav]:gap-3"
-      >
-        <ReviewSidebarGroupSection
-          label="My Assigned Work"
-          expanded={screeningRulesExpanded}
-          onToggle={() => setScreeningRulesExpanded((open) => !open)}
-          items={screeningRuleItems}
-        />
-        <ReviewSidebarGroupSection
-          label="Review Queries"
-          expanded={reviewQueriesExpanded}
-          onToggle={() => setReviewQueriesExpanded((open) => !open)}
-          items={reviewQueryItems}
-        />
-      </AceSidebar>
-    </div>
+    <ReviewAssignedSidebar
+      open={isOpen}
+      organizations={SIDEBAR_ORGANIZATIONS}
+      workCategories={workCategories}
+      workflowItems={workflowItems}
+      selection={selection}
+      onSelectionChange={setSelection}
+    />
   );
 }
 
@@ -921,35 +883,95 @@ export function Level2ReviewInterface() {
     [screeningRowsByCase],
   );
 
+  const sidebarWorkflowItems = useMemo(
+    () => deriveReviewSidebarWorkflows(screeningRowsByCase, "level-2"),
+    [screeningRowsByCase],
+  );
+
   const handleShowReview = useCallback(() => {
     setIsReviewDrawerOpen((open) => !open);
   }, []);
 
+  const restoreSubmittedRows = useCallback(
+    (caseIndex: number, previousRowsById: Record<string, (typeof screeningRows)[number]>) => {
+      setScreeningRowsByCase((prev) => {
+        const current = prev[caseIndex] ?? getScreeningRowsForCase(caseIndex);
+        return {
+          ...prev,
+          [caseIndex]: current.map((row) => previousRowsById[row.id] ?? row),
+        };
+      });
+    },
+    [setScreeningRowsByCase],
+  );
+
+  const { showBulkSubmitToast, commitPendingToast, bulkSubmitToast } = useBulkSubmitUndoToast({
+    restoreRows: restoreSubmittedRows,
+  });
+
   const handleSubmitDecision = useCallback(
     (status: string, reason: string) => {
+      if (selectedCaseIndex === null) return;
+
+      const current =
+        screeningRowsByCase[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
+      const snapshot = buildSubmitUndoSnapshot({
+        caseIndex: selectedCaseIndex,
+        caseName: casesData[selectedCaseIndex]?.name ?? "Case",
+        rows: current,
+        selectedIds: screeningSelectedIds,
+        status,
+        flowVariant: "level-2",
+      });
+
+      commitPendingToast();
+
       setScreeningRowsByCase((prev) => {
-        const current =
+        const rows =
           prev[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
         return {
           ...prev,
-          [selectedCaseIndex]: current.map((row) =>
+          [selectedCaseIndex]: rows.map((row) =>
             screeningSelectedIds.has(row.id) ? applyLevel2Decision(row, status, reason) : row,
           ),
         };
       });
       setScreeningSelectedIds(new Set());
+      showBulkSubmitToast(snapshot);
     },
-    [selectedCaseIndex, screeningSelectedIds, setScreeningRowsByCase],
+    [
+      selectedCaseIndex,
+      screeningSelectedIds,
+      screeningRowsByCase,
+      setScreeningRowsByCase,
+      commitPendingToast,
+      showBulkSubmitToast,
+    ],
   );
 
   const handleQuickClearRow = useCallback(
     (rowId: string, status: ScreeningRowStatus) => {
+      if (selectedCaseIndex === null) return;
+
+      const current =
+        screeningRowsByCase[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
+      const snapshot = buildSubmitUndoSnapshot({
+        caseIndex: selectedCaseIndex,
+        caseName: casesData[selectedCaseIndex]?.name ?? "Case",
+        rows: current,
+        selectedIds: new Set([rowId]),
+        status,
+        flowVariant: "level-2",
+      });
+
+      commitPendingToast();
+
       setScreeningRowsByCase((prev) => {
-        const current =
+        const rows =
           prev[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
         return {
           ...prev,
-          [selectedCaseIndex]: current.map((row) =>
+          [selectedCaseIndex]: rows.map((row) =>
             row.id === rowId ? applyLevel2Decision(row, status, status) : row,
           ),
         };
@@ -960,18 +982,40 @@ export function Level2ReviewInterface() {
         next.delete(rowId);
         return next;
       });
+      showBulkSubmitToast(snapshot);
     },
-    [selectedCaseIndex, setScreeningRowsByCase],
+    [
+      selectedCaseIndex,
+      screeningRowsByCase,
+      setScreeningRowsByCase,
+      commitPendingToast,
+      showBulkSubmitToast,
+    ],
   );
 
   const handleBulkQuickClear = useCallback(
     (status: ScreeningRowStatus) => {
+      if (selectedCaseIndex === null) return;
+
+      const current =
+        screeningRowsByCase[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
+      const snapshot = buildSubmitUndoSnapshot({
+        caseIndex: selectedCaseIndex,
+        caseName: casesData[selectedCaseIndex]?.name ?? "Case",
+        rows: current,
+        selectedIds: screeningSelectedIds,
+        status,
+        flowVariant: "level-2",
+      });
+
+      commitPendingToast();
+
       setScreeningRowsByCase((prev) => {
-        const current =
+        const rows =
           prev[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
         return {
           ...prev,
-          [selectedCaseIndex]: current.map((row) =>
+          [selectedCaseIndex]: rows.map((row) =>
             screeningSelectedIds.has(row.id)
               ? applyLevel2Decision(row, status, status)
               : row,
@@ -979,8 +1023,16 @@ export function Level2ReviewInterface() {
         };
       });
       setScreeningSelectedIds(new Set());
+      showBulkSubmitToast(snapshot);
     },
-    [selectedCaseIndex, screeningSelectedIds, setScreeningRowsByCase],
+    [
+      selectedCaseIndex,
+      screeningSelectedIds,
+      screeningRowsByCase,
+      setScreeningRowsByCase,
+      commitPendingToast,
+      showBulkSubmitToast,
+    ],
   );
 
   const { submitReviewDecision, completeCaseConfirmDialog } = useCompleteCaseSubmit({
@@ -1012,6 +1064,7 @@ export function Level2ReviewInterface() {
         <ReviewSidebar
           isOpen={sidebarPinned}
           sanctionMatchCount={pendingSanctionCount}
+          workflowItems={sidebarWorkflowItems}
         />
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <div className="flex flex-col flex-1 min-h-0 overflow-hidden px-4 pb-4 gap-4">
@@ -1049,6 +1102,7 @@ export function Level2ReviewInterface() {
                 onShowReview={handleShowReview}
                 isReviewOpen={isReviewDrawerOpen}
                 screeningSelectionCount={screeningSelectedIds.size}
+                selectedRows={selectedScreeningRows}
                 onDeselectAllScreening={() => setScreeningSelectedIds(new Set())}
                 onBulkQuickClear={handleBulkQuickClear}
               />
@@ -1072,6 +1126,7 @@ export function Level2ReviewInterface() {
         </div>
       </div>
       {completeCaseConfirmDialog}
+      {bulkSubmitToast}
     </div>
     </ThemeProvider>
   );

@@ -81,8 +81,9 @@ const RELATIVE_TIME_MINUTES: Record<string, number> = {
 };
 
 const STATUS_LABELS = [
-  "Escalate",
+  "Escalate to Team Lead",
   "Safe",
+  "Documents Uploaded",
   "In Process",
   "False Positive",
   "Confirmed Match",

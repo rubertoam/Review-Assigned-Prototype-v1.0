@@ -248,6 +248,47 @@
   animation: activity-pulse 1.6s ease-in-out 2;
 }
 
+/* Toast slide in/out from the left (Review Assigned toast host). */
+@keyframes ace-toast-slide-in-left {
+  from {
+    transform: translateX(calc(-100% - 2rem));
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes ace-toast-slide-out-left {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(calc(-100% - 2rem));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes ace-toast-slide-in-left {
+    from,
+    to {
+      transform: none;
+      opacity: 1;
+    }
+  }
+
+  @keyframes ace-toast-slide-out-left {
+    from,
+    to {
+      transform: none;
+      opacity: 0;
+    }
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .activity-pulse {
     animation: none;

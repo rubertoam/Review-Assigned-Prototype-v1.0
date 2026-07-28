@@ -8,7 +8,7 @@ import {
   type ReviewFlowVariant,
 } from "./reviewActivityData";
 
-const STORAGE_KEY = "review-assigned-row-activity";
+const STORAGE_KEY = "review-assigned-row-activity-v3";
 
 export type StoredRowActivity = {
   comments: ActivityComment[];

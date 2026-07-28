@@ -22,8 +22,8 @@ import {
 } from "../lib/reviewActivityState";
 import type { ReviewPanelVersion } from "../lib/reviewPanelVersions";
 import {
-  LEVEL1_DECISION_STATUSES,
   LEVEL2_DECISION_STATUSES,
+  getLevel1DecisionStatusesForRows,
   getReasonsForDecisionStatus,
 } from "../lib/reviewDecisionConfig";
 import {
@@ -123,9 +123,20 @@ export function ReviewDrawer({
   const [activityPersistRevision, setActivityPersistRevision] = useState(0);
 
   const statusOptions = useMemo(
-    () => (flowVariant === "level-1" ? LEVEL1_DECISION_STATUSES : LEVEL2_DECISION_STATUSES),
-    [flowVariant],
+    () =>
+      flowVariant === "level-1"
+        ? getLevel1DecisionStatusesForRows(selectedRows)
+        : LEVEL2_DECISION_STATUSES,
+    [flowVariant, selectedRows],
   );
+
+  useEffect(() => {
+    if (!selectedStatus) return;
+    if (!(statusOptions as readonly string[]).includes(selectedStatus)) {
+      setSelectedStatus(null);
+      setSelectedReason(null);
+    }
+  }, [selectedStatus, statusOptions]);
 
   const reasonOptions = useMemo(
     () => getReasonsForDecisionStatus(flowVariant, selectedStatus),

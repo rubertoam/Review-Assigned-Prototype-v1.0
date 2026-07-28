@@ -67,6 +67,11 @@ import {
 import { useScreeningRowsByCase } from "../../lib/screeningState";
 import { useCompleteCaseSubmit } from "../../lib/useCompleteCaseSubmit";
 import {
+  buildSubmitUndoSnapshot,
+  useBulkSubmitUndoToast,
+} from "../../lib/useBulkSubmitUndoToast";
+import { useOverdueWarningToast } from "../../lib/useOverdueWarningToast";
+import {
   caseMatchesFilters,
   casesData,
   clientProfileForCaseIndex,
@@ -80,17 +85,28 @@ import {
   lockedCaseReviewer,
 } from "../../lib/caseLockConfig";
 import { LEVEL1_STATIC_SCREENING_RULE_COUNTS } from "../../lib/assignedWorkCounts";
+import { deriveReviewSidebarWorkflows } from "../../lib/reviewSidebarWorkflows";
 import { cn } from "../../components/ui/utils";
 import { ReviewDrawer } from "../../components/ReviewDrawer";
 import { ReviewTaskBar } from "../../components/ReviewTaskBar";
-import { SidebarNavCountBadge } from "../../components/SidebarNavCountBadge";
 import {
-  isLevel1InProcessStatus,
+  getLevel1DecisionStatusesForRows,
+  getLevel1StatusesForWorkflowId,
+  getWorkflowLabelById,
+  isDocumentsRequiredWorkflowId,
+  isLevel1DecisionStatus,
+  isLevel1MyWorkStatus,
   type Level1ScreeningStatus,
 } from "../../lib/reviewDecisionConfig";
-import { AceSidebar } from "@ace-ds/components/organisms/AceSidebar/AceSidebar";
+import {
+  ReviewAssignedSidebar,
+  withSanctionCount,
+  type ReviewAssignedSidebarSelection,
+} from "../../components/ReviewAssignedSidebar";
 import { sidebarIconButtonClass } from "@ace-ds/components/organisms/AceSidebar/sidebarRowActions";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
+import { AceButton } from "@ace-ds/components/atoms/AceButton";
+import { DialogModal } from "@ace-ds/components/molecules/DialogModal/DialogModal";
 
 interface PageHeaderProps {
   isSidebarOpen: boolean;
@@ -145,15 +161,7 @@ function PageHeader({
 
 const SIDEBAR_ORGANIZATIONS = [{ id: "level-1-users", label: "Level 1 Users" }] as const;
 
-type SidebarNavItemConfig = {
-  id: string;
-  label: string;
-  count: number;
-  selectable: boolean;
-  badgeLabelClass: string;
-};
-
-const SIDEBAR_NAV_ITEMS: readonly Omit<SidebarNavItemConfig, "count">[] = [
+const SIDEBAR_WORK_CATEGORIES = [
   {
     id: "sanction",
     label: "Sanction Matches",
@@ -178,109 +186,46 @@ const SIDEBAR_NAV_ITEMS: readonly Omit<SidebarNavItemConfig, "count">[] = [
     selectable: false,
     badgeLabelClass: "text-[#0672a3]",
   },
-];
+] as const;
 
 const STATIC_SIDEBAR_COUNTS: Record<string, number> = {
   ...LEVEL1_STATIC_SCREENING_RULE_COUNTS,
 };
 
-function ReviewSidebarNavRow({
-  item,
-  selected,
-  onSelect,
-}: {
-  item: SidebarNavItemConfig;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <div
-      className={cn(
-        "group/row relative z-[1] flex items-center rounded-[var(--ace-sidebar-item-radius)]",
-        selected
-          ? "bg-[var(--ace-sidebar-item-selected-bg)] text-[var(--ace-sidebar-item-selected-text)]"
-          : item.selectable
-            ? "text-[var(--screening-text-primary)] hover:bg-[var(--ace-sidebar-item-hover-bg)]"
-            : "text-[var(--screening-text-muted)]",
-      )}
-    >
-      <button
-        type="button"
-        disabled={!item.selectable}
-        aria-label={`${item.label}, ${item.count}`}
-        aria-current={selected ? "page" : undefined}
-        onClick={item.selectable ? onSelect : undefined}
-        className={cn(
-          "flex min-w-0 flex-1 items-center border-0 bg-transparent px-3 py-1.5 text-left outline-none",
-          "transition-colors duration-[var(--ace-motion-duration-fast)] [transition-timing-function:var(--ace-motion-ease-standard)]",
-          item.selectable
-            ? "cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--screening-primary-ring-offset)]"
-            : "cursor-not-allowed",
-        )}
-      >
-        <span
-          className={cn(
-            aceTypography(ACE_TYPE.p1Regular),
-            "min-w-0 flex-1 truncate text-sm leading-[1.3125rem]",
-          )}
-        >
-          {item.label}
-        </span>
-      </button>
-      <SidebarNavCountBadge count={item.count} badgeLabelClass={item.badgeLabelClass} />
-    </div>
-  );
-}
-
 interface ReviewSidebarProps {
   isOpen: boolean;
   sanctionMatchCount: number;
+  workflowItems: ReturnType<typeof deriveReviewSidebarWorkflows>;
+  selection: ReviewAssignedSidebarSelection;
+  onSelectionChange: (selection: ReviewAssignedSidebarSelection) => void;
 }
 
-function ReviewSidebar({ isOpen, sanctionMatchCount }: ReviewSidebarProps) {
-  const [selectedOrgId, setSelectedOrgId] = useState<string>(SIDEBAR_ORGANIZATIONS[0].id);
-  const [selectedNavId, setSelectedNavId] = useState<string>(SIDEBAR_NAV_ITEMS[0].id);
-
-  const navItems = useMemo(
-    (): SidebarNavItemConfig[] =>
-      SIDEBAR_NAV_ITEMS.map((item) => ({
-        ...item,
-        count: item.id === "sanction" ? sanctionMatchCount : (STATIC_SIDEBAR_COUNTS[item.id] ?? 0),
-      })),
+function ReviewSidebar({
+  isOpen,
+  sanctionMatchCount,
+  workflowItems,
+  selection,
+  onSelectionChange,
+}: ReviewSidebarProps) {
+  const workCategories = useMemo(
+    () =>
+      withSanctionCount(
+        SIDEBAR_WORK_CATEGORIES,
+        STATIC_SIDEBAR_COUNTS,
+        sanctionMatchCount,
+      ),
     [sanctionMatchCount],
   );
 
   return (
-    <div className="h-full shrink-0">
-      <AceSidebar
-        open={isOpen}
-        variant="navigation"
-        organizations={[...SIDEBAR_ORGANIZATIONS]}
-        selectedOrganizationId={selectedOrgId}
-        onOrganizationChange={setSelectedOrgId}
-        navItems={[]}
-        className="h-full"
-      >
-        <div className="flex flex-col gap-0">
-          <p
-            className={cn(
-              aceTypography(ACE_TYPE.p1SemiBold),
-              "px-3 pb-2 pt-1 text-[var(--screening-text-primary)]",
-            )}
-          >
-            My Assigned Work
-          </p>
-          {navItems.map((item) => (
-            <ReviewSidebarNavRow
-              key={item.id}
-              item={item}
-              selected={item.id === selectedNavId}
-              onSelect={() => setSelectedNavId(item.id)}
-            />
-          ))}
-        </div>
-      </AceSidebar>
-    </div>
+    <ReviewAssignedSidebar
+      open={isOpen}
+      organizations={SIDEBAR_ORGANIZATIONS}
+      workCategories={workCategories}
+      workflowItems={workflowItems}
+      selection={selection}
+      onSelectionChange={onSelectionChange}
+    />
   );
 }
 
@@ -290,6 +235,9 @@ interface CaseListProps {
   selectedCaseListSection: CaseListSectionContext;
   screeningRowsByCase: Record<number, ScreeningResultRow[]>;
   onFilterVisibilityChange?: (state: { filtersActive: boolean; filteredCount: number }) => void;
+  /** When set, list shows cases that have matches in this workflow (read-only destination). */
+  workflowId?: string | null;
+  listTitle?: string;
 }
 
 type CaseListRow = { item: (typeof casesData)[number]; index: number };
@@ -300,25 +248,44 @@ function CaseList({
   selectedCaseListSection,
   screeningRowsByCase,
   onFilterVisibilityChange,
+  workflowId = null,
+  listTitle = "Sanction Matches",
 }: CaseListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
-  const [doneSectionExpanded, setDoneSectionExpanded] = useState(false);
   const [selectedCaseFilters, setSelectedCaseFilters] = useState<ReadonlySet<CaseFilterValue>>(
     () => new Set(),
   );
   const [caseSort, setCaseSort] = useState<CaseSortValue>("results-desc");
   const wasSelectedCaseCompleteRef = useRef(false);
+  const isWorkflowView = Boolean(workflowId);
+  const isDocumentsRequiredWorkflow = isDocumentsRequiredWorkflowId(workflowId);
+  const workflowCaseSection: CaseListSectionContext = isDocumentsRequiredWorkflow
+    ? "documents-required"
+    : "done";
+  const workflowStatuses = useMemo(
+    () => (workflowId ? getLevel1StatusesForWorkflowId(workflowId) : []),
+    [workflowId],
+  );
 
   const caseRowsForIndex = useCallback(
     (index: number) => screeningRowsByCase[index] ?? getScreeningRowsForCase(index),
     [screeningRowsByCase],
   );
 
-  /** Results still awaiting Level 1 review (the count the analyst acts on). */
+  /** Results still awaiting Level 1 review in My Work. */
   const pendingResultCount = useCallback(
-    (index: number) => caseRowsForIndex(index).filter((r) => r.status === "New").length,
+    (index: number) =>
+      caseRowsForIndex(index).filter((r) => isLevel1MyWorkStatus(r.status)).length,
     [caseRowsForIndex],
+  );
+
+  const workflowResultCount = useCallback(
+    (index: number) =>
+      caseRowsForIndex(index).filter((r) =>
+        workflowStatuses.includes(r.status as (typeof workflowStatuses)[number]),
+      ).length,
+    [caseRowsForIndex, workflowStatuses],
   );
 
   const filteredRows = useMemo(() => {
@@ -328,137 +295,121 @@ function CaseList({
         out.push({ item, index });
       }
     });
-    out.sort((a, b) => compareCasesBySort(a.index, b.index, caseSort, pendingResultCount));
+    out.sort((a, b) =>
+      compareCasesBySort(
+        a.index,
+        b.index,
+        caseSort,
+        isWorkflowView ? workflowResultCount : pendingResultCount,
+      ),
+    );
     return out;
-  }, [selectedCaseFilters, caseSort, pendingResultCount]);
+  }, [
+    selectedCaseFilters,
+    caseSort,
+    pendingResultCount,
+    workflowResultCount,
+    isWorkflowView,
+  ]);
+
+  const visibleRows = useMemo(() => {
+    if (isWorkflowView) {
+      return filteredRows.filter((row) => workflowResultCount(row.index) > 0);
+    }
+    return filteredRows.filter((row) => !isCaseScreeningComplete(caseRowsForIndex(row.index)));
+  }, [filteredRows, isWorkflowView, workflowResultCount, caseRowsForIndex]);
 
   useEffect(() => {
     onFilterVisibilityChange?.({
       filtersActive: selectedCaseFilters.size > 0,
-      filteredCount: filteredRows.length,
+      filteredCount: visibleRows.length,
     });
-  }, [filteredRows.length, selectedCaseFilters.size, onFilterVisibilityChange]);
-
-  /** Results sent to (or through) Level 2 — used in the done section row label. */
-  const sentToLevel2ResultCount = useCallback(
-    (index: number) =>
-      caseRowsForIndex(index).filter(
-        (r) => isLevel1InProcessStatus(r.status) || isLevel2ReviewedRow(r),
-      ).length,
-    [caseRowsForIndex],
-  );
-
-  const { pendingRows, doneRows } = useMemo(() => {
-    const pending: CaseListRow[] = [];
-    const done: CaseListRow[] = [];
-    filteredRows.forEach((row) => {
-      const caseRows = caseRowsForIndex(row.index);
-      const complete = isCaseScreeningComplete(caseRows);
-      // Any result that has moved to (or through) Level 2.
-      const hasSentToLevel2 = caseRows.some(
-        (r) => isLevel1InProcessStatus(r.status) || isLevel2ReviewedRow(r),
-      );
-      if (!complete) pending.push(row);
-      // A case keeps a spot in "Sent to Level 2" whenever it has work there,
-      // even if remediated results have reopened it in "To Do".
-      if (complete || hasSentToLevel2) done.push(row);
-    });
-    return { pendingRows: pending, doneRows: done };
-  }, [filteredRows, caseRowsForIndex]);
-
-  useEffect(() => {
-    if (pendingRows.length === 0 && doneRows.length > 0) {
-      setDoneSectionExpanded(true);
-    }
-  }, [pendingRows.length, doneRows.length]);
+  }, [visibleRows.length, selectedCaseFilters.size, onFilterVisibilityChange]);
 
   const caseReviewProgress = useMemo(
     () =>
       casesData.map((_, i) => {
         const rows = caseRowsForIndex(i);
-        const done = rows.filter((r) => r.status !== "New").length;
-        return { done, total: rows.length };
+        const done = rows.filter((r) => isLevel1DecisionStatus(r.status)).length;
+        return { done, total: rows.filter((r) => r.status !== "Documents Required").length };
       }),
     [caseRowsForIndex],
   );
 
   useEffect(() => {
+    if (isWorkflowView) return;
     const rows = caseRowsForIndex(selectedCaseIndex);
     wasSelectedCaseCompleteRef.current = isCaseScreeningComplete(rows);
-  }, [selectedCaseIndex, caseRowsForIndex]);
+  }, [selectedCaseIndex, caseRowsForIndex, isWorkflowView]);
 
   useEffect(() => {
+    if (isWorkflowView) return;
     if (selectedCaseListSection !== "todo") return;
     const rows = caseRowsForIndex(selectedCaseIndex);
     const complete = isCaseScreeningComplete(rows);
-    if (complete && !wasSelectedCaseCompleteRef.current && pendingRows.length > 0) {
-      onSelectCase(pendingRows[0].index, "todo");
+    if (complete && !wasSelectedCaseCompleteRef.current && visibleRows.length > 0) {
+      onSelectCase(visibleRows[0].index, "todo");
     }
     wasSelectedCaseCompleteRef.current = complete;
   }, [
     screeningRowsByCase,
     selectedCaseIndex,
     selectedCaseListSection,
-    pendingRows,
+    visibleRows,
     onSelectCase,
     caseRowsForIndex,
+    isWorkflowView,
   ]);
 
   useEffect(() => {
-    const activeList = selectedCaseListSection === "done" ? doneRows : pendingRows;
-    if (activeList.some((r) => r.index === selectedCaseIndex)) return;
-    if (activeList.length > 0) {
-      onSelectCase(activeList[0].index, selectedCaseListSection);
+    if (visibleRows.some((r) => r.index === selectedCaseIndex)) return;
+    if (visibleRows.length > 0) {
+      onSelectCase(visibleRows[0].index, isWorkflowView ? workflowCaseSection : "todo");
     }
-  }, [doneRows, pendingRows, selectedCaseIndex, selectedCaseListSection, onSelectCase]);
+  }, [visibleRows, selectedCaseIndex, onSelectCase, isWorkflowView, workflowCaseSection]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isFocused) return;
 
-      const activeList = selectedCaseListSection === "done" ? doneRows : pendingRows;
-      const pos = activeList.findIndex((r) => r.index === selectedCaseIndex);
+      const pos = visibleRows.findIndex((r) => r.index === selectedCaseIndex);
       if (pos < 0) return;
+      const section: CaseListSectionContext = isWorkflowView ? workflowCaseSection : "todo";
 
-      if (e.key === 'ArrowDown') {
+      if (e.key === "ArrowDown") {
         e.preventDefault();
-        if (pos < activeList.length - 1) {
-          onSelectCase(activeList[pos + 1].index, selectedCaseListSection);
+        if (pos < visibleRows.length - 1) {
+          onSelectCase(visibleRows[pos + 1].index, section);
         }
-      } else if (e.key === 'ArrowUp') {
+      } else if (e.key === "ArrowUp") {
         e.preventDefault();
         if (pos > 0) {
-          onSelectCase(activeList[pos - 1].index, selectedCaseListSection);
+          onSelectCase(visibleRows[pos - 1].index, section);
         }
       }
     };
 
     const listElement = listRef.current;
     if (listElement) {
-      listElement.addEventListener('keydown', handleKeyDown);
-      return () => listElement.removeEventListener('keydown', handleKeyDown);
+      listElement.addEventListener("keydown", handleKeyDown);
+      return () => listElement.removeEventListener("keydown", handleKeyDown);
     }
-  }, [selectedCaseIndex, selectedCaseListSection, onSelectCase, isFocused, pendingRows, doneRows]);
+  }, [selectedCaseIndex, onSelectCase, isFocused, visibleRows, isWorkflowView, workflowCaseSection]);
 
-  const renderCaseRow = (
-    caseItem: (typeof casesData)[number],
-    index: number,
-    section: CaseListSectionContext,
-  ) => {
+  const renderCaseRow = (caseItem: (typeof casesData)[number], index: number) => {
+    const section: CaseListSectionContext = isWorkflowView ? workflowCaseSection : "todo";
     const isEntity = "isEntity" in caseItem && caseItem.isEntity;
     const profile = clientProfileForCaseIndex(index);
     const clientId = profile.clientId;
     const { done, total } = caseReviewProgress[index] ?? { done: 0, total: 1 };
     const progressPct = total > 0 ? (done / total) * 100 : 0;
     const pendingCount = pendingResultCount(index);
-    const resultsCount =
-      section === "todo"
-        ? pendingCount > 0
-          ? pendingCount
-          : caseItem.results
-        : sentToLevel2ResultCount(index);
-    const isSelected =
-      selectedCaseIndex === index && selectedCaseListSection === section;
+    const resultsCount = isWorkflowView
+      ? workflowResultCount(index)
+      : pendingCount > 0
+        ? pendingCount
+        : caseItem.results;
+    const isSelected = selectedCaseIndex === index && selectedCaseListSection === section;
     const lockReviewer = lockedCaseReviewer(index);
     return (
       <div
@@ -470,20 +421,37 @@ function CaseList({
         onClick={() => onSelectCase(index, section)}
       >
         {isSelected && isFocused && (
-          <div aria-hidden="true" className="absolute inset-0 z-20 border-[0.5px] border-[#523eb9] border-solid pointer-events-none" />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-20 border-[0.5px] border-solid border-[#523eb9]"
+          />
         )}
         <div className="relative z-10 flex items-center justify-between gap-3">
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className={`${isEntity ? 'h-[15px]' : ''} w-[16px] shrink-0`}>
-              <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox={isEntity ? "0 0 16 15" : "0 0 16 16"}>
-                <path d={isEntity ? svgPaths.p1ac17500 : svgPaths.p8c3ef80} fill="var(--fill-0, #523EB9)" />
+            <div className={`${isEntity ? "h-[15px]" : ""} w-[16px] shrink-0`}>
+              <svg
+                className="block size-full"
+                fill="none"
+                preserveAspectRatio="none"
+                viewBox={isEntity ? "0 0 16 15" : "0 0 16 16"}
+              >
+                <path
+                  d={isEntity ? svgPaths.p1ac17500 : svgPaths.p8c3ef80}
+                  fill="var(--fill-0, #523EB9)"
+                />
               </svg>
             </div>
-            <div className="flex flex-col flex-1 min-w-0">
-              <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[#23262c] dark:text-[#b6c2cf] text-[14px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <p
+                className="font-['Noto_Sans:Regular',sans-serif] text-[14px] font-normal leading-[1.65] text-[#23262c] dark:text-[#b6c2cf]"
+                style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+              >
                 {caseItem.name}
               </p>
-              <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[#23262c] dark:text-[#b6c2cf] text-[10px] tracking-[0.2px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
+              <p
+                className="font-['Noto_Sans:Regular',sans-serif] text-[10px] font-normal leading-[1.65] tracking-[0.2px] text-[#23262c] dark:text-[#b6c2cf]"
+                style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+              >
                 {clientId} · {resultsCount} results
               </p>
             </div>
@@ -508,15 +476,17 @@ function CaseList({
             ) : null}
           </div>
         </div>
-        <div
-          className="pointer-events-none absolute bottom-1 left-4 right-4 z-10 h-1 overflow-hidden rounded-full border border-[#e4e6ea] bg-[#eff0f2] dark:bg-[#2c333a] opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-          aria-hidden
-        >
+        {!isWorkflowView ? (
           <div
-            className="h-full rounded-full bg-[#523eb9] transition-[width] duration-300 ease-out"
-            style={{ width: `${progressPct}%` }}
-          />
-        </div>
+            className="pointer-events-none absolute bottom-1 left-4 right-4 z-10 h-1 overflow-hidden rounded-full border border-[#e4e6ea] bg-[#eff0f2] opacity-0 transition-opacity duration-200 group-hover:opacity-100 dark:bg-[#2c333a]"
+            aria-hidden
+          >
+            <div
+              className="h-full rounded-full bg-[#523eb9] transition-[width] duration-300 ease-out"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        ) : null}
       </div>
     );
   };
@@ -533,11 +503,19 @@ function CaseList({
       )}
     >
       <div className="flex items-center justify-between px-3 pb-3 pt-5">
-        <p className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[14px] text-[var(--screening-text-primary)]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-          Sanction Matches
+        <p
+          className="font-['Noto_Sans:Bold',sans-serif] text-[14px] font-bold leading-[1.65] text-[var(--screening-text-primary)]"
+          style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+        >
+          {listTitle}
         </p>
-        <div className="flex items-center justify-center rounded-[4px] border border-[var(--screening-pill-new-border)] bg-[var(--screening-pill-new-surface)] px-2 py-1 min-w-[25px]">
-          <p className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[var(--screening-pill-new-label)] text-[14px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>{pendingRows.length}</p>
+        <div className="flex min-w-[25px] items-center justify-center rounded-[4px] border border-[var(--screening-pill-new-border)] bg-[var(--screening-pill-new-surface)] px-2 py-1">
+          <p
+            className="font-['Noto_Sans:Bold',sans-serif] text-[14px] font-bold leading-[1.65] text-[var(--screening-pill-new-label)]"
+            style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+          >
+            {visibleRows.length}
+          </p>
         </div>
       </div>
       <div className="shrink-0 border-b border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-3 py-2.5">
@@ -567,30 +545,25 @@ function CaseList({
       </div>
       <div className="flex flex-col">
         <CaseListSection
-          title="Case List - To Do"
-          count={pendingRows.length}
+          title={isWorkflowView ? "Cases" : "Case List - To Do"}
+          count={visibleRows.length}
           collapsible={false}
           emptyContent={
-            selectedCaseFilters.size > 0 && pendingRows.length === 0 ? (
+            selectedCaseFilters.size > 0 && visibleRows.length === 0 ? (
               <CaseListFilterEmptyState />
+            ) : isWorkflowView && visibleRows.length === 0 ? (
+              <div className="px-4 py-8 text-center">
+                <p
+                  className="m-0 font-['Noto_Sans:Regular',sans-serif] text-[13px] leading-[1.65] text-[var(--ace-neutral-800)]"
+                  style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+                >
+                  No cases in this workflow yet.
+                </p>
+              </div>
             ) : undefined
           }
         >
-          {pendingRows.map(({ item, index }) => renderCaseRow(item, index, "todo"))}
-        </CaseListSection>
-        <CaseListSection
-          title="Sent to Level 2"
-          count={doneRows.length}
-          expanded={doneSectionExpanded}
-          onExpandedChange={setDoneSectionExpanded}
-          hideWhenEmpty
-          emptyContent={
-            selectedCaseFilters.size > 0 && doneRows.length === 0 ? (
-              <CaseListFilterEmptyState />
-            ) : undefined
-          }
-        >
-          {doneRows.map(({ item, index }) => renderCaseRow(item, index, "done"))}
+          {visibleRows.map(({ item, index }) => renderCaseRow(item, index))}
         </CaseListSection>
       </div>
     </div>
@@ -607,7 +580,12 @@ interface DetailPanelProps {
   allCasesCleared: boolean;
   onQuickClearRow: (rowId: string, status: ScreeningRowStatus) => void;
   showFilterEmptyState?: boolean;
+  emptyStateMessage?: string;
   isCaseReadOnly?: boolean;
+  /** When set, show the workflow info banner above the client profile. */
+  workflowLabel?: string | null;
+  /** True for workflows that have left Level 1 action (not Documents Required). */
+  workflowReadOnly?: boolean;
   onOpenClientProfileAction?: (action: ClientProfileActionId) => void;
 }
 
@@ -621,22 +599,27 @@ function DetailPanel({
   allCasesCleared,
   onQuickClearRow,
   showFilterEmptyState = false,
+  emptyStateMessage = "No cases match the selected filters.",
   isCaseReadOnly = false,
+  workflowLabel = null,
+  workflowReadOnly = false,
   onOpenClientProfileAction,
 }: DetailPanelProps) {
   const [clientExpanded, setClientExpanded] = useState(false);
+  const [workflowModalOpen, setWorkflowModalOpen] = useState(false);
   const profile = clientProfileForCaseIndex(selectedCaseIndex);
   const riskPresentation = riskBandPresentation(profile.riskBand);
+  const isWorkflowView = Boolean(workflowLabel);
 
   if (showFilterEmptyState) {
     return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <ReviewPanelEmptyState message="No cases match the selected filters." />
+        <ReviewPanelEmptyState message={emptyStateMessage} />
       </div>
     );
   }
 
-  if (allCasesCleared) {
+  if (allCasesCleared && !isWorkflowView) {
     return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <AllCasesClearedState />
@@ -646,11 +629,45 @@ function DetailPanel({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
-      {isCaseReadOnly ? (
+      {isWorkflowView ? (
+        <div className="flex shrink-0 items-center justify-start gap-3">
+          <ReviewPanelInlineInfoMessage>
+            This case is part of an active workflow.
+          </ReviewPanelInlineInfoMessage>
+          <AceButton
+            type="button"
+            variant="primary"
+            palette="purple"
+            size="md"
+            onClick={() => setWorkflowModalOpen(true)}
+          >
+            View Workflow
+          </AceButton>
+        </div>
+      ) : isCaseReadOnly ? (
         <ReviewPanelInlineInfoMessage>
           Read only. This case is locked and in review by another user.
         </ReviewPanelInlineInfoMessage>
       ) : null}
+      <DialogModal
+        open={workflowModalOpen}
+        onClose={() => setWorkflowModalOpen(false)}
+        title="View Workflow"
+        size="lg"
+        secondaryAction={{
+          label: "Close",
+          onClick: () => setWorkflowModalOpen(false),
+        }}
+      >
+        <p
+          className={cn(
+            aceTypography(ACE_TYPE.p1Regular),
+            "m-0 text-[var(--screening-text-primary)]",
+          )}
+        >
+          {/* Content TBD */}
+        </p>
+      </DialogModal>
       <div className="flex shrink-0 flex-col gap-2">
         <p
           className={cn(
@@ -693,7 +710,7 @@ function DetailPanel({
           "min-w-0 flex-1 overflow-visible text-[var(--screening-text-primary)] !truncate",
         )}
         headerTrailing={
-          isCaseReadOnly ? null : (
+          isCaseReadOnly || workflowReadOnly ? null : (
           <div className="shrink-0 self-center" onClick={(e) => e.stopPropagation()}>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -846,7 +863,7 @@ function DetailPanel({
         selectedIds={screeningSelectedIds}
         onSelectedIdsChange={onScreeningSelectedIdsChange}
         onQuickClearRow={onQuickClearRow}
-        readOnly={isCaseReadOnly}
+        readOnly={isCaseReadOnly || workflowReadOnly}
       />
       </div>
     </div>
@@ -858,6 +875,10 @@ export function Level1ReviewInterface() {
   const [selectedCaseIndex, setSelectedCaseIndex] = useState(0);
   const [selectedCaseListSection, setSelectedCaseListSection] =
     useState<CaseListSectionContext>("todo");
+  const [sidebarSelection, setSidebarSelection] = useState<ReviewAssignedSidebarSelection>({
+    kind: "work",
+    id: "sanction",
+  });
   const [isReviewDrawerOpen, setIsReviewDrawerOpen] = useState(false);
   const [clientProfileAction, setClientProfileAction] = useState<ClientProfileActionId | null>(
     null,
@@ -875,9 +896,45 @@ export function Level1ReviewInterface() {
   }, []);
   const [screeningRowsByCase, setScreeningRowsByCase] = useScreeningRowsByCase();
 
-  const screeningRows = useMemo(
-    () => screeningRowsByCase[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex),
-    [screeningRowsByCase, selectedCaseIndex],
+  const isWorkflowView = sidebarSelection.kind === "workflow";
+  const selectedWorkflowId = isWorkflowView ? sidebarSelection.id : null;
+  const selectedWorkflowLabel = selectedWorkflowId
+    ? getWorkflowLabelById(selectedWorkflowId)
+    : null;
+  const isDocumentsRequiredWorkflow = isDocumentsRequiredWorkflowId(selectedWorkflowId);
+  const isWorkflowReadOnlyView = isWorkflowView && !isDocumentsRequiredWorkflow;
+  const workflowStatuses = useMemo(
+    () => (selectedWorkflowId ? getLevel1StatusesForWorkflowId(selectedWorkflowId) : []),
+    [selectedWorkflowId],
+  );
+
+  const screeningRows = useMemo(() => {
+    const rows =
+      screeningRowsByCase[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
+    if (isWorkflowView) {
+      return rows.filter((row) =>
+        workflowStatuses.includes(row.status as (typeof workflowStatuses)[number]),
+      );
+    }
+    // My Work — New + completed decisions for history; Documents Required is in its workflow.
+    return rows.filter((row) => row.status !== "Documents Required");
+  }, [screeningRowsByCase, selectedCaseIndex, isWorkflowView, workflowStatuses]);
+
+  const handleSidebarSelectionChange = useCallback(
+    (selection: ReviewAssignedSidebarSelection) => {
+      setSidebarSelection(selection);
+      setScreeningSelectedIds(new Set());
+      setClientProfileAction(null);
+      setIsReviewDrawerOpen(false);
+      if (selection.kind === "workflow") {
+        setSelectedCaseListSection(
+          isDocumentsRequiredWorkflowId(selection.id) ? "documents-required" : "done",
+        );
+      } else {
+        setSelectedCaseListSection("todo");
+      }
+    },
+    [],
   );
 
   const isSelectedCaseReadOnly = isCaseLockedByAnotherUser(selectedCaseIndex);
@@ -912,18 +969,80 @@ export function Level1ReviewInterface() {
     [screeningRowsByCase],
   );
 
+  const sidebarWorkflowItems = useMemo(
+    () => deriveReviewSidebarWorkflows(screeningRowsByCase, "level-1"),
+    [screeningRowsByCase],
+  );
+
+  useEffect(() => {
+    if (sidebarSelection.kind !== "workflow") return;
+    const stillPresent = sidebarWorkflowItems.some((item) => item.id === sidebarSelection.id);
+    if (!stillPresent) {
+      setSidebarSelection({ kind: "work", id: "sanction" });
+      setSelectedCaseListSection("todo");
+    }
+  }, [sidebarSelection, sidebarWorkflowItems]);
+
+  const workflowHasCases = useMemo(() => {
+    if (!isWorkflowView) return true;
+    return casesData.some((_, index) => {
+      const rows = screeningRowsByCase[index] ?? getScreeningRowsForCase(index);
+      return rows.some((row) =>
+        workflowStatuses.includes(row.status as (typeof workflowStatuses)[number]),
+      );
+    });
+  }, [isWorkflowView, screeningRowsByCase, workflowStatuses]);
+
   const handleShowReview = useCallback(() => {
     setIsReviewDrawerOpen((open) => !open);
   }, []);
 
+  const restoreSubmittedRows = useCallback(
+    (caseIndex: number, previousRowsById: Record<string, (typeof screeningRows)[number]>) => {
+      setScreeningRowsByCase((prev) => {
+        const current = prev[caseIndex] ?? getScreeningRowsForCase(caseIndex);
+        return {
+          ...prev,
+          [caseIndex]: current.map((row) => previousRowsById[row.id] ?? row),
+        };
+      });
+    },
+    [setScreeningRowsByCase],
+  );
+
+  const { showBulkSubmitToast, commitPendingToast, bulkSubmitToast } = useBulkSubmitUndoToast({
+    restoreRows: restoreSubmittedRows,
+  });
+
+  const overdueWarningToast = useOverdueWarningToast();
+
   const handleSubmitDecision = useCallback(
     (status: string, reason: string) => {
+      const current =
+        screeningRowsByCase[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
+      const selectedRows = current.filter((row) => screeningSelectedIds.has(row.id));
+      if (
+        !(getLevel1DecisionStatusesForRows(selectedRows) as readonly string[]).includes(status)
+      ) {
+        return;
+      }
+      const snapshot = buildSubmitUndoSnapshot({
+        caseIndex: selectedCaseIndex,
+        caseName: casesData[selectedCaseIndex]?.name ?? "Case",
+        rows: current,
+        selectedIds: screeningSelectedIds,
+        status,
+        flowVariant: "level-1",
+      });
+
+      commitPendingToast();
+
       setScreeningRowsByCase((prev) => {
-        const current =
+        const rows =
           prev[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
         return {
           ...prev,
-          [selectedCaseIndex]: current.map((row) =>
+          [selectedCaseIndex]: rows.map((row) =>
             screeningSelectedIds.has(row.id)
               ? {
                   ...row,
@@ -936,18 +1055,46 @@ export function Level1ReviewInterface() {
         };
       });
       setScreeningSelectedIds(new Set());
+      showBulkSubmitToast(snapshot);
     },
-    [selectedCaseIndex, screeningSelectedIds, setScreeningRowsByCase],
+    [
+      selectedCaseIndex,
+      screeningSelectedIds,
+      screeningRowsByCase,
+      setScreeningRowsByCase,
+      commitPendingToast,
+      showBulkSubmitToast,
+    ],
   );
 
   const handleQuickClearRow = useCallback(
     (rowId: string, status: ScreeningRowStatus) => {
+      const current =
+        screeningRowsByCase[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
+      const target = current.find((row) => row.id === rowId);
+      if (!target) return;
+      if (
+        !(getLevel1DecisionStatusesForRows([target]) as readonly string[]).includes(status)
+      ) {
+        return;
+      }
+      const snapshot = buildSubmitUndoSnapshot({
+        caseIndex: selectedCaseIndex,
+        caseName: casesData[selectedCaseIndex]?.name ?? "Case",
+        rows: current,
+        selectedIds: new Set([rowId]),
+        status,
+        flowVariant: "level-1",
+      });
+
+      commitPendingToast();
+
       setScreeningRowsByCase((prev) => {
-        const current =
+        const rows =
           prev[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
         return {
           ...prev,
-          [selectedCaseIndex]: current.map((row) =>
+          [selectedCaseIndex]: rows.map((row) =>
             row.id === rowId
               ? {
                   ...row,
@@ -965,18 +1112,44 @@ export function Level1ReviewInterface() {
         next.delete(rowId);
         return next;
       });
+      showBulkSubmitToast(snapshot);
     },
-    [selectedCaseIndex, setScreeningRowsByCase],
+    [
+      selectedCaseIndex,
+      screeningRowsByCase,
+      setScreeningRowsByCase,
+      commitPendingToast,
+      showBulkSubmitToast,
+    ],
   );
 
   const handleBulkQuickClear = useCallback(
     (status: ScreeningRowStatus) => {
+      const current =
+        screeningRowsByCase[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
+      const selectedRows = current.filter((row) => screeningSelectedIds.has(row.id));
+      if (
+        !(getLevel1DecisionStatusesForRows(selectedRows) as readonly string[]).includes(status)
+      ) {
+        return;
+      }
+      const snapshot = buildSubmitUndoSnapshot({
+        caseIndex: selectedCaseIndex,
+        caseName: casesData[selectedCaseIndex]?.name ?? "Case",
+        rows: current,
+        selectedIds: screeningSelectedIds,
+        status,
+        flowVariant: "level-1",
+      });
+
+      commitPendingToast();
+
       setScreeningRowsByCase((prev) => {
-        const current =
+        const rows =
           prev[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
         return {
           ...prev,
-          [selectedCaseIndex]: current.map((row) =>
+          [selectedCaseIndex]: rows.map((row) =>
             screeningSelectedIds.has(row.id)
               ? {
                   ...row,
@@ -989,8 +1162,16 @@ export function Level1ReviewInterface() {
         };
       });
       setScreeningSelectedIds(new Set());
+      showBulkSubmitToast(snapshot);
     },
-    [selectedCaseIndex, screeningSelectedIds, setScreeningRowsByCase],
+    [
+      selectedCaseIndex,
+      screeningSelectedIds,
+      screeningRowsByCase,
+      setScreeningRowsByCase,
+      commitPendingToast,
+      showBulkSubmitToast,
+    ],
   );
 
   const { submitReviewDecision, completeCaseConfirmDialog } = useCompleteCaseSubmit({
@@ -1022,6 +1203,9 @@ export function Level1ReviewInterface() {
         <ReviewSidebar
           isOpen={sidebarPinned}
           sanctionMatchCount={pendingSanctionCount}
+          workflowItems={sidebarWorkflowItems}
+          selection={sidebarSelection}
+          onSelectionChange={handleSidebarSelectionChange}
         />
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <div className="flex flex-col flex-1 min-h-0 overflow-hidden px-4 pb-4 gap-4">
@@ -1033,6 +1217,8 @@ export function Level1ReviewInterface() {
                   selectedCaseListSection={selectedCaseListSection}
                   screeningRowsByCase={screeningRowsByCase}
                   onFilterVisibilityChange={setCaseFilterVisibility}
+                  workflowId={selectedWorkflowId}
+                  listTitle={selectedWorkflowLabel ?? "Sanction Matches"}
                 />
               </div>
               <DetailPanel
@@ -1042,21 +1228,33 @@ export function Level1ReviewInterface() {
                 screeningRows={screeningRows}
                 screeningSelectedIds={screeningSelectedIds}
                 onScreeningSelectedIdsChange={setScreeningSelectedIds}
-                allCasesCleared={allCasesCleared}
+                allCasesCleared={allCasesCleared && !isWorkflowView}
                 onQuickClearRow={handleQuickClearRow}
                 showFilterEmptyState={
-                  caseFilterVisibility.filtersActive && caseFilterVisibility.filteredCount === 0
+                  (caseFilterVisibility.filtersActive &&
+                    caseFilterVisibility.filteredCount === 0) ||
+                  (isWorkflowView && !workflowHasCases)
+                }
+                emptyStateMessage={
+                  isWorkflowView && !workflowHasCases
+                    ? "No cases in this workflow yet."
+                    : "No cases match the selected filters."
                 }
                 isCaseReadOnly={isSelectedCaseReadOnly}
+                workflowLabel={selectedWorkflowLabel}
+                workflowReadOnly={isWorkflowReadOnlyView}
                 onOpenClientProfileAction={setClientProfileAction}
               />
             </div>
-            {!allCasesCleared && !isSelectedCaseReadOnly ? (
+            {!allCasesCleared &&
+            !isSelectedCaseReadOnly &&
+            (!isWorkflowView || isDocumentsRequiredWorkflow) ? (
               <ReviewTaskBar
                 flowVariant="level-1"
                 onShowReview={handleShowReview}
                 isReviewOpen={isReviewDrawerOpen}
                 screeningSelectionCount={screeningSelectedIds.size}
+                selectedRows={selectedScreeningRows}
                 onDeselectAllScreening={() => setScreeningSelectedIds(new Set())}
                 onBulkQuickClear={handleBulkQuickClear}
               />
@@ -1080,6 +1278,8 @@ export function Level1ReviewInterface() {
         </div>
       </div>
       {completeCaseConfirmDialog}
+      {bulkSubmitToast}
+      {overdueWarningToast}
     </div>
     </ThemeProvider>
   );

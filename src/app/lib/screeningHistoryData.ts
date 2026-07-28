@@ -1,5 +1,6 @@
 import type { AceTimelineVariant } from "@ace-ds/components/organisms/AceTimeline/AceTimeline";
 import type { ScreeningResultRow } from "../components/ScreeningResultsTable";
+import { isLevel1OpenQueueStatus } from "./reviewDecisionConfig";
 
 export type ScreeningHistoryDetail = {
   reason: string;
@@ -20,8 +21,10 @@ export type ScreeningHistoryEventSource = {
 
 function variantForStatus(status: string): AceTimelineVariant {
   if (status === "New") return "system-action";
+  if (status === "Documents Required") return "pending";
   if (status === "Confirmed Safe" || status === "Safe") return "safe";
-  if (status === "Escalate") return "escalation";
+  if (status === "Escalate" || status === "Escalate to Team Lead") return "escalation";
+  if (status === "Documents Uploaded") return "blocked";
   if (status === "False Positive") return "blocked";
   return "pending";
 }
@@ -78,14 +81,33 @@ export function getScreeningHistoryEventsForRow(row: ScreeningResultRow): Screen
     return events;
   }
 
-  if (row.status !== "New") {
+  if (row.status === "Documents Required") {
+    events.push({
+      id: `${row.id}-documents-required`,
+      variant: "pending",
+      label: "Documents Required",
+      timestamp: "14 Apr 2026 16:02:11",
+      user: "loaduser",
+      details: {
+        reason: "Documents Required",
+        comment: "Supporting documents requested before disposition",
+        listVersion: "20120612",
+        timeViewed: "--",
+        daysOpen: "< 1 Day",
+      },
+    });
+    return events;
+  }
+
+  if (!isLevel1OpenQueueStatus(row.status)) {
     const reviewer = row.decisionReviewer ?? row.level1Reviewer ?? "Laura";
     const reason = row.decisionReason ?? row.level1Reason ?? row.status;
 
     events.push({
       id: `${row.id}-review`,
       variant: variantForStatus(row.status),
-      label: row.status === "Safe" ? "Confirmed Safe" : row.status,
+      label:
+        row.status === "Safe" && row.decisionReviewer ? "Confirmed Safe" : row.status,
       timestamp: "15 Apr 2026 09:12:08",
       user: reviewer.toLowerCase(),
       details: {

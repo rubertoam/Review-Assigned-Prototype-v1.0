@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useMemo, useState } from "react";
+import { Fragment, useCallback, useMemo, useState, type ReactNode } from "react";
 import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
 import { AceTable } from "@ace-ds/components/molecules/AceTable/AceTable";
@@ -173,7 +173,14 @@ function listProfileSectionContent(profile: ListProfileData, sectionId: (typeof 
   }
 }
 
-export function ListProfileAllTabView({ profile }: { profile: ListProfileData }) {
+export function ListProfileAllTabView({
+  profile,
+  leadingAction,
+}: {
+  profile: ListProfileData;
+  /** Optional left-aligned control on the same row as Expand / Collapse all. */
+  leadingAction?: ReactNode;
+}) {
   const sectionIds = useMemo(
     () => LIST_PROFILE_ACCORDION_TABS.map((section) => section.id),
     [],
@@ -197,7 +204,13 @@ export function ListProfileAllTabView({ profile }: { profile: ListProfileData })
 
   return (
     <div className="flex min-h-0 flex-col gap-4">
-      <div className="flex shrink-0 justify-end">
+      <div
+        className={cn(
+          "flex shrink-0 items-center gap-3",
+          leadingAction != null ? "justify-between" : "justify-end",
+        )}
+      >
+        {leadingAction != null ? <div className="min-w-0 shrink-0">{leadingAction}</div> : null}
         <button
           type="button"
           className={cn(
@@ -247,7 +260,7 @@ export function ListProfileDataTableView({
   if (table.rows.length === 0) {
     return (
       <p
-        className={cn(aceTypography(ACE_TYPE.p1Regular), "m-0 text-[var(--screening-text-secondary)]")}
+        className={cn(aceTypography(ACE_TYPE.p1Regular), "m-0 text-[var(--ace-neutral-800)]")}
         style={notoVar}
       >
         No records to display.

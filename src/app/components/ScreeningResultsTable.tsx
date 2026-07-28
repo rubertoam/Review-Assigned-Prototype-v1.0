@@ -25,18 +25,19 @@ import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { cn } from "./ui/utils";
 import { ScreeningStatusBadge } from "./ScreeningStatusBadge";
 import {
-  LEVEL1_DECISION_STATUSES,
   LEVEL1_STATUS_DISPLAY_ORDER,
   LEVEL2_DECISION_STATUSES,
+  getLevel1DecisionStatusesForRows,
   isLevel1ConfirmedStatus,
-  isLevel1InProcessStatus,
+  isLevel1DecisionStatus,
+  isLevel1Level2QueueStatus,
+  isLevel1MyWorkStatus,
+  isLevel1OpenQueueStatus,
   type Level1ScreeningStatus,
   type Level2DecisionStatus,
 } from "../lib/reviewDecisionConfig";
 import {
   ExpandableFinScanTable,
-  durationAccordion,
-  easeAccordion,
   type FinScanTableColumn,
 } from "./ExpandableFinScanTable";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -67,7 +68,14 @@ import { ScreeningHistoryPanel } from "./ScreeningHistoryPanel";
 
 export { easeAccordion, durationAccordion } from "./ExpandableFinScanTable";
 
-const LIST_PROFILE_ANIMATION_MS = 420;
+/**
+ * Table ↔ row-drilldown swipe. Always one panel width (two-pane track),
+ * so Screening History and List History feel the same speed.
+ */
+const LIST_PROFILE_ANIMATION_MS = 560;
+const durationDrilldownSwipe = "duration-[560ms]";
+/** Balanced ease-in-out — avoids the whip-start of accordion ease-out on long travels. */
+const easeDrilldownSwipe = "[transition-timing-function:cubic-bezier(0.4,0,0.2,1)]";
 
 const ROW_DRILLDOWN_VIEWS = [
   "screening-history",
@@ -78,21 +86,16 @@ const ROW_DRILLDOWN_VIEWS = [
 
 type RowDrilldownView = (typeof ROW_DRILLDOWN_VIEWS)[number];
 
-const ROW_DRILLDOWN_TRANSLATE: Record<RowDrilldownView, string> = {
-  "screening-history": "-translate-x-[20%]",
-  documents: "-translate-x-[40%]",
-  "match-simulator": "-translate-x-[60%]",
-  "list-history": "-translate-x-[80%]",
-};
-
 /** Level 1 decision outcomes plus Level 2 terminal statuses. */
 export type ScreeningRowStatus = Level1ScreeningStatus | Level2DecisionStatus;
 
-/** L2 terminal statuses (Safe / False Positive). */
+/** L2 terminal statuses (Safe with L2 reviewer / False Positive). */
 export function isLevel2ReviewedRow(
   row: Pick<ScreeningResultRow, "status" | "decisionReviewer">,
 ): boolean {
-  return row.status === "Safe" || row.status === "False Positive";
+  if (row.status === "False Positive") return true;
+  // L1 also uses "Safe"; L2 Safe always sets decisionReviewer.
+  return row.status === "Safe" && Boolean(row.decisionReviewer);
 }
 
 export function isLevel2ReviewedStatus(status: ScreeningRowStatus): boolean {
@@ -131,10 +134,10 @@ export function isDisabledScreeningRow(
 ): boolean {
   if (forceReadOnly) return true;
   if (flowVariant === "level-2") return row.readOnlyHistory === true;
-  return row.status !== "New";
+  return !isLevel1OpenQueueStatus(row.status);
 }
 
-export type CaseListSectionContext = "todo" | "done";
+export type CaseListSectionContext = "todo" | "done" | "documents-required";
 
 export type ScreeningResultRow = {
   id: string;
@@ -211,6 +214,29 @@ function randomDobForRow(caseIndex: number, rowIndex: number): string {
   return `${String(month).padStart(2, "0")}/${String(day).padStart(2, "0")}/${year}`;
 }
 
+/**
+ * Seed Documents Required matches for the workflow demo.
+ * These leave My Work and appear under Workflows → Documents Required.
+ */
+const DOCUMENTS_REQUIRED_SEED: ReadonlySet<string> = new Set([
+  "0-7", // John Smith — last match
+  "1-2", // Mr. Jose A Gonzalez
+  "2-4", // Muammar Qadhafi
+  "3-1", // Jane Doe
+  "4-0", // Bank of Iran
+]);
+
+function initialOpenStatusForRow(
+  caseIndex: number,
+  rowIndex: number,
+  _totalRows: number,
+): "New" | "Documents Required" {
+  if (DOCUMENTS_REQUIRED_SEED.has(`${caseIndex}-${rowIndex}`)) {
+    return "Documents Required";
+  }
+  return "New";
+}
+
 /** ~50% of rows per case — deterministic — show Confirmed Safe → New in history / review panel. */
 function reopenedFromConfirmedSafeForRow(caseIndex: number, rowIndex: number): boolean {
   const seed = (caseIndex + 1) * 419 + (rowIndex + 1) * 907;
@@ -231,6 +257,7 @@ export function getScreeningRowsForCase(caseIndex: number): ScreeningResultRow[]
     const score = Math.max(22, 93 - i * 7 - (ci % 3) * 2);
     const tiles = TILE_ROTATIONS[i % TILE_ROTATIONS.length];
     const reopenedFromConfirmedSafe = reopenedFromConfirmedSafeForRow(ci, i);
+    const status = initialOpenStatusForRow(ci, i, total);
     rows.push({
       id: `c${ci}-${i + 1}`,
       name,
@@ -239,8 +266,8 @@ export function getScreeningRowsForCase(caseIndex: number): ScreeningResultRow[]
       matchAgeTone: TONE_ROTATION[i % TONE_ROTATION.length],
       matchScore: score,
       matchTiles: [...tiles],
-      status: "New",
-      ...(reopenedFromConfirmedSafe
+      status,
+      ...(reopenedFromConfirmedSafe && status === "New"
         ? {
             reopenedFromConfirmedSafe: true,
             level1Reviewer: level1ReviewerForCase(ci),
@@ -285,8 +312,8 @@ export function willCompleteCaseOnSubmit(
 ): boolean {
   const pending =
     flowVariant === "level-1"
-      ? rows.filter((row) => row.status === "New")
-      : rows.filter((row) => isLevel1InProcessStatus(row.status));
+      ? rows.filter((row) => isLevel1MyWorkStatus(row.status))
+      : rows.filter((row) => isLevel1Level2QueueStatus(row.status));
   return pending.length > 0 && pending.every((row) => selectedIds.has(row.id));
 }
 
@@ -896,17 +923,22 @@ interface ScreeningResultsTableProps {
 function ScreeningRowQuickClear({
   disabled,
   flowVariant,
+  rowStatus,
   onSelect,
   variant = "icon",
 }: {
   disabled: boolean;
   flowVariant: "level-1" | "level-2";
+  /** Current row status — gates Level 1 “Documents Uploaded”. */
+  rowStatus?: string;
   onSelect: (status: ScreeningRowStatus) => void;
   /** `icon` saves space inside table rows; `field` is the labelled trigger for the expanded row. */
   variant?: "icon" | "field";
 }) {
   const options =
-    flowVariant === "level-2" ? LEVEL2_DECISION_STATUSES : LEVEL1_DECISION_STATUSES;
+    flowVariant === "level-2"
+      ? LEVEL2_DECISION_STATUSES
+      : getLevel1DecisionStatusesForRows([{ status: rowStatus ?? "New" }]);
 
   if (variant === "field") {
     return (
@@ -993,7 +1025,7 @@ function reasonLabelForRow(row: ScreeningTableDisplayRow): string {
 function commentLabelForRow(row: ScreeningTableDisplayRow): string {
   if (row.decisionReason) return row.decisionReason;
   if (row.level1Reason) return row.level1Reason;
-  if (row.status === "New") return "";
+  if (isLevel1OpenQueueStatus(row.status)) return "";
   return "Escalated for secondary review.";
 }
 
@@ -1027,10 +1059,11 @@ function buildLevel1DisplayRows(
   rows: ScreeningResultRow[],
   showReviewHistory: boolean,
 ): ScreeningTableDisplayRow[] {
-  const active = rows.filter((r) => r.status === "New");
+  /** My Work surface — only New. Documents Required lives in its workflow group. */
+  const active = rows.filter((r) => isLevel1MyWorkStatus(r.status));
   if (!showReviewHistory) return active;
   const history = rows
-    .filter((r) => r.status !== "New")
+    .filter((r) => isLevel1DecisionStatus(r.status) || isLevel2ReviewedRow(r))
     .map((r): ScreeningTableDisplayRow => ({
       ...r,
       readOnlyHistory: true,
@@ -1039,16 +1072,23 @@ function buildLevel1DisplayRows(
   return [...active, ...history];
 }
 
-/** Level 1 "Sent to Level 2" case-list view — only rows that left L1 for L2 (never New). */
+/** Level 1 workflow read-only view — decision statuses moved out of My Work. */
 function buildLevel1SentToLevel2DisplayRows(
   rows: ScreeningResultRow[],
 ): ScreeningTableDisplayRow[] {
   return rows
-    .filter((r) => isLevel1InProcessStatus(r.status) || isLevel2ReviewedRow(r))
+    .filter((r) => isLevel1DecisionStatus(r.status) || isLevel2ReviewedRow(r))
     .map((r): ScreeningTableDisplayRow => {
       if (isLevel2ReviewedRow(r)) return mapLevel2ReviewedDisplayRow(r);
       return { ...r, readOnlyHistory: true };
     });
+}
+
+/** Documents Required workflow — still actionable for Level 1. */
+function buildLevel1DocumentsRequiredDisplayRows(
+  rows: ScreeningResultRow[],
+): ScreeningTableDisplayRow[] {
+  return rows.filter((r) => r.status === "Documents Required");
 }
 
 function buildLevel2DisplayRows(
@@ -1074,7 +1114,7 @@ function buildLevel2DisplayRows(
     return l2Rows.map(mapHistoryRow);
   }
 
-  const active = l2Rows.filter((r) => isLevel1InProcessStatus(r.status));
+  const active = l2Rows.filter((r) => isLevel1Level2QueueStatus(r.status));
   if (!showReviewHistory) return active;
 
   const history = l2Rows
@@ -1083,9 +1123,9 @@ function buildLevel2DisplayRows(
   return [...active, ...history];
 }
 
-/** Case has screening results waiting in the Level 2 queue (L1 in-process). */
+/** Case has screening results waiting in the Level 2 queue (Operator Level 2 Workbench). */
 export function caseHasLevel2QueueWork(rows: ScreeningResultRow[]): boolean {
-  return rows.some((r) => isLevel1InProcessStatus(r.status));
+  return rows.some((r) => isLevel1Level2QueueStatus(r.status));
 }
 
 /** Case had Level 2 queue work and every in-process row has been cleared by L2. */
@@ -1094,9 +1134,9 @@ export function caseIsLevel2Done(rows: ScreeningResultRow[]): boolean {
   return rows.some((r) => isLevel2ReviewedRow(r));
 }
 
-/** Any Level 2 queue activity on the case (in-process or L2-reviewed). */
+/** Any Level 2 queue activity on the case (escalated to L2 or L2-reviewed). */
 export function caseHasLevel2Activity(rows: ScreeningResultRow[]): boolean {
-  return rows.some((r) => isLevel1InProcessStatus(r.status) || isLevel2ReviewedRow(r));
+  return rows.some((r) => isLevel1Level2QueueStatus(r.status) || isLevel2ReviewedRow(r));
 }
 
 /** True when the case work queue is cleared (L1: no "New"; L2: no L1 in-process rows). */
@@ -1168,10 +1208,10 @@ export function isCaseReviewComplete(
   if (flowVariant === "level-2") {
     return !caseHasLevel2QueueWork(rows);
   }
-  return rows.every((r) => r.status !== "New");
+  return rows.every((r) => !isLevel1MyWorkStatus(r.status));
 }
 
-/** True when every screening result for the case has been reviewed (no "New" rows). */
+/** True when every screening result for the case has left My Work (no "New" rows). */
 export function isCaseScreeningComplete(rows: ScreeningResultRow[]): boolean {
   return isCaseReviewComplete(rows, "level-1");
 }
@@ -1195,7 +1235,9 @@ export function ScreeningResultsTable({
   const [drilldownRow, setDrilldownRow] = useState<ScreeningTableDisplayRow | null>(null);
   const [drilldownView, setDrilldownView] = useState<RowDrilldownView | null>(null);
   const [drilldownVisible, setDrilldownVisible] = useState(false);
+  const drilldownVisibleRef = useRef(false);
   const drilldownCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const drilldownOpenRafRef = useRef<number | null>(null);
   const [expandedRowIds, setExpandedRowIds] = useState<Set<string>>(() => new Set());
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -1245,25 +1287,47 @@ export function ScreeningResultsTable({
     }
   }, []);
 
+  const clearDrilldownOpenRaf = useCallback(() => {
+    if (drilldownOpenRafRef.current !== null) {
+      cancelAnimationFrame(drilldownOpenRafRef.current);
+      drilldownOpenRafRef.current = null;
+    }
+  }, []);
+
   const openRowDrilldown = useCallback(
     (row: ScreeningTableDisplayRow, view: RowDrilldownView) => {
       clearDrilldownCloseTimer();
+      clearDrilldownOpenRaf();
       setDrilldownRow(row);
       setDrilldownView(view);
-      requestAnimationFrame(() => setDrilldownVisible(true));
+      // Already open: swap panel content in place (no multi-panel leap).
+      if (drilldownVisibleRef.current) {
+        setDrilldownVisible(true);
+        return;
+      }
+      // Double rAF so the track paints at translate-x-0 before sliding.
+      drilldownOpenRafRef.current = requestAnimationFrame(() => {
+        drilldownOpenRafRef.current = requestAnimationFrame(() => {
+          drilldownOpenRafRef.current = null;
+          drilldownVisibleRef.current = true;
+          setDrilldownVisible(true);
+        });
+      });
     },
-    [clearDrilldownCloseTimer],
+    [clearDrilldownCloseTimer, clearDrilldownOpenRaf],
   );
 
   const closeRowDrilldown = useCallback(() => {
     clearDrilldownCloseTimer();
+    clearDrilldownOpenRaf();
+    drilldownVisibleRef.current = false;
     setDrilldownVisible(false);
     drilldownCloseTimerRef.current = setTimeout(() => {
       drilldownCloseTimerRef.current = null;
       setDrilldownRow(null);
       setDrilldownView(null);
     }, LIST_PROFILE_ANIMATION_MS);
-  }, [clearDrilldownCloseTimer]);
+  }, [clearDrilldownCloseTimer, clearDrilldownOpenRaf]);
 
   const expandListProfileRow = useCallback((row: ScreeningTableDisplayRow) => {
     setExpandedRowIds((prev) => {
@@ -1273,7 +1337,13 @@ export function ScreeningResultsTable({
     });
   }, []);
 
-  useEffect(() => () => clearDrilldownCloseTimer(), [clearDrilldownCloseTimer]);
+  useEffect(
+    () => () => {
+      clearDrilldownCloseTimer();
+      clearDrilldownOpenRaf();
+    },
+    [clearDrilldownCloseTimer, clearDrilldownOpenRaf],
+  );
 
   const isCaseComplete = useMemo(
     () => isCaseReviewComplete(rows, flowVariant),
@@ -1294,11 +1364,13 @@ export function ScreeningResultsTable({
     setSearchQuery("");
     setPage(1);
     clearDrilldownCloseTimer();
+    clearDrilldownOpenRaf();
+    drilldownVisibleRef.current = false;
     setDrilldownVisible(false);
     setDrilldownRow(null);
     setDrilldownView(null);
     setExpandedRowIds(new Set());
-  }, [caseRowIdsKey, isLevel2, clearDrilldownCloseTimer]);
+  }, [caseRowIdsKey, isLevel2, clearDrilldownCloseTimer, clearDrilldownOpenRaf]);
 
   useEffect(() => {
     setPage(1);
@@ -1308,16 +1380,17 @@ export function ScreeningResultsTable({
     if (isLevel2) {
       return rows.some((r) => isLevel1ConfirmedRow(r) || isLevel2ReviewedRow(r));
     }
-    return rows.some((r) => r.status !== "New");
+    return rows.some((r) => isLevel1DecisionStatus(r.status) || isLevel2ReviewedRow(r));
   }, [isLevel2, rows]);
 
   const level2ActiveRows = useMemo(
-    () => (isLevel2 ? rows.filter((r) => isLevel1InProcessStatus(r.status)) : []),
+    () => (isLevel2 ? rows.filter((r) => isLevel1Level2QueueStatus(r.status)) : []),
     [isLevel2, rows],
   );
 
   /** Done cases always show full history; open cases use the toggle. */
   const viewingDoneCaseListSection = caseListSection === "done";
+  const viewingDocumentsRequiredSection = caseListSection === "documents-required";
   const effectiveShowReviewHistory =
     isCaseComplete || showReviewHistory || viewingDoneCaseListSection;
 
@@ -1327,8 +1400,11 @@ export function ScreeningResultsTable({
         rows,
         effectiveShowReviewHistory,
         isCaseComplete,
-        caseListSection,
+        caseListSection === "done" ? "done" : "todo",
       );
+    }
+    if (caseListSection === "documents-required") {
+      return buildLevel1DocumentsRequiredDisplayRows(rows);
     }
     if (caseListSection === "done") {
       return buildLevel1SentToLevel2DisplayRows(rows);
@@ -1336,7 +1412,8 @@ export function ScreeningResultsTable({
     return buildLevel1DisplayRows(rows, effectiveShowReviewHistory);
   }, [isLevel2, rows, effectiveShowReviewHistory, isCaseComplete, caseListSection]);
 
-  const showReviewHistoryToggle = !isCaseComplete && !viewingDoneCaseListSection;
+  const showReviewHistoryToggle =
+    !isCaseComplete && !viewingDoneCaseListSection && !viewingDocumentsRequiredSection;
 
   // Chips = one per status label in the current table view. Multi-select: OR semantics. Empty selection = show all rows.
   const statusChips = useMemo(() => {
@@ -1410,9 +1487,9 @@ export function ScreeningResultsTable({
         else next.add(status);
         return next;
       });
-      if (status === "New") return;
+      if (isLevel1OpenQueueStatus(status)) return;
       if (isLevel2) {
-        if (!isLevel1InProcessStatus(status)) {
+        if (!isLevel1Level2QueueStatus(status)) {
           setShowReviewHistory(true);
         }
       } else {
@@ -1531,8 +1608,10 @@ export function ScreeningResultsTable({
       sortedRows
         .filter((r) =>
           isLevel2
-            ? !r.readOnlyHistory && isLevel1InProcessStatus(r.status)
-            : r.status === "New",
+            ? !r.readOnlyHistory && isLevel1Level2QueueStatus(r.status)
+            : viewingDocumentsRequiredSection
+              ? r.status === "Documents Required"
+              : isLevel1MyWorkStatus(r.status),
         )
         .map((r) => r.id),
     );
@@ -1543,7 +1622,7 @@ export function ScreeningResultsTable({
       });
       return next;
     });
-  }, [selectionRowsSignature, setSelectedIds, isLevel2]);
+  }, [selectionRowsSignature, setSelectedIds, isLevel2, viewingDocumentsRequiredSection]);
 
   const selectedRef = useRef(selectedIds);
   const filterRef = useRef(statusFilters);
@@ -1571,28 +1650,44 @@ export function ScreeningResultsTable({
     if (isLevel2) {
       return rows.filter((r) => isLevel2ReviewedRow(r)).length;
     }
-    return rows.filter((r) => r.status !== "New").length;
-  }, [isLevel2, rows]);
+    if (viewingDocumentsRequiredSection) {
+      return rows.filter((r) => r.status !== "Documents Required").length;
+    }
+    return rows.filter((r) => isLevel1DecisionStatus(r.status) || isLevel2ReviewedRow(r)).length;
+  }, [isLevel2, rows, viewingDocumentsRequiredSection]);
   const totalCount = useMemo(() => {
     if (isLevel2) {
       return rows.filter(
-        (r) => isLevel1InProcessStatus(r.status) || isLevel2ReviewedRow(r),
+        (r) => isLevel1Level2QueueStatus(r.status) || isLevel2ReviewedRow(r),
       ).length;
     }
-    return rows.length;
-  }, [isLevel2, rows]);
+    if (viewingDocumentsRequiredSection) {
+      return rows.filter((r) => r.status === "Documents Required").length;
+    }
+    return rows.filter((r) => r.status !== "Documents Required").length;
+  }, [isLevel2, rows, viewingDocumentsRequiredSection]);
   const progress = totalCount === 0 ? 0 : (reviewedCount / totalCount) * 100;
 
   const selectionMode = selectedIds.size > 0;
+
+  const isLevel1RowActionable = useCallback(
+    (status: string) =>
+      viewingDocumentsRequiredSection
+        ? status === "Documents Required"
+        : isLevel1MyWorkStatus(status),
+    [viewingDocumentsRequiredSection],
+  );
 
   const actionableRows = useMemo(
     () =>
       readOnly
         ? []
         : sortedRows.filter((r) =>
-            isLevel2 ? !r.readOnlyHistory && isLevel1InProcessStatus(r.status) : r.status === "New",
+            isLevel2
+              ? !r.readOnlyHistory && isLevel1Level2QueueStatus(r.status)
+              : isLevel1RowActionable(r.status),
           ),
-    [sortedRows, isLevel2, readOnly],
+    [sortedRows, isLevel2, readOnly, isLevel1RowActionable],
   );
 
   const allVisibleSelected =
@@ -1823,7 +1918,7 @@ export function ScreeningResultsTable({
 
   const screeningEmptyState = (
     <>
-      <p className="m-0 mb-3 font-['Noto_Sans:Regular',sans-serif] text-[14px] text-[#464c59] dark:text-[#9fadbc]" style={notoVar}>
+      <p className="m-0 mb-3 font-['Noto_Sans:Regular',sans-serif] text-[14px] text-[var(--ace-neutral-800)]" style={notoVar}>
         {rows.length === 0
           ? "No screening results to display."
           : searchQuery.trim()
@@ -1837,7 +1932,11 @@ export function ScreeningResultsTable({
                   level2ActiveRows.length === 0 &&
                   !hasReviewHistory
                 ? "No results awaiting Level 2 review. Level 1 must move matches out of New before they appear here."
-              : !isLevel2 && rows.some((r) => r.status !== "New") && !effectiveShowReviewHistory
+              : !isLevel2 &&
+                  !viewingDocumentsRequiredSection &&
+                  !rows.some((r) => isLevel1MyWorkStatus(r.status)) &&
+                  hasReviewHistory &&
+                  !effectiveShowReviewHistory
                 ? "All screening results have been reviewed. Show review history to see completed items."
                 : statusFilters.size > 0
                 ? "No results match the current filter."
@@ -1867,7 +1966,7 @@ export function ScreeningResultsTable({
 
   const tableHeaderTrailing = (
     <div className="flex shrink-0 items-center gap-3" onClick={(e) => e.stopPropagation()}>
-      {isCaseComplete ? (
+      {isCaseComplete && isLevel2 ? (
         <div className="flex items-center gap-2">
           <span
             className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-[#e8f4ea] dark:bg-[#2a302c]"
@@ -1946,18 +2045,14 @@ export function ScreeningResultsTable({
             <div className="relative flex min-h-0 flex-1 overflow-hidden">
               <div
                 className={cn(
-                  "flex min-h-0 w-[500%] shrink-0 transition-transform will-change-transform",
-                  durationAccordion,
-                  easeAccordion,
-                  !drilldownVisible
-                    ? "translate-x-0"
-                    : drilldownView
-                      ? ROW_DRILLDOWN_TRANSLATE[drilldownView]
-                      : "translate-x-0",
+                  "flex min-h-0 w-[200%] shrink-0 transition-transform will-change-transform",
+                  durationDrilldownSwipe,
+                  easeDrilldownSwipe,
+                  drilldownVisible ? "-translate-x-1/2" : "translate-x-0",
                 )}
               >
                 <div
-                  className="flex min-h-0 w-1/5 min-w-0 flex-col overflow-hidden self-stretch"
+                  className="flex min-h-0 w-1/2 min-w-0 flex-col overflow-hidden self-stretch"
                   aria-hidden={drilldownVisible}
                 >
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
@@ -2146,8 +2241,8 @@ export function ScreeningResultsTable({
                   readOnly
                     ? false
                     : isLevel2
-                      ? !row.readOnlyHistory && isLevel1InProcessStatus(row.status)
-                      : row.status === "New",
+                      ? !row.readOnlyHistory && isLevel1Level2QueueStatus(row.status)
+                      : isLevel1RowActionable(row.status),
                 onToggleRow: toggleRowSelect,
                 onHeaderSelectAll: onHeaderSelectAllChange,
                 headerCheckboxState,
@@ -2190,33 +2285,18 @@ export function ScreeningResultsTable({
             </div>
                 </div>
                 <div
-                  className="flex h-full min-h-0 w-1/5 min-w-0 flex-col overflow-hidden"
-                  aria-hidden={!drilldownVisible || drilldownView !== "screening-history"}
+                  className="flex h-full min-h-0 w-1/2 min-w-0 flex-col overflow-hidden"
+                  aria-hidden={!drilldownVisible}
                 >
                   {drilldownRow && drilldownView === "screening-history" ? (
                     <ScreeningHistoryPanel row={drilldownRow} onBack={closeRowDrilldown} />
                   ) : null}
-                </div>
-                <div
-                  className="flex h-full min-h-0 w-1/5 min-w-0 flex-col overflow-hidden"
-                  aria-hidden={!drilldownVisible || drilldownView !== "documents"}
-                >
                   {drilldownRow && drilldownView === "documents" ? (
                     <DocumentsPanel row={drilldownRow} onBack={closeRowDrilldown} />
                   ) : null}
-                </div>
-                <div
-                  className="flex h-full min-h-0 w-1/5 min-w-0 flex-col overflow-hidden"
-                  aria-hidden={!drilldownVisible || drilldownView !== "match-simulator"}
-                >
                   {drilldownRow && drilldownView === "match-simulator" ? (
                     <MatchSimulatorPanel row={drilldownRow} onBack={closeRowDrilldown} />
                   ) : null}
-                </div>
-                <div
-                  className="flex h-full min-h-0 w-1/5 min-w-0 flex-col overflow-hidden"
-                  aria-hidden={!drilldownVisible || drilldownView !== "list-history"}
-                >
                   {drilldownRow && drilldownView === "list-history" ? (
                     <ListHistoryPanel row={drilldownRow} onBack={closeRowDrilldown} />
                   ) : null}

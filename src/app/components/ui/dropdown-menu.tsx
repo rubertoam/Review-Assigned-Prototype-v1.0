@@ -36,11 +36,11 @@ const primaryItemClass = cn(
 
 const menuHeaderClass = cn(
   itemType,
-  "px-[var(--space-3)] pb-[var(--space-2)] pt-[var(--space-3)] font-bold text-[var(--screening-text-primary)]",
+  "px-[var(--space-3)] pb-[var(--space-2)] pt-[var(--space-3)] text-[var(--screening-text-primary)]",
 );
 
 const menuLabelClass =
-  "[font:var(--ace-type-label-bold)] [letter-spacing:var(--ace-type-label-bold-tracking)] px-[var(--space-3)] py-[var(--space-2)] text-[var(--screening-text-muted)]";
+  "[font:var(--ace-type-footer-regular)] [letter-spacing:var(--ace-type-footer-regular-tracking)] px-[var(--space-3)] py-[var(--space-2)] text-[var(--screening-text-muted)]";
 
 const checkboxRowClass = cn(
   itemType,

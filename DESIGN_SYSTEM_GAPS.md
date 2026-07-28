@@ -46,6 +46,7 @@ Organisms: `ScreeningResultsTable`, `AceSidebar`, `AceSiteHeader`, `AceDatePicke
 | Area | Status | Notes |
 |---|---|---|
 | **Ask Chatty / AI chat bubble** | Missing in ACE DS | Local `AskChattyBubble` uses `AceInputField` + `AceButton`; no DS chat/assistant organism yet. |
+| **`AceToast` countdown / progress** | Added in sandbox | Optional `progress` (0–1) bar + default-layout `actionLabel` (Undo) for auto-dismiss hosts. Ship to ACEDesignSystem when ready. |
 | **`GroupFormDialog` contextual titles** | Partial | Edit/Copy titles are fixed to “Edit/Copy Group”. Reporting pages need page-specific wording (e.g. report category); delete confirm already uses local contextual copy. Prefer optional `title` / `description` props on `GroupFormDialog`. |
 | **`AceSiteHeader` logo click** | Missing | No `onLogoClick` / home action. Prototype overlays a hit target in `ReviewFlowSiteHeader` to open the selected start page. |
 | **`AceSidebar` hide New Group** | Missing | Groups variant always renders the top “New Group” control. Data Manager hides it via a local CSS selector until DS adds e.g. `showNewGroup`. |
