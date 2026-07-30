@@ -58,7 +58,6 @@ import {
   getScreeningRowsForCase,
   isCaseScreeningComplete,
   isLevel2ReviewedRow,
-  level1ReviewerForCaseIndex,
   screeningNewPillSurfaceClass,
   type CaseListSectionContext,
   type ScreeningResultRow,
@@ -73,6 +72,7 @@ import {
 import {
   createWorkLogEntriesForMatches,
   removeWorkLogEntriesForRowIds,
+  WORK_LOG_REVIEWER,
   type WorkLogEntry,
 } from "../../lib/workLogState";
 import { WorkLogModal } from "../../components/WorkLogModal";
@@ -878,26 +878,26 @@ export function Level1ReviewInterface() {
   const recordWorkLogDecision = useCallback(
     ({
       caseIndex,
+      origin,
       clientName,
       clientId,
       status,
       matches,
-      reviewer,
     }: {
       caseIndex: number;
+      origin: string;
       clientName: string;
       clientId: string;
       status: string;
       matches: readonly { id: string; name: string }[];
-      reviewer: string;
     }) => {
       const entries = createWorkLogEntriesForMatches({
         caseIndex,
+        origin,
         clientName,
         clientId,
         status,
         matches,
-        reviewer,
       });
       if (entries.length === 0) return;
       setWorkLogEntries((prev) => {
@@ -946,6 +946,10 @@ export function Level1ReviewInterface() {
   const selectedWorkflowLabel = selectedWorkflowId
     ? getWorkflowLabelById(selectedWorkflowId)
     : null;
+  /** Work Log Origin — workflow name or My Work screening rule. */
+  const workLogOrigin = isWorkflowView
+    ? (selectedWorkflowLabel ?? "Workflow")
+    : workListTitle;
   const isDocumentsRequiredWorkflow = isDocumentsRequiredWorkflowId(selectedWorkflowId);
   const isWorkflowReadOnlyView = isWorkflowView && !isDocumentsRequiredWorkflow;
   const workflowStatuses = useMemo(
@@ -1103,15 +1107,15 @@ export function Level1ReviewInterface() {
       commitPendingToast();
       undoWorkQueueRef.current = isPepWork ? "pep" : "sanction";
 
-      const reviewer = level1ReviewerForCaseIndex(selectedCaseIndex);
+      const reviewer = WORK_LOG_REVIEWER;
       const { clientName, clientId } = workLogClientForCaseIndex(selectedCaseIndex);
       recordWorkLogDecision({
         caseIndex: selectedCaseIndex,
+        origin: workLogOrigin,
         clientName,
         clientId,
         status,
         matches: selectedRows.map((row) => ({ id: row.id, name: row.name })),
-        reviewer,
       });
 
       setActiveScreeningRowsByCase((prev) => {
@@ -1140,6 +1144,7 @@ export function Level1ReviewInterface() {
       activeCases,
       screeningRuleLabel,
       isPepWork,
+      workLogOrigin,
       setActiveScreeningRowsByCase,
       recordWorkLogDecision,
       workLogClientForCaseIndex,
@@ -1172,15 +1177,15 @@ export function Level1ReviewInterface() {
       commitPendingToast();
       undoWorkQueueRef.current = isPepWork ? "pep" : "sanction";
 
-      const reviewer = level1ReviewerForCaseIndex(selectedCaseIndex);
+      const reviewer = WORK_LOG_REVIEWER;
       const { clientName, clientId } = workLogClientForCaseIndex(selectedCaseIndex);
       recordWorkLogDecision({
         caseIndex: selectedCaseIndex,
+        origin: workLogOrigin,
         clientName,
         clientId,
         status,
         matches: [{ id: target.id, name: target.name }],
-        reviewer,
       });
 
       setActiveScreeningRowsByCase((prev) => {
@@ -1213,6 +1218,7 @@ export function Level1ReviewInterface() {
       activeCases,
       screeningRuleLabel,
       isPepWork,
+      workLogOrigin,
       setActiveScreeningRowsByCase,
       recordWorkLogDecision,
       workLogClientForCaseIndex,
@@ -1244,15 +1250,15 @@ export function Level1ReviewInterface() {
       commitPendingToast();
       undoWorkQueueRef.current = isPepWork ? "pep" : "sanction";
 
-      const reviewer = level1ReviewerForCaseIndex(selectedCaseIndex);
+      const reviewer = WORK_LOG_REVIEWER;
       const { clientName, clientId } = workLogClientForCaseIndex(selectedCaseIndex);
       recordWorkLogDecision({
         caseIndex: selectedCaseIndex,
+        origin: workLogOrigin,
         clientName,
         clientId,
         status,
         matches: selectedRows.map((row) => ({ id: row.id, name: row.name })),
-        reviewer,
       });
 
       setActiveScreeningRowsByCase((prev) => {
@@ -1281,6 +1287,7 @@ export function Level1ReviewInterface() {
       activeCases,
       screeningRuleLabel,
       isPepWork,
+      workLogOrigin,
       setActiveScreeningRowsByCase,
       recordWorkLogDecision,
       workLogClientForCaseIndex,

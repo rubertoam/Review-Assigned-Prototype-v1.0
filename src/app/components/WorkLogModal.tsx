@@ -23,18 +23,20 @@ import noDocumentsEmptyImage from "../../assets/client-documents/no-documents-em
 import { cn } from "./ui/utils";
 
 const WORK_LOG_COLUMNS = [
+  { key: "origin", header: "Origin" },
   { key: "clientName", header: "Client" },
   { key: "clientId", header: "Client ID" },
   { key: "matchName", header: "Match" },
   { key: "status", header: "Status" },
   { key: "timestamp", header: "Timestamp" },
-  { key: "reviewer", header: "Review" },
+  { key: "reviewer", header: "Reviewer" },
 ] as const;
 
 const FILTER_DIMENSIONS: readonly {
   id: WorkLogFilterDimension;
   label: string;
 }[] = [
+  { id: "origin", label: "Origin" },
   { id: "client", label: "Client" },
   { id: "clientId", label: "Client ID" },
   { id: "match", label: "Match" },
@@ -44,6 +46,7 @@ const FILTER_DIMENSIONS: readonly {
 
 function createEmptyValueFilters(): Record<WorkLogFilterDimension, Set<string>> {
   return {
+    origin: new Set(),
     client: new Set(),
     clientId: new Set(),
     match: new Set(),
@@ -100,6 +103,7 @@ function workLogTextCell(value: string): ReactNode {
 
 function workLogTableRows(entries: readonly WorkLogEntry[]): Record<string, ReactNode>[] {
   return entries.map((entry) => ({
+    origin: workLogTextCell(entry.origin),
     clientName: workLogTextCell(entry.clientName),
     clientId: workLogTextCell(entry.clientId),
     matchName: workLogTextCell(entry.matchName),
@@ -327,7 +331,7 @@ export function WorkLogModal({
                 columns={[...WORK_LOG_COLUMNS]}
                 rows={rows}
                 caption="Work log"
-                className="min-w-[42rem] rounded-none border-0"
+                className="min-w-[48rem] rounded-none border-0"
               />
             </div>
           ) : (

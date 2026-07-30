@@ -1,8 +1,13 @@
 import { formatNoteCreatedAt } from "./clientNotesData";
 
+/** Janet persona — always the Work Log reviewer in this prototype. */
+export const WORK_LOG_REVIEWER = "Janet Analyst";
+
 export type WorkLogEntry = {
   id: string;
   timestamp: string;
+  /** Screening rule or workflow the match was cleared from. */
+  origin: string;
   clientName: string;
   clientId: string;
   /** Match name — one log row per submitted match (no rollup). */
@@ -16,6 +21,7 @@ export type WorkLogEntry = {
 };
 
 export type WorkLogFilterDimension =
+  | "origin"
   | "client"
   | "clientId"
   | "match"
@@ -32,35 +38,36 @@ export function workLogStatusLabel(status: string): string {
 
 export function createWorkLogEntriesForMatches({
   caseIndex,
+  origin,
   clientName,
   clientId,
   status,
   matches,
-  reviewer,
 }: {
   caseIndex: number;
+  origin: string;
   clientName: string;
   clientId: string;
   status: string;
   matches: readonly { id: string; name: string }[];
-  reviewer: string;
 }): WorkLogEntry[] {
   if (matches.length === 0) return [];
   const destinationStatus = status.trim();
   if (!destinationStatus) return [];
+  const resolvedOrigin = origin.trim() || "—";
   const resolvedClientName = clientName.trim();
   const resolvedClientId = clientId.trim();
-  const resolvedReviewer = reviewer.trim();
   const timestamp = formatNoteCreatedAt();
   const batch = Math.random().toString(36).slice(2, 8);
   return matches.map((match, index) => ({
     id: `work-log-${Date.now()}-${batch}-${index}`,
     timestamp,
+    origin: resolvedOrigin,
     clientName: resolvedClientName || "—",
     clientId: resolvedClientId || "—",
     matchName: match.name.trim() || "—",
     status: destinationStatus,
-    reviewer: resolvedReviewer || "—",
+    reviewer: WORK_LOG_REVIEWER,
     sourceRowIds: [match.id],
     caseIndex,
   }));
@@ -81,6 +88,7 @@ export function uniqueWorkLogFilterValues(
 ): string[] {
   const values = new Set<string>();
   for (const entry of entries) {
+    if (dimension === "origin" && entry.origin) values.add(entry.origin);
     if (dimension === "client" && entry.clientName) values.add(entry.clientName);
     if (dimension === "clientId" && entry.clientId) values.add(entry.clientId);
     if (dimension === "match" && entry.matchName) values.add(entry.matchName);
@@ -97,6 +105,7 @@ export function filterWorkLogEntries(
 ): WorkLogEntry[] {
   const query = searchQuery.trim().toLowerCase();
   return entries.filter((entry) => {
+    if (selected.origin.size > 0 && !selected.origin.has(entry.origin)) return false;
     if (selected.client.size > 0 && !selected.client.has(entry.clientName)) return false;
     if (selected.clientId.size > 0 && !selected.clientId.has(entry.clientId)) return false;
     if (selected.match.size > 0 && !selected.match.has(entry.matchName)) return false;
@@ -104,6 +113,7 @@ export function filterWorkLogEntries(
     if (selected.timestamp.size > 0 && !selected.timestamp.has(entry.timestamp)) return false;
     if (!query) return true;
     const haystack = [
+      entry.origin,
       entry.clientName,
       entry.clientId,
       entry.matchName,
