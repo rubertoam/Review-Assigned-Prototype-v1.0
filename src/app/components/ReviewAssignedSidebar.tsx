@@ -5,12 +5,6 @@ import {
   type AceSidebarNavItem,
 } from "@ace-ds/components/organisms/AceSidebar/AceSidebar";
 import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
-import {
-  AceTooltip,
-  AceTooltipContent,
-  AceTooltipTrigger,
-} from "@ace-ds/components/atoms/AceTooltip/AceTooltip";
-import { screeningToolbarIconButtonClass } from "@ace-ds/components/organisms/ScreeningResultsTable/screeningTableToolbar";
 import { SidebarNavCountBadge } from "./SidebarNavCountBadge";
 import type { ReviewSidebarWorkflowItem } from "../lib/reviewSidebarWorkflows";
 import { cn } from "./ui/utils";
@@ -35,8 +29,6 @@ export type ReviewAssignedSidebarProps = {
   workflowItems: readonly ReviewSidebarWorkflowItem[];
   selection: ReviewAssignedSidebarSelection;
   onSelectionChange: (selection: ReviewAssignedSidebarSelection) => void;
-  /** Opens the Work History modal owned by the review interface. */
-  onOpenWorkLog?: () => void;
   className?: string;
 };
 
@@ -88,7 +80,6 @@ export function ReviewAssignedSidebar({
   workflowItems,
   selection,
   onSelectionChange,
-  onOpenWorkLog,
   className,
 }: ReviewAssignedSidebarProps) {
   const [selectedOrgId, setSelectedOrgId] = useState(organizations[0]?.id ?? "");
@@ -130,26 +121,6 @@ export function ReviewAssignedSidebar({
     onSelectionChange,
   ]);
 
-  const workLogTrigger = (
-    <div className="inline-flex size-8 shrink-0 items-center justify-center leading-none">
-      <AceTooltip>
-        <AceTooltipTrigger asChild>
-          <button
-            type="button"
-            aria-label="Work History"
-            className={cn(screeningToolbarIconButtonClass, "leading-none")}
-            onClick={() => onOpenWorkLog?.()}
-          >
-            <MaterialSymbol name="history" size="md" weight={300} className="text-current" />
-          </button>
-        </AceTooltipTrigger>
-        <AceTooltipContent side="top" variant="screening-toolbar" hideArrow>
-          Work History
-        </AceTooltipContent>
-      </AceTooltip>
-    </div>
-  );
-
   const onlineHelp = (
     <button
       type="button"
@@ -187,7 +158,6 @@ export function ReviewAssignedSidebar({
         onOrganizationChange={setSelectedOrgId}
         groups={groups}
         showGroupAdd={false}
-        headerTrailing={workLogTrigger}
         className={className ?? "h-full"}
       >
         <div className="mt-auto shrink-0 pb-4 pt-2">

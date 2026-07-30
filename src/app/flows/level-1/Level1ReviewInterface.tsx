@@ -111,6 +111,7 @@ import {
 } from "../../components/ReviewAssignedSidebar";
 import { INITIAL_PEP_WORK_QUEUE, type PepCaseListItem } from "../../lib/pepWorkQueue";
 import { sidebarIconButtonClass } from "@ace-ds/components/organisms/AceSidebar/sidebarRowActions";
+import { screeningToolbarIconButtonClass } from "@ace-ds/components/organisms/ScreeningResultsTable/screeningTableToolbar";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
 
 interface PageHeaderProps {
@@ -118,6 +119,7 @@ interface PageHeaderProps {
   sidebarPinned: boolean;
   levelLabel: string;
   onTriggerClick: () => void;
+  onOpenWorkLog: () => void;
 }
 
 function PageHeader({
@@ -125,6 +127,7 @@ function PageHeader({
   sidebarPinned,
   levelLabel,
   onTriggerClick,
+  onOpenWorkLog,
 }: PageHeaderProps) {
   return (
     <div className="flex shrink-0 items-center justify-between border-b border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-4 py-3 md:px-8">
@@ -156,6 +159,23 @@ function PageHeader({
         <p className={cn(aceTypography(ACE_TYPE.p1Regular), "hidden text-sm leading-[1.65] text-[var(--screening-text-primary)] sm:block")}>
           Last updated 30 seconds ago
         </p>
+        <div className="inline-flex size-8 shrink-0 items-center justify-center leading-none">
+          <AceTooltip>
+            <AceTooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label="Work History"
+                className={cn(screeningToolbarIconButtonClass, "leading-none")}
+                onClick={onOpenWorkLog}
+              >
+                <MaterialSymbol name="history" size="md" weight={300} className="text-current" />
+              </button>
+            </AceTooltipTrigger>
+            <AceTooltipContent side="top" variant="screening-toolbar" hideArrow>
+              Work History
+            </AceTooltipContent>
+          </AceTooltip>
+        </div>
       </div>
     </div>
   );
@@ -187,7 +207,6 @@ interface ReviewSidebarProps {
   workflowItems: ReturnType<typeof deriveReviewSidebarWorkflows>;
   selection: ReviewAssignedSidebarSelection;
   onSelectionChange: (selection: ReviewAssignedSidebarSelection) => void;
-  onOpenWorkLog: () => void;
 }
 
 function ReviewSidebar({
@@ -197,7 +216,6 @@ function ReviewSidebar({
   workflowItems,
   selection,
   onSelectionChange,
-  onOpenWorkLog,
 }: ReviewSidebarProps) {
   const workCategories = useMemo(
     () =>
@@ -216,7 +234,6 @@ function ReviewSidebar({
       workflowItems={workflowItems}
       selection={selection}
       onSelectionChange={onSelectionChange}
-      onOpenWorkLog={onOpenWorkLog}
     />
   );
 }
@@ -1320,6 +1337,7 @@ export function Level1ReviewInterface() {
         sidebarPinned={sidebarPinned}
         levelLabel="Level 1"
         onTriggerClick={handleTriggerClick}
+        onOpenWorkLog={() => setWorkLogOpen(true)}
       />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <ReviewSidebar
@@ -1329,7 +1347,6 @@ export function Level1ReviewInterface() {
           workflowItems={sidebarWorkflowItems}
           selection={sidebarSelection}
           onSelectionChange={handleSidebarSelectionChange}
-          onOpenWorkLog={() => setWorkLogOpen(true)}
         />
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <div className="flex flex-col flex-1 min-h-0 overflow-hidden px-4 pb-4 gap-4">

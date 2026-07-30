@@ -6,7 +6,7 @@ import { cn } from "./ui/utils";
 
 const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 
-/** Looping how-to demo — cursor hovers the sidebar Work Log (history) icon. */
+/** Looping how-to demo — cursor hovers the page-header Work History (history) icon. */
 function WorkLogOpenDemo() {
   return (
     <div
@@ -16,28 +16,27 @@ function WorkLogOpenDemo() {
         "aspect-[16/10] w-full",
       )}
       role="img"
-      aria-label="Animation showing the mouse cursor hovering over the Work History icon in the sidebar header"
+      aria-label="Animation showing the mouse cursor hovering over the Work History icon in the page header"
     >
-      <div className="absolute inset-0 flex items-start justify-center px-6 pt-10">
+      <div className="absolute inset-0 flex items-start justify-center px-4 pt-10">
         <div
           className={cn(
-            "relative w-full max-w-[17rem] overflow-visible rounded-[var(--radius-sm)]",
-            "border border-solid border-[var(--ace-sidebar-border)] bg-[var(--screening-surface)]",
-            "shadow-[var(--ace-sidebar-shadow)]",
+            "relative w-full max-w-[22rem] overflow-visible rounded-[var(--radius-sm)]",
+            "border border-solid border-[var(--screening-border-strong)] bg-[var(--screening-surface)]",
+            "shadow-[var(--ace-drop-shadow-xs)]",
           )}
         >
-          <div className="flex items-center gap-2 px-3 py-3">
-            <div className="min-w-0 flex-1 rounded-[var(--radius-sm)] border border-solid border-[var(--screening-border-strong)] px-3 py-2">
-              <p
-                className={cn(
-                  aceTypography(ACE_TYPE.footerRegular),
-                  "m-0 truncate text-[var(--screening-text-primary)]",
-                )}
-                style={notoVar}
-              >
-                Level 1 Users
-              </p>
-            </div>
+          <div className="flex items-center justify-end gap-2 px-3 py-3">
+            <div className="size-2 shrink-0 rounded-full bg-[#87b531]" />
+            <p
+              className={cn(
+                aceTypography(ACE_TYPE.footerRegular),
+                "m-0 truncate text-[var(--screening-text-primary)]",
+              )}
+              style={notoVar}
+            >
+              Last updated 30 seconds ago
+            </p>
             <div className="relative shrink-0">
               <button
                 type="button"
@@ -67,7 +66,7 @@ function WorkLogOpenDemo() {
                   Work History
                 </p>
               </div>
-              {/* Cursor tip targets the history icon (same Material Symbol as the sidebar). */}
+              {/* Cursor tip targets the history icon (same Material Symbol as the page header). */}
               <div
                 className="work-log-intro-cursor pointer-events-none absolute z-[4]"
                 aria-hidden
@@ -86,13 +85,6 @@ function WorkLogOpenDemo() {
                   />
                 </svg>
               </div>
-            </div>
-          </div>
-          <div className="border-t border-[var(--ace-sidebar-border)] px-3 py-3">
-            <div className="mb-2 h-2 w-16 rounded bg-[var(--ace-neutral-200)]" />
-            <div className="space-y-1.5">
-              <div className="h-7 rounded-[var(--ace-sidebar-item-radius)] bg-[var(--ace-sidebar-item-selected-bg)]" />
-              <div className="h-7 rounded-[var(--ace-sidebar-item-radius)] bg-[var(--ace-neutral-100)]" />
             </div>
           </div>
         </div>
@@ -130,8 +122,8 @@ export function WorkLogIntroModal({
           style={notoVar}
         >
           Submitted matches are recorded in the Work History so you can review what you completed
-          this session. Open it anytime from the history icon in the top right of the Review
-          Assigned sidebar.
+          this session. Open it anytime from the history icon next to Last updated in the Review
+          Assigned page header.
         </p>
         <WorkLogOpenDemo />
       </div>

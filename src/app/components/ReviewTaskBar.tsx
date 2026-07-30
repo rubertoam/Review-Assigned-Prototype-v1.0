@@ -20,7 +20,7 @@ interface ReviewTaskBarProps {
   selectedRows: readonly ScreeningResultRow[];
   onDeselectAllScreening: () => void;
   onBulkQuickClear: (status: ScreeningRowStatus) => void;
-  /** Opens the Work History modal — Level 1 A/B with the sidebar history control. */
+  /** Opens the Work History modal — Level 1 A/B with the page-header history control. */
   onOpenWorkLog?: () => void;
 }
 
