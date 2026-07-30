@@ -39,7 +39,6 @@ const FILTER_DIMENSIONS: readonly {
   { id: "origin", label: "Origin" },
   { id: "client", label: "Client" },
   { id: "clientId", label: "Client ID" },
-  { id: "match", label: "Match" },
   { id: "status", label: "Status" },
   { id: "timestamp", label: "Timestamp" },
 ] as const;
@@ -49,7 +48,6 @@ function createEmptyValueFilters(): Record<WorkLogFilterDimension, Set<string>> 
     origin: new Set(),
     client: new Set(),
     clientId: new Set(),
-    match: new Set(),
     status: new Set(),
     timestamp: new Set(),
   };

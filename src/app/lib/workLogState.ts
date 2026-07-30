@@ -24,7 +24,6 @@ export type WorkLogFilterDimension =
   | "origin"
   | "client"
   | "clientId"
-  | "match"
   | "status"
   | "timestamp";
 
@@ -91,7 +90,6 @@ export function uniqueWorkLogFilterValues(
     if (dimension === "origin" && entry.origin) values.add(entry.origin);
     if (dimension === "client" && entry.clientName) values.add(entry.clientName);
     if (dimension === "clientId" && entry.clientId) values.add(entry.clientId);
-    if (dimension === "match" && entry.matchName) values.add(entry.matchName);
     if (dimension === "status" && entry.status) values.add(entry.status);
     if (dimension === "timestamp" && entry.timestamp) values.add(entry.timestamp);
   }
@@ -108,7 +106,6 @@ export function filterWorkLogEntries(
     if (selected.origin.size > 0 && !selected.origin.has(entry.origin)) return false;
     if (selected.client.size > 0 && !selected.client.has(entry.clientName)) return false;
     if (selected.clientId.size > 0 && !selected.clientId.has(entry.clientId)) return false;
-    if (selected.match.size > 0 && !selected.match.has(entry.matchName)) return false;
     if (selected.status.size > 0 && !selected.status.has(entry.status)) return false;
     if (selected.timestamp.size > 0 && !selected.timestamp.has(entry.timestamp)) return false;
     if (!query) return true;
