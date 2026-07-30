@@ -1057,22 +1057,16 @@ function mapLevel2ReviewedDisplayRow(r: ScreeningResultRow): ScreeningTableDispl
 
 function buildLevel1DisplayRows(
   rows: ScreeningResultRow[],
-  showReviewHistory: boolean,
+  _showReviewHistory: boolean,
 ): ScreeningTableDisplayRow[] {
-  /** My Work surface — only New. Documents Required lives in its workflow group. */
-  const active = rows.filter((r) => isLevel1MyWorkStatus(r.status));
-  if (!showReviewHistory) return active;
-  const history = rows
-    .filter((r) => isLevel1DecisionStatus(r.status) || isLevel2ReviewedRow(r))
-    .map((r): ScreeningTableDisplayRow => ({
-      ...r,
-      readOnlyHistory: true,
-      ...(r.status === "Confirmed Safe" ? { displayStatus: "Confirmed Safe" as const } : {}),
-    }));
-  return [...active, ...history];
+  /** My Work — only New. Submitted decisions are recorded in the Work Log. */
+  return rows.filter((r) => isLevel1MyWorkStatus(r.status));
 }
 
-/** Level 1 workflow read-only view — decision statuses moved out of My Work. */
+/**
+ * Level 1 decision workflow view (legacy Operator workbench / read-only destination).
+ * Submitted matches appear as individual read-only rows (not actionable).
+ */
 function buildLevel1SentToLevel2DisplayRows(
   rows: ScreeningResultRow[],
 ): ScreeningTableDisplayRow[] {
@@ -1084,7 +1078,7 @@ function buildLevel1SentToLevel2DisplayRows(
     });
 }
 
-/** Documents Required workflow — still actionable for Level 1. */
+/** Compliance Workbench — only open Documents Required; uploaded go to Work Log. */
 function buildLevel1DocumentsRequiredDisplayRows(
   rows: ScreeningResultRow[],
 ): ScreeningTableDisplayRow[] {
@@ -1357,9 +1351,9 @@ export function ScreeningResultsTable({
   );
 
   useEffect(() => {
-    // Level 1 shows the "sent to Level 2" history by default (analyst can hide it);
-    // Level 2 keeps history collapsed until requested.
-    setShowReviewHistory(!isLevel2);
+    // Review history is opt-in via the toolbar toggle (Level 2). Level 1 decisions
+    // are recorded in the Work Log instead of disabled table rows.
+    setShowReviewHistory(false);
     setStatusFilters(new Set());
     setSearchQuery("");
     setPage(1);
@@ -1388,11 +1382,12 @@ export function ScreeningResultsTable({
     [isLevel2, rows],
   );
 
-  /** Done cases always show full history; open cases use the toggle. */
+  /** Done / complete history is Level 2 only — Level 1 decisions live in the Work Log. */
   const viewingDoneCaseListSection = caseListSection === "done";
   const viewingDocumentsRequiredSection = caseListSection === "documents-required";
-  const effectiveShowReviewHistory =
-    isCaseComplete || showReviewHistory || viewingDoneCaseListSection;
+  const effectiveShowReviewHistory = isLevel2
+    ? isCaseComplete || showReviewHistory || viewingDoneCaseListSection
+    : false;
 
   const baseRows = useMemo((): ScreeningTableDisplayRow[] => {
     if (isLevel2) {
@@ -1409,7 +1404,7 @@ export function ScreeningResultsTable({
     if (caseListSection === "done") {
       return buildLevel1SentToLevel2DisplayRows(rows);
     }
-    return buildLevel1DisplayRows(rows, effectiveShowReviewHistory);
+    return buildLevel1DisplayRows(rows, false);
   }, [isLevel2, rows, effectiveShowReviewHistory, isCaseComplete, caseListSection]);
 
   // Temporarily hide Show/Hide review-history control in the matches toolbar.
@@ -1932,12 +1927,13 @@ export function ScreeningResultsTable({
                   level2ActiveRows.length === 0 &&
                   !hasReviewHistory
                 ? "No results awaiting Level 2 review. Level 1 must move matches out of New before they appear here."
+              : !isLevel2 && viewingDoneCaseListSection
+                ? "No submitted matches in this workflow for the selected case."
               : !isLevel2 &&
                   !viewingDocumentsRequiredSection &&
                   !rows.some((r) => isLevel1MyWorkStatus(r.status)) &&
-                  hasReviewHistory &&
-                  !effectiveShowReviewHistory
-                ? "All screening results have been reviewed. Show review history to see completed items."
+                  hasReviewHistory
+                ? "No open matches remain for this case. Submitted matches are in their workflow."
                 : statusFilters.size > 0
                 ? "No results match the current filter."
                 : "No results to display."}

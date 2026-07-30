@@ -4,8 +4,16 @@ import {
   type AceSidebarGroup,
   type AceSidebarNavItem,
 } from "@ace-ds/components/organisms/AceSidebar/AceSidebar";
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
+import {
+  AceTooltip,
+  AceTooltipContent,
+  AceTooltipTrigger,
+} from "@ace-ds/components/atoms/AceTooltip/AceTooltip";
+import { screeningToolbarIconButtonClass } from "@ace-ds/components/organisms/ScreeningResultsTable/screeningTableToolbar";
 import { SidebarNavCountBadge } from "./SidebarNavCountBadge";
 import type { ReviewSidebarWorkflowItem } from "../lib/reviewSidebarWorkflows";
+import { cn } from "./ui/utils";
 
 export type ReviewAssignedWorkCategory = {
   id: string;
@@ -27,6 +35,8 @@ export type ReviewAssignedSidebarProps = {
   workflowItems: readonly ReviewSidebarWorkflowItem[];
   selection: ReviewAssignedSidebarSelection;
   onSelectionChange: (selection: ReviewAssignedSidebarSelection) => void;
+  /** Opens the Work Log modal owned by the review interface. */
+  onOpenWorkLog?: () => void;
   className?: string;
 };
 
@@ -78,6 +88,7 @@ export function ReviewAssignedSidebar({
   workflowItems,
   selection,
   onSelectionChange,
+  onOpenWorkLog,
   className,
 }: ReviewAssignedSidebarProps) {
   const [selectedOrgId, setSelectedOrgId] = useState(organizations[0]?.id ?? "");
@@ -119,6 +130,51 @@ export function ReviewAssignedSidebar({
     onSelectionChange,
   ]);
 
+  const workLogTrigger = (
+    <AceTooltip>
+      <AceTooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label="Work Log"
+          className={screeningToolbarIconButtonClass}
+          onClick={() => onOpenWorkLog?.()}
+        >
+          <MaterialSymbol name="history" size="md" className="text-current" />
+        </button>
+      </AceTooltipTrigger>
+      <AceTooltipContent side="bottom" variant="screening-toolbar" hideArrow>
+        Work Log
+      </AceTooltipContent>
+    </AceTooltip>
+  );
+
+  const onlineHelp = (
+    <button
+      type="button"
+      className={cn(
+        "flex w-full items-center gap-3 rounded-[var(--ace-sidebar-item-radius)] border-0 bg-transparent px-3 py-2 text-left",
+        "text-[var(--ace-button-purple-500)] transition-colors",
+        "hover:bg-[var(--ace-sidebar-item-hover-bg)]",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)]",
+        "focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--screening-primary-ring-offset)]",
+      )}
+    >
+      <MaterialSymbol
+        name="help"
+        size="md"
+        className="shrink-0 text-[var(--ace-button-purple-500)]"
+      />
+      <span
+        className={cn(
+          "[font:var(--ace-type-paragraph-p1-regular)] [letter-spacing:var(--ace-type-paragraph-p1-regular-tracking)]",
+          "truncate text-sm text-[var(--ace-button-purple-500)]",
+        )}
+      >
+        Online Help
+      </span>
+    </button>
+  );
+
   return (
     <div className="h-full shrink-0">
       <AceSidebar
@@ -129,21 +185,37 @@ export function ReviewAssignedSidebar({
         onOrganizationChange={setSelectedOrgId}
         groups={groups}
         showGroupAdd={false}
+        headerTrailing={workLogTrigger}
         className={className ?? "h-full"}
-      />
+      >
+        <div className="mt-auto shrink-0 pb-4 pt-2">
+          {onlineHelp}
+        </div>
+      </AceSidebar>
     </div>
   );
 }
 
-/** Convenience for building category rows with a live sanction count. */
+/** Convenience for building category rows with live / static counts by id. */
+export function withWorkCounts(
+  categories: readonly Omit<ReviewAssignedWorkCategory, "count">[],
+  countsById: Record<string, number>,
+): ReviewAssignedWorkCategory[] {
+  return categories.map((item) => ({
+    ...item,
+    count: countsById[item.id] ?? 0,
+  }));
+}
+
+/** @deprecated Prefer `withWorkCounts`. */
 export function withSanctionCount(
   categories: readonly Omit<ReviewAssignedWorkCategory, "count">[],
   staticCounts: Record<string, number>,
   sanctionMatchCount: number,
   sanctionId = "sanction",
 ): ReviewAssignedWorkCategory[] {
-  return categories.map((item) => ({
-    ...item,
-    count: item.id === sanctionId ? sanctionMatchCount : (staticCounts[item.id] ?? 0),
-  }));
+  return withWorkCounts(categories, {
+    ...staticCounts,
+    [sanctionId]: sanctionMatchCount,
+  });
 }

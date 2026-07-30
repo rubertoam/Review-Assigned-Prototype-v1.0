@@ -25,8 +25,8 @@ function bumpCaseCount(
 }
 
 /**
- * Workflow destinations that have received cleared / routed work
- * (including Compliance Workbench). Counts are cases in each workflow’s case list.
+ * Persona-visible workflow destinations with open work
+ * (Compliance Workbench only for Level 1). Counts are cases in each workflow’s case list.
  */
 export function deriveReviewSidebarWorkflows(
   screeningRowsByCase: Record<number, ScreeningResultRow[]>,

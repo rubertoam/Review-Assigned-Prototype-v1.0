@@ -146,7 +146,7 @@ export function ToastMotionShell({
 
   return (
     <div
-      className="pointer-events-auto will-change-transform"
+      className="pointer-events-auto w-full will-change-transform"
       style={{
         animationName,
         animationDuration: `${TOAST_SLIDE_MS}ms`,
@@ -170,6 +170,6 @@ export function ToastMotionShell({
 
 export const toastViewportClass = cn(
   "pointer-events-none fixed bottom-6 left-6 z-[80]",
-  "flex max-w-[var(--ace-toast-width)] flex-col gap-3",
+  "flex w-[var(--ace-toast-width)] flex-col gap-3",
   "overflow-visible",
 );

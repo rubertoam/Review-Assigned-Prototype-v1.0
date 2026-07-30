@@ -248,6 +248,107 @@
   animation: activity-pulse 1.6s ease-in-out 2;
 }
 
+/* Work Log intro — cursor hovers the real history icon button. */
+@keyframes work-log-intro-cursor {
+  0%,
+  10% {
+    opacity: 0;
+    transform: translate(1.75rem, 2.75rem);
+  }
+  22% {
+    opacity: 1;
+    transform: translate(1.75rem, 2.75rem);
+  }
+  40%,
+  74% {
+    opacity: 1;
+    /* Cursor tip over the center of the 32px history button */
+    transform: translate(0.55rem, 0.55rem);
+  }
+  88%,
+  100% {
+    opacity: 0;
+    transform: translate(0.55rem, 0.55rem);
+  }
+}
+
+@keyframes work-log-intro-icon-hover {
+  0%,
+  36% {
+    background-color: var(--screening-surface);
+    border-color: var(--screening-border-strong);
+    color: var(--screening-text-secondary);
+  }
+  42%,
+  74% {
+    background-color: var(--screening-surface-hover);
+    border-color: var(--screening-chip-inactive-hover-border);
+    color: var(--screening-text-primary);
+  }
+  84%,
+  100% {
+    background-color: var(--screening-surface);
+    border-color: var(--screening-border-strong);
+    color: var(--screening-text-secondary);
+  }
+}
+
+@keyframes work-log-intro-tooltip {
+  0%,
+  38% {
+    opacity: 0;
+    transform: translateY(-0.2rem);
+  }
+  46%,
+  74% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  84%,
+  100% {
+    opacity: 0;
+    transform: translateY(-0.2rem);
+  }
+}
+
+.work-log-intro-cursor {
+  top: 0;
+  left: 0;
+  animation: work-log-intro-cursor 3.4s ease-in-out infinite;
+}
+
+.work-log-intro-icon {
+  animation: work-log-intro-icon-hover 3.4s ease-in-out infinite;
+}
+
+.work-log-intro-tooltip {
+  animation: work-log-intro-tooltip 3.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .work-log-intro-cursor,
+  .work-log-intro-icon,
+  .work-log-intro-tooltip {
+    animation: none;
+  }
+
+  .work-log-intro-cursor {
+    opacity: 1;
+    transform: translate(0.55rem, 0.55rem);
+  }
+
+  .work-log-intro-icon {
+    background-color: var(--screening-surface-hover);
+    border-color: var(--screening-chip-inactive-hover-border);
+    color: var(--screening-text-primary);
+  }
+
+  .work-log-intro-tooltip {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* Toast slide in/out from the left (Review Assigned toast host). */
 @keyframes ace-toast-slide-in-left {
   from {

@@ -11,7 +11,7 @@ export function ReviewPanelInlineInfoMessage({
   trailing,
 }: {
   children: ReactNode;
-  /** Optional control aligned to the right of the message (e.g. View Workflow). */
+  /** Optional control aligned to the right of the message. */
   trailing?: ReactNode;
 }) {
   return (

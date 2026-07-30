@@ -257,6 +257,8 @@ export function compareCasesBySort(
   sort: CaseSortValue,
   /** Resolves the result count to sort by; defaults to the static case total. */
   resultCountForIndex: (index: number) => number = (index) => casesData[index].results,
+  /** Resolves the display name to sort by; defaults to Sanction Matches cases. */
+  nameForIndex: (index: number) => string = (index) => casesData[index].name,
 ): number {
   if (sort === "results-asc" || sort === "results-desc") {
     const diff = resultCountForIndex(aIndex) - resultCountForIndex(bIndex);
@@ -264,11 +266,9 @@ export function compareCasesBySort(
     return ordered !== 0 ? ordered : aIndex - bIndex;
   }
 
-  const nameCompare = casesData[aIndex].name.localeCompare(
-    casesData[bIndex].name,
-    undefined,
-    { sensitivity: "base" },
-  );
+  const nameCompare = nameForIndex(aIndex).localeCompare(nameForIndex(bIndex), undefined, {
+    sensitivity: "base",
+  });
   return sort === "name-desc" ? -nameCompare : nameCompare;
 }
 

@@ -33,7 +33,7 @@ export type Level1DecisionStatus = (typeof LEVEL1_DECISION_STATUSES)[number];
 
 export type Level1ScreeningStatus = Level1OpenQueueStatus | Level1DecisionStatus;
 
-/** Compliance Workbench — Documents Required (actionable) and Documents Uploaded land here. */
+/** Compliance Workbench — open Documents Required matches only (uploaded leave for Work Log). */
 export const LEVEL1_COMPLIANCE_WORKBENCH = {
   id: "compliance-workbench",
   label: "Compliance Workbench",
@@ -42,27 +42,18 @@ export const LEVEL1_COMPLIANCE_WORKBENCH = {
 /** Alias — Documents Required status is the open queue for this workbench. */
 export const LEVEL1_DOCUMENTS_REQUIRED_WORKFLOW = LEVEL1_COMPLIANCE_WORKBENCH;
 
-/** Destination workbench when a match is moved into a Level 1 decision status. */
-export const LEVEL1_STATUS_WORKFLOW: Record<
-  Level1DecisionStatus,
-  { id: string; label: string }
-> = {
-  Safe: {
-    id: "operator-level-1-workbench",
-    label: "Operator Level 1 Workbench",
-  },
-  "Escalate to Team Lead": {
-    id: "operator-level-2-workbench",
-    label: "Operator Level 2 Workbench",
-  },
-  "Documents Uploaded": LEVEL1_COMPLIANCE_WORKBENCH,
-};
+/**
+ * Submitted Level 1 decisions leave the persona’s queues and are audited in Work Log.
+ * (Operator L1/L2 workbenches are out of this user’s workflow.)
+ */
+export const LEVEL1_WORK_LOG_DESTINATION = {
+  id: "work-log",
+  label: "Work Log",
+} as const;
 
-/** Stable sidebar order for Level 1 workflow groups. */
+/** Stable sidebar order for Level 1 workflow groups (persona-visible only). */
 export const LEVEL1_WORKFLOW_ORDER: readonly { id: string; label: string }[] = [
   LEVEL1_COMPLIANCE_WORKBENCH,
-  LEVEL1_STATUS_WORKFLOW.Safe,
-  LEVEL1_STATUS_WORKFLOW["Escalate to Team Lead"],
 ];
 
 export const LEVEL2_DECISION_STATUSES = ["Safe", "False Positive", "Remediate"] as const;
@@ -155,18 +146,16 @@ export function getReasonsForDecisionStatus(
 
 export function getWorkflowForLevel1Status(status: string): { id: string; label: string } | null {
   if (status === "Documents Required") return LEVEL1_COMPLIANCE_WORKBENCH;
-  if (!isLevel1DecisionStatus(status)) return null;
-  return LEVEL1_STATUS_WORKFLOW[status];
+  if (isLevel1DecisionStatus(status)) return LEVEL1_WORK_LOG_DESTINATION;
+  return null;
 }
 
 /** Statuses that belong in a given Level 1 workflow group. */
 export function getLevel1StatusesForWorkflowId(workflowId: string): Level1ScreeningStatus[] {
   if (workflowId === LEVEL1_COMPLIANCE_WORKBENCH.id) {
-    return ["Documents Required", "Documents Uploaded"];
+    return ["Documents Required"];
   }
-  return LEVEL1_DECISION_STATUSES.filter(
-    (status) => LEVEL1_STATUS_WORKFLOW[status].id === workflowId,
-  );
+  return [];
 }
 
 export function getWorkflowLabelById(workflowId: string): string | null {

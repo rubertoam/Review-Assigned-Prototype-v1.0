@@ -1,4 +1,3 @@
-import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { aceDropShadowXsClass } from "../lib/aceShadow";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { TaskBarQuickClear } from "./TaskBarQuickClear";
@@ -52,26 +51,10 @@ export function ReviewTaskBar({
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center justify-between gap-4 rounded-[var(--radius-sm)] border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-4 py-4",
+        "flex shrink-0 items-center justify-end gap-4 rounded-[var(--radius-sm)] border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-4 py-4",
         aceDropShadowXsClass,
       )}
     >
-      <button
-        type="button"
-        className="flex min-w-0 cursor-pointer items-center gap-3 rounded-[var(--radius-sm)] border-0 bg-transparent p-0 text-left transition-colors hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)]"
-      >
-        <MaterialSymbol
-          name="lightbulb"
-          size="lg"
-          className="text-[var(--screening-primary)]"
-        />
-        <p
-          className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[var(--screening-primary)] text-[14px]"
-          style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-        >
-          Show me how this works
-        </p>
-      </button>
       <div className="flex shrink-0 items-center gap-3">
         {screeningSelectionCount > 0 ? (
           <>

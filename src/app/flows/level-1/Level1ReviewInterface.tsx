@@ -70,6 +70,13 @@ import {
   buildSubmitUndoSnapshot,
   useBulkSubmitUndoToast,
 } from "../../lib/useBulkSubmitUndoToast";
+import {
+  createWorkLogEntriesForMatches,
+  removeWorkLogEntriesForRowIds,
+  type WorkLogEntry,
+} from "../../lib/workLogState";
+import { WorkLogModal } from "../../components/WorkLogModal";
+import { WorkLogIntroModal } from "../../components/WorkLogIntroModal";
 import { useOverdueWarningToast } from "../../lib/useOverdueWarningToast";
 import {
   caseMatchesFilters,
@@ -84,7 +91,6 @@ import {
   isCaseLockedByAnotherUser,
   lockedCaseReviewer,
 } from "../../lib/caseLockConfig";
-import { LEVEL1_STATIC_SCREENING_RULE_COUNTS } from "../../lib/assignedWorkCounts";
 import { deriveReviewSidebarWorkflows } from "../../lib/reviewSidebarWorkflows";
 import { cn } from "../../components/ui/utils";
 import { ReviewDrawer } from "../../components/ReviewDrawer";
@@ -100,13 +106,12 @@ import {
 } from "../../lib/reviewDecisionConfig";
 import {
   ReviewAssignedSidebar,
-  withSanctionCount,
+  withWorkCounts,
   type ReviewAssignedSidebarSelection,
 } from "../../components/ReviewAssignedSidebar";
+import { INITIAL_PEP_WORK_QUEUE, type PepCaseListItem } from "../../lib/pepWorkQueue";
 import { sidebarIconButtonClass } from "@ace-ds/components/organisms/AceSidebar/sidebarRowActions";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
-import { AceButton } from "@ace-ds/components/atoms/AceButton";
-import { DialogModal } from "@ace-ds/components/molecules/DialogModal/DialogModal";
 
 interface PageHeaderProps {
   isSidebarOpen: boolean;
@@ -170,50 +175,37 @@ const SIDEBAR_WORK_CATEGORIES = [
   {
     id: "pep",
     label: "PEP Screening",
-    selectable: false,
-    badgeLabelClass: MY_WORK_BADGE,
-  },
-  {
-    id: "new-clients",
-    label: "New Clients",
-    selectable: false,
-    badgeLabelClass: MY_WORK_BADGE,
-  },
-  {
-    id: "financial",
-    label: "Financial Crime",
-    selectable: false,
+    selectable: true,
     badgeLabelClass: MY_WORK_BADGE,
   },
 ] as const;
 
-const STATIC_SIDEBAR_COUNTS: Record<string, number> = {
-  ...LEVEL1_STATIC_SCREENING_RULE_COUNTS,
-};
-
 interface ReviewSidebarProps {
   isOpen: boolean;
   sanctionMatchCount: number;
+  pepMatchCount: number;
   workflowItems: ReturnType<typeof deriveReviewSidebarWorkflows>;
   selection: ReviewAssignedSidebarSelection;
   onSelectionChange: (selection: ReviewAssignedSidebarSelection) => void;
+  onOpenWorkLog: () => void;
 }
 
 function ReviewSidebar({
   isOpen,
   sanctionMatchCount,
+  pepMatchCount,
   workflowItems,
   selection,
   onSelectionChange,
+  onOpenWorkLog,
 }: ReviewSidebarProps) {
   const workCategories = useMemo(
     () =>
-      withSanctionCount(
-        SIDEBAR_WORK_CATEGORIES,
-        STATIC_SIDEBAR_COUNTS,
-        sanctionMatchCount,
-      ),
-    [sanctionMatchCount],
+      withWorkCounts(SIDEBAR_WORK_CATEGORIES, {
+        sanction: sanctionMatchCount,
+        pep: pepMatchCount,
+      }),
+    [sanctionMatchCount, pepMatchCount],
   );
 
   return (
@@ -224,6 +216,7 @@ function ReviewSidebar({
       workflowItems={workflowItems}
       selection={selection}
       onSelectionChange={onSelectionChange}
+      onOpenWorkLog={onOpenWorkLog}
     />
   );
 }
@@ -237,9 +230,15 @@ interface CaseListProps {
   /** When set, list shows cases that have matches in this workflow (read-only destination). */
   workflowId?: string | null;
   listTitle?: string;
+  /** Cases shown in this list (Sanction Matches or PEP Screening). */
+  cases?: readonly PepCaseListItem[] | typeof casesData;
+  /** When false, skip Laura lock treatment (PEP queue). */
+  applyCaseLocks?: boolean;
+  /** Fallback row factory when a case has no stored screening rows. */
+  getRowsForCase?: (index: number) => ScreeningResultRow[];
 }
 
-type CaseListRow = { item: (typeof casesData)[number]; index: number };
+type CaseListRow = { item: PepCaseListItem | (typeof casesData)[number]; index: number };
 
 function CaseList({
   onSelectCase,
@@ -249,6 +248,9 @@ function CaseList({
   onFilterVisibilityChange,
   workflowId = null,
   listTitle = "Sanction Matches",
+  cases = casesData,
+  applyCaseLocks = true,
+  getRowsForCase = getScreeningRowsForCase,
 }: CaseListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
@@ -268,8 +270,8 @@ function CaseList({
   );
 
   const caseRowsForIndex = useCallback(
-    (index: number) => screeningRowsByCase[index] ?? getScreeningRowsForCase(index),
-    [screeningRowsByCase],
+    (index: number) => screeningRowsByCase[index] ?? getRowsForCase(index),
+    [screeningRowsByCase, getRowsForCase],
   );
 
   /** Results still awaiting Level 1 review in My Work. */
@@ -289,7 +291,7 @@ function CaseList({
 
   const filteredRows = useMemo(() => {
     const out: CaseListRow[] = [];
-    casesData.forEach((item, index) => {
+    cases.forEach((item, index) => {
       if (caseMatchesFilters(index, selectedCaseFilters)) {
         out.push({ item, index });
       }
@@ -300,10 +302,12 @@ function CaseList({
         b.index,
         caseSort,
         isWorkflowView ? workflowResultCount : pendingResultCount,
+        (index) => cases[index]?.name ?? "",
       ),
     );
     return out;
   }, [
+    cases,
     selectedCaseFilters,
     caseSort,
     pendingResultCount,
@@ -327,12 +331,12 @@ function CaseList({
 
   const caseReviewProgress = useMemo(
     () =>
-      casesData.map((_, i) => {
+      cases.map((_, i) => {
         const rows = caseRowsForIndex(i);
         const done = rows.filter((r) => isLevel1DecisionStatus(r.status)).length;
         return { done, total: rows.filter((r) => r.status !== "Documents Required").length };
       }),
-    [caseRowsForIndex],
+    [cases, caseRowsForIndex],
   );
 
   useEffect(() => {
@@ -395,7 +399,7 @@ function CaseList({
     }
   }, [selectedCaseIndex, onSelectCase, isFocused, visibleRows, isWorkflowView, workflowCaseSection]);
 
-  const renderCaseRow = (caseItem: (typeof casesData)[number], index: number) => {
+  const renderCaseRow = (caseItem: PepCaseListItem | (typeof casesData)[number], index: number) => {
     const section: CaseListSectionContext = isWorkflowView ? workflowCaseSection : "todo";
     const isEntity = "isEntity" in caseItem && caseItem.isEntity;
     const profile = clientProfileForCaseIndex(index);
@@ -409,7 +413,7 @@ function CaseList({
         ? pendingCount
         : caseItem.results;
     const isSelected = selectedCaseIndex === index && selectedCaseListSection === section;
-    const lockReviewer = lockedCaseReviewer(index);
+    const lockReviewer = applyCaseLocks ? lockedCaseReviewer(index) : null;
     return (
       <div
         key={`${section}-${index}`}
@@ -565,7 +569,7 @@ function CaseList({
 }
 
 interface DetailPanelProps {
-  selectedCase: (typeof casesData)[number];
+  selectedCase: PepCaseListItem | (typeof casesData)[number];
   selectedCaseIndex: number;
   caseListSection: CaseListSectionContext;
   screeningRows: ScreeningResultRow[];
@@ -600,7 +604,6 @@ function DetailPanel({
   onOpenClientProfileAction,
 }: DetailPanelProps) {
   const [clientExpanded, setClientExpanded] = useState(false);
-  const [workflowModalOpen, setWorkflowModalOpen] = useState(false);
   const profile = clientProfileForCaseIndex(selectedCaseIndex);
   const riskPresentation = riskBandPresentation(profile.riskBand);
   const isWorkflowView = Boolean(workflowLabel);
@@ -624,47 +627,14 @@ function DetailPanel({
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
       {isWorkflowView ? (
-        <ReviewPanelInlineInfoMessage
-          trailing={
-            <AceButton
-              type="button"
-              variant="primary"
-              palette="purple"
-              size="sm"
-              onClick={() => setWorkflowModalOpen(true)}
-            >
-              View Workflow
-            </AceButton>
-          }
-        >
-          {isCaseReadOnly
-            ? "Read only. This case is part of an active workflow but is under review by another user."
-            : "This case is part of an active workflow."}
+        <ReviewPanelInlineInfoMessage>
+          The matches in this case are part of an active workflow.
         </ReviewPanelInlineInfoMessage>
       ) : isCaseReadOnly ? (
         <ReviewPanelInlineInfoMessage>
           Read only. This case is locked and in review by another user.
         </ReviewPanelInlineInfoMessage>
       ) : null}
-      <DialogModal
-        open={workflowModalOpen}
-        onClose={() => setWorkflowModalOpen(false)}
-        title="View Workflow"
-        size="lg"
-        secondaryAction={{
-          label: "Close",
-          onClick: () => setWorkflowModalOpen(false),
-        }}
-      >
-        <p
-          className={cn(
-            aceTypography(ACE_TYPE.p1Regular),
-            "m-0 text-[var(--screening-text-primary)]",
-          )}
-        >
-          {/* Content TBD */}
-        </p>
-      </DialogModal>
       <div className="flex shrink-0 flex-col gap-2">
         <p
           className={cn(
@@ -881,7 +851,10 @@ export function Level1ReviewInterface() {
     null,
   );
   const [screeningSelectedIds, setScreeningSelectedIds] = useState<Set<string>>(() => new Set());
-  const [caseFilterVisibility, setCaseFilterVisibility] = useState({
+  const [caseFilterVisibility, setCaseFilterVisibility] = useState<{
+    filtersActive: boolean;
+    filteredCount: number;
+  }>({
     filtersActive: false,
     filteredCount: casesData.length,
   });
@@ -892,8 +865,83 @@ export function Level1ReviewInterface() {
     setClientProfileAction(null);
   }, []);
   const [screeningRowsByCase, setScreeningRowsByCase] = useScreeningRowsByCase();
+  const [pepCases] = useState(() => INITIAL_PEP_WORK_QUEUE.cases);
+  const [pepScreeningRowsByCase, setPepScreeningRowsByCase] = useState(
+    () => INITIAL_PEP_WORK_QUEUE.screeningRowsByCase,
+  );
+  const [workLogEntries, setWorkLogEntries] = useState<WorkLogEntry[]>([]);
+  const [workLogOpen, setWorkLogOpen] = useState(false);
+  const [workLogIntroOpen, setWorkLogIntroOpen] = useState(false);
+  const workLogIntroShownRef = useRef(false);
+  const undoWorkQueueRef = useRef<"sanction" | "pep">("sanction");
+
+  const recordWorkLogDecision = useCallback(
+    ({
+      caseIndex,
+      clientName,
+      clientId,
+      status,
+      matches,
+      reviewer,
+    }: {
+      caseIndex: number;
+      clientName: string;
+      clientId: string;
+      status: string;
+      matches: readonly { id: string; name: string }[];
+      reviewer: string;
+    }) => {
+      const entries = createWorkLogEntriesForMatches({
+        caseIndex,
+        clientName,
+        clientId,
+        status,
+        matches,
+        reviewer,
+      });
+      if (entries.length === 0) return;
+      setWorkLogEntries((prev) => {
+        if (prev.length === 0 && !workLogIntroShownRef.current) {
+          workLogIntroShownRef.current = true;
+          queueMicrotask(() => setWorkLogIntroOpen(true));
+        }
+        return [...entries, ...prev];
+      });
+    },
+    [],
+  );
 
   const isWorkflowView = sidebarSelection.kind === "workflow";
+  const isPepWork = sidebarSelection.kind === "work" && sidebarSelection.id === "pep";
+  const activeCases = isWorkflowView || !isPepWork ? casesData : pepCases;
+  const activeScreeningRowsByCase =
+    isWorkflowView || !isPepWork ? screeningRowsByCase : pepScreeningRowsByCase;
+  const setActiveScreeningRowsByCase =
+    isWorkflowView || !isPepWork ? setScreeningRowsByCase : setPepScreeningRowsByCase;
+  const getActiveRowsForCase = useCallback(
+    (index: number) => {
+      if (isPepWork && !isWorkflowView) {
+        return pepScreeningRowsByCase[index] ?? [];
+      }
+      return screeningRowsByCase[index] ?? getScreeningRowsForCase(index);
+    },
+    [isPepWork, isWorkflowView, pepScreeningRowsByCase, screeningRowsByCase],
+  );
+
+  /** Client identity for the case that owns the submitted matches. */
+  const workLogClientForCaseIndex = useCallback(
+    (caseIndex: number) => {
+      const clientName =
+        (isPepWork ? pepCases[caseIndex]?.name : casesData[caseIndex]?.name)?.trim() || "—";
+      const clientId = clientProfileForCaseIndex(caseIndex).clientId.trim() || "—";
+      return { clientName, clientId };
+    },
+    [isPepWork, pepCases],
+  );
+
+  const workListTitle = isPepWork ? "PEP Screening" : "Sanction Matches";
+  const screeningRuleLabel = isPepWork ? "PEP Screening" : "Sanctioned Matches";
+
   const selectedWorkflowId = isWorkflowView ? sidebarSelection.id : null;
   const selectedWorkflowLabel = selectedWorkflowId
     ? getWorkflowLabelById(selectedWorkflowId)
@@ -906,16 +954,15 @@ export function Level1ReviewInterface() {
   );
 
   const screeningRows = useMemo(() => {
-    const rows =
-      screeningRowsByCase[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
+    const rows = getActiveRowsForCase(selectedCaseIndex);
     if (isWorkflowView) {
       return rows.filter((row) =>
         workflowStatuses.includes(row.status as (typeof workflowStatuses)[number]),
       );
     }
-    // My Work — New + completed decisions for history; Documents Required is in its workflow.
-    return rows.filter((row) => row.status !== "Documents Required");
-  }, [screeningRowsByCase, selectedCaseIndex, isWorkflowView, workflowStatuses]);
+    // My Work — only New. Submitted decisions are recorded in the Work Log.
+    return rows.filter((row) => isLevel1MyWorkStatus(row.status));
+  }, [getActiveRowsForCase, selectedCaseIndex, isWorkflowView, workflowStatuses]);
 
   const handleSidebarSelectionChange = useCallback(
     (selection: ReviewAssignedSidebarSelection) => {
@@ -923,6 +970,7 @@ export function Level1ReviewInterface() {
       setScreeningSelectedIds(new Set());
       setClientProfileAction(null);
       setIsReviewDrawerOpen(false);
+      setSelectedCaseIndex(0);
       if (selection.kind === "workflow") {
         setSelectedCaseListSection(
           isDocumentsRequiredWorkflowId(selection.id) ? "documents-required" : "done",
@@ -934,7 +982,8 @@ export function Level1ReviewInterface() {
     [],
   );
 
-  const isSelectedCaseReadOnly = isCaseLockedByAnotherUser(selectedCaseIndex);
+  const isSelectedCaseReadOnly =
+    !isPepWork && isCaseLockedByAnotherUser(selectedCaseIndex);
 
   useEffect(() => {
     if (isSelectedCaseReadOnly) {
@@ -950,11 +999,8 @@ export function Level1ReviewInterface() {
 
   const allCasesCleared = useMemo(
     () =>
-      casesData.every((_, index) => {
-        const rows = screeningRowsByCase[index] ?? getScreeningRowsForCase(index);
-        return isCaseScreeningComplete(rows);
-      }),
-    [screeningRowsByCase],
+      activeCases.every((_, index) => isCaseScreeningComplete(getActiveRowsForCase(index))),
+    [activeCases, getActiveRowsForCase],
   );
 
   const pendingSanctionCount = useMemo(
@@ -964,6 +1010,15 @@ export function Level1ReviewInterface() {
         return isCaseScreeningComplete(rows) ? count : count + 1;
       }, 0),
     [screeningRowsByCase],
+  );
+
+  const pendingPepCount = useMemo(
+    () =>
+      pepCases.reduce((count, _, index) => {
+        const rows = pepScreeningRowsByCase[index] ?? [];
+        return isCaseScreeningComplete(rows) ? count : count + 1;
+      }, 0),
+    [pepCases, pepScreeningRowsByCase],
   );
 
   const sidebarWorkflowItems = useMemo(
@@ -996,13 +1051,25 @@ export function Level1ReviewInterface() {
 
   const restoreSubmittedRows = useCallback(
     (caseIndex: number, previousRowsById: Record<string, (typeof screeningRows)[number]>) => {
-      setScreeningRowsByCase((prev) => {
-        const current = prev[caseIndex] ?? getScreeningRowsForCase(caseIndex);
+      setWorkLogEntries((prev) =>
+        removeWorkLogEntriesForRowIds(prev, Object.keys(previousRowsById)),
+      );
+      const restoreInPep = undoWorkQueueRef.current === "pep";
+      const applyRestore = (
+        prev: Record<number, ScreeningResultRow[]>,
+        fallback: (index: number) => ScreeningResultRow[],
+      ) => {
+        const current = prev[caseIndex] ?? fallback(caseIndex);
         return {
           ...prev,
           [caseIndex]: current.map((row) => previousRowsById[row.id] ?? row),
         };
-      });
+      };
+      if (restoreInPep) {
+        setPepScreeningRowsByCase((prev) => applyRestore(prev, () => []));
+      } else {
+        setScreeningRowsByCase((prev) => applyRestore(prev, getScreeningRowsForCase));
+      }
     },
     [setScreeningRowsByCase],
   );
@@ -1015,28 +1082,40 @@ export function Level1ReviewInterface() {
 
   const handleSubmitDecision = useCallback(
     (status: string, reason: string) => {
-      const current =
-        screeningRowsByCase[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
+      const current = getActiveRowsForCase(selectedCaseIndex);
       const selectedRows = current.filter((row) => screeningSelectedIds.has(row.id));
       if (
         !(getLevel1DecisionStatusesForRows(selectedRows) as readonly string[]).includes(status)
       ) {
         return;
       }
+      const caseName = activeCases[selectedCaseIndex]?.name ?? "Case";
       const snapshot = buildSubmitUndoSnapshot({
         caseIndex: selectedCaseIndex,
-        caseName: casesData[selectedCaseIndex]?.name ?? "Case",
+        caseName,
         rows: current,
         selectedIds: screeningSelectedIds,
         status,
         flowVariant: "level-1",
+        screeningRuleLabel,
       });
 
       commitPendingToast();
+      undoWorkQueueRef.current = isPepWork ? "pep" : "sanction";
 
-      setScreeningRowsByCase((prev) => {
-        const rows =
-          prev[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
+      const reviewer = level1ReviewerForCaseIndex(selectedCaseIndex);
+      const { clientName, clientId } = workLogClientForCaseIndex(selectedCaseIndex);
+      recordWorkLogDecision({
+        caseIndex: selectedCaseIndex,
+        clientName,
+        clientId,
+        status,
+        matches: selectedRows.map((row) => ({ id: row.id, name: row.name })),
+        reviewer,
+      });
+
+      setActiveScreeningRowsByCase((prev) => {
+        const rows = prev[selectedCaseIndex] ?? getActiveRowsForCase(selectedCaseIndex);
         return {
           ...prev,
           [selectedCaseIndex]: rows.map((row) =>
@@ -1045,7 +1124,7 @@ export function Level1ReviewInterface() {
                   ...row,
                   status: status as Level1ScreeningStatus,
                   level1Reason: reason,
-                  level1Reviewer: level1ReviewerForCaseIndex(selectedCaseIndex),
+                  level1Reviewer: reviewer,
                 }
               : row,
           ),
@@ -1057,8 +1136,13 @@ export function Level1ReviewInterface() {
     [
       selectedCaseIndex,
       screeningSelectedIds,
-      screeningRowsByCase,
-      setScreeningRowsByCase,
+      getActiveRowsForCase,
+      activeCases,
+      screeningRuleLabel,
+      isPepWork,
+      setActiveScreeningRowsByCase,
+      recordWorkLogDecision,
+      workLogClientForCaseIndex,
       commitPendingToast,
       showBulkSubmitToast,
     ],
@@ -1066,8 +1150,7 @@ export function Level1ReviewInterface() {
 
   const handleQuickClearRow = useCallback(
     (rowId: string, status: ScreeningRowStatus) => {
-      const current =
-        screeningRowsByCase[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
+      const current = getActiveRowsForCase(selectedCaseIndex);
       const target = current.find((row) => row.id === rowId);
       if (!target) return;
       if (
@@ -1075,20 +1158,33 @@ export function Level1ReviewInterface() {
       ) {
         return;
       }
+      const caseName = activeCases[selectedCaseIndex]?.name ?? "Case";
       const snapshot = buildSubmitUndoSnapshot({
         caseIndex: selectedCaseIndex,
-        caseName: casesData[selectedCaseIndex]?.name ?? "Case",
+        caseName,
         rows: current,
         selectedIds: new Set([rowId]),
         status,
         flowVariant: "level-1",
+        screeningRuleLabel,
       });
 
       commitPendingToast();
+      undoWorkQueueRef.current = isPepWork ? "pep" : "sanction";
 
-      setScreeningRowsByCase((prev) => {
-        const rows =
-          prev[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
+      const reviewer = level1ReviewerForCaseIndex(selectedCaseIndex);
+      const { clientName, clientId } = workLogClientForCaseIndex(selectedCaseIndex);
+      recordWorkLogDecision({
+        caseIndex: selectedCaseIndex,
+        clientName,
+        clientId,
+        status,
+        matches: [{ id: target.id, name: target.name }],
+        reviewer,
+      });
+
+      setActiveScreeningRowsByCase((prev) => {
+        const rows = prev[selectedCaseIndex] ?? getActiveRowsForCase(selectedCaseIndex);
         return {
           ...prev,
           [selectedCaseIndex]: rows.map((row) =>
@@ -1097,7 +1193,7 @@ export function Level1ReviewInterface() {
                   ...row,
                   status: status as Level1ScreeningStatus,
                   level1Reason: status,
-                  level1Reviewer: level1ReviewerForCaseIndex(selectedCaseIndex),
+                  level1Reviewer: reviewer,
                 }
               : row,
           ),
@@ -1113,8 +1209,13 @@ export function Level1ReviewInterface() {
     },
     [
       selectedCaseIndex,
-      screeningRowsByCase,
-      setScreeningRowsByCase,
+      getActiveRowsForCase,
+      activeCases,
+      screeningRuleLabel,
+      isPepWork,
+      setActiveScreeningRowsByCase,
+      recordWorkLogDecision,
+      workLogClientForCaseIndex,
       commitPendingToast,
       showBulkSubmitToast,
     ],
@@ -1122,28 +1223,40 @@ export function Level1ReviewInterface() {
 
   const handleBulkQuickClear = useCallback(
     (status: ScreeningRowStatus) => {
-      const current =
-        screeningRowsByCase[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
+      const current = getActiveRowsForCase(selectedCaseIndex);
       const selectedRows = current.filter((row) => screeningSelectedIds.has(row.id));
       if (
         !(getLevel1DecisionStatusesForRows(selectedRows) as readonly string[]).includes(status)
       ) {
         return;
       }
+      const caseName = activeCases[selectedCaseIndex]?.name ?? "Case";
       const snapshot = buildSubmitUndoSnapshot({
         caseIndex: selectedCaseIndex,
-        caseName: casesData[selectedCaseIndex]?.name ?? "Case",
+        caseName,
         rows: current,
         selectedIds: screeningSelectedIds,
         status,
         flowVariant: "level-1",
+        screeningRuleLabel,
       });
 
       commitPendingToast();
+      undoWorkQueueRef.current = isPepWork ? "pep" : "sanction";
 
-      setScreeningRowsByCase((prev) => {
-        const rows =
-          prev[selectedCaseIndex] ?? getScreeningRowsForCase(selectedCaseIndex);
+      const reviewer = level1ReviewerForCaseIndex(selectedCaseIndex);
+      const { clientName, clientId } = workLogClientForCaseIndex(selectedCaseIndex);
+      recordWorkLogDecision({
+        caseIndex: selectedCaseIndex,
+        clientName,
+        clientId,
+        status,
+        matches: selectedRows.map((row) => ({ id: row.id, name: row.name })),
+        reviewer,
+      });
+
+      setActiveScreeningRowsByCase((prev) => {
+        const rows = prev[selectedCaseIndex] ?? getActiveRowsForCase(selectedCaseIndex);
         return {
           ...prev,
           [selectedCaseIndex]: rows.map((row) =>
@@ -1152,7 +1265,7 @@ export function Level1ReviewInterface() {
                   ...row,
                   status: status as Level1ScreeningStatus,
                   level1Reason: status,
-                  level1Reviewer: level1ReviewerForCaseIndex(selectedCaseIndex),
+                  level1Reviewer: reviewer,
                 }
               : row,
           ),
@@ -1164,8 +1277,13 @@ export function Level1ReviewInterface() {
     [
       selectedCaseIndex,
       screeningSelectedIds,
-      screeningRowsByCase,
-      setScreeningRowsByCase,
+      getActiveRowsForCase,
+      activeCases,
+      screeningRuleLabel,
+      isPepWork,
+      setActiveScreeningRowsByCase,
+      recordWorkLogDecision,
+      workLogClientForCaseIndex,
       commitPendingToast,
       showBulkSubmitToast,
     ],
@@ -1200,9 +1318,11 @@ export function Level1ReviewInterface() {
         <ReviewSidebar
           isOpen={sidebarPinned}
           sanctionMatchCount={pendingSanctionCount}
+          pepMatchCount={pendingPepCount}
           workflowItems={sidebarWorkflowItems}
           selection={sidebarSelection}
           onSelectionChange={handleSidebarSelectionChange}
+          onOpenWorkLog={() => setWorkLogOpen(true)}
         />
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <div className="flex flex-col flex-1 min-h-0 overflow-hidden px-4 pb-4 gap-4">
@@ -1212,14 +1332,17 @@ export function Level1ReviewInterface() {
                   onSelectCase={handleSelectCase}
                   selectedCaseIndex={selectedCaseIndex}
                   selectedCaseListSection={selectedCaseListSection}
-                  screeningRowsByCase={screeningRowsByCase}
+                  screeningRowsByCase={activeScreeningRowsByCase}
                   onFilterVisibilityChange={setCaseFilterVisibility}
                   workflowId={selectedWorkflowId}
-                  listTitle={selectedWorkflowLabel ?? "Sanction Matches"}
+                  listTitle={selectedWorkflowLabel ?? workListTitle}
+                  cases={activeCases}
+                  applyCaseLocks={!isPepWork}
+                  getRowsForCase={getActiveRowsForCase}
                 />
               </div>
               <DetailPanel
-                selectedCase={casesData[selectedCaseIndex]}
+                selectedCase={activeCases[selectedCaseIndex] ?? activeCases[0]!}
                 selectedCaseIndex={selectedCaseIndex}
                 caseListSection={selectedCaseListSection}
                 screeningRows={screeningRows}
@@ -1277,6 +1400,15 @@ export function Level1ReviewInterface() {
       {completeCaseConfirmDialog}
       {bulkSubmitToast}
       {overdueWarningToast}
+      <WorkLogModal
+        open={workLogOpen}
+        onClose={() => setWorkLogOpen(false)}
+        entries={workLogEntries}
+      />
+      <WorkLogIntroModal
+        open={workLogIntroOpen}
+        onClose={() => setWorkLogIntroOpen(false)}
+      />
     </div>
     </ThemeProvider>
   );

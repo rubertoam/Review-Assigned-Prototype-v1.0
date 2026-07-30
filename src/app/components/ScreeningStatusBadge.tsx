@@ -8,6 +8,7 @@ export const SCREENING_STATUS_BADGE_VARIANT: Record<string, AceBadgeVariant> = {
   "Documents Required": "yellow",
   Safe: "green",
   "Escalate to Team Lead": "orange",
+  "Escalated to Team Lead": "orange",
   "Documents Uploaded": "blue",
   /** Legacy / history display */
   Escalate: "orange",
@@ -31,9 +32,10 @@ export function ScreeningStatusBadge({
   children?: ReactNode;
 }) {
   const variant = SCREENING_STATUS_BADGE_VARIANT[status] ?? "orange";
+  const label = children ?? status;
   return (
     <AceBadge appearance="pill" variant={variant} className={className}>
-      {children ?? status}
+      {label}
     </AceBadge>
   );
 }

@@ -8,7 +8,6 @@ import {
   TOAST_DURATION_MS,
   toastViewportClass,
 } from "./toastPresentation";
-import { getWorkflowForLevel1Status } from "./reviewDecisionConfig";
 
 /** Default screening rule name shown in undo-success copy (matches activity feed seed data). */
 export const DEFAULT_SCREENING_RULE_LABEL = "Sanctioned Matches";
@@ -43,7 +42,8 @@ function workflowLabelForSubmit(
   status: string,
 ): string {
   if (flowVariant === "level-1") {
-    return getWorkflowForLevel1Status(status)?.label ?? status;
+    // Toast names the decision status the user chose (not Work Log).
+    return status;
   }
   if (status === "Remediate") return "Level 1 Remediation";
   return status;
@@ -113,7 +113,7 @@ function SubmitSuccessToast({
       </>
     ) : (
       <>
-        {toast.matchCount} matches sent to workflow{" "}
+        {toast.matchCount} matches sent to{" "}
         <BoldHighlight>{toast.workflowLabel}.</BoldHighlight>
       </>
     );
