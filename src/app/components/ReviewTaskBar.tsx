@@ -1,3 +1,10 @@
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
+import {
+  AceTooltip,
+  AceTooltipContent,
+  AceTooltipTrigger,
+} from "@ace-ds/components/atoms/AceTooltip/AceTooltip";
+import { screeningToolbarIconButtonClass } from "@ace-ds/components/organisms/ScreeningResultsTable/screeningTableToolbar";
 import { aceDropShadowXsClass } from "../lib/aceShadow";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { TaskBarQuickClear } from "./TaskBarQuickClear";
@@ -13,6 +20,8 @@ interface ReviewTaskBarProps {
   selectedRows: readonly ScreeningResultRow[];
   onDeselectAllScreening: () => void;
   onBulkQuickClear: (status: ScreeningRowStatus) => void;
+  /** Opens the Work History modal — Level 1 A/B with the sidebar history control. */
+  onOpenWorkLog?: () => void;
 }
 
 export function ReviewTaskBar({
@@ -23,6 +32,7 @@ export function ReviewTaskBar({
   selectedRows,
   onDeselectAllScreening,
   onBulkQuickClear,
+  onOpenWorkLog,
 }: ReviewTaskBarProps) {
   const isSelectionEmpty = screeningSelectionCount === 0;
   const isShowReviewDisabled = !isReviewOpen && isSelectionEmpty;
@@ -48,13 +58,36 @@ export function ReviewTaskBar({
     </button>
   );
 
+  const workHistoryButton =
+    onOpenWorkLog != null ? (
+      <div className="inline-flex size-8 shrink-0 items-center justify-center leading-none">
+        <AceTooltip>
+          <AceTooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label="Work History"
+              className={cn(screeningToolbarIconButtonClass, "leading-none")}
+              onClick={onOpenWorkLog}
+            >
+              <MaterialSymbol name="history" size="md" weight={300} className="text-current" />
+            </button>
+          </AceTooltipTrigger>
+          <AceTooltipContent side="top" variant="screening-toolbar" hideArrow>
+            Work History
+          </AceTooltipContent>
+        </AceTooltip>
+      </div>
+    ) : null;
+
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center justify-end gap-4 rounded-[var(--radius-sm)] border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-4 py-4",
+        "flex shrink-0 items-center gap-4 rounded-[var(--radius-sm)] border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-4 py-4",
+        workHistoryButton != null ? "justify-between" : "justify-end",
         aceDropShadowXsClass,
       )}
     >
+      {workHistoryButton}
       <div className="flex shrink-0 items-center gap-3">
         {screeningSelectionCount > 0 ? (
           <>

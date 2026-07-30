@@ -163,7 +163,7 @@ function WorkLogFilterChipMenu({
             ? valueItems
             : [{ type: "label", label: "No values available." }]
         }
-        className="rounded-r-none"
+        className="rounded-r-none border-r-0"
       />
       <button
         type="button"
@@ -272,7 +272,7 @@ export function WorkLogModal({
     <DialogModal
       open={open}
       onClose={onClose}
-      title="Work Log"
+      title="Work History"
       size="lg"
       className={workLogModalShellClass}
       bodyClassName={cn(
@@ -330,13 +330,13 @@ export function WorkLogModal({
               <AceTable
                 columns={[...WORK_LOG_COLUMNS]}
                 rows={rows}
-                caption="Work log"
+                caption="Work history"
                 className="min-w-[48rem] rounded-none border-0"
               />
             </div>
           ) : (
             <div className="min-h-0 flex-1 overflow-auto">
-              <WorkLogEmptyState message="No work log entries match the current filters." />
+              <WorkLogEmptyState message="No work history entries match the current filters." />
             </div>
           )}
         </div>

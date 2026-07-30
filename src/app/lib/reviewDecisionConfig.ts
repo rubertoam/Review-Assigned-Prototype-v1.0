@@ -48,7 +48,7 @@ export const LEVEL1_DOCUMENTS_REQUIRED_WORKFLOW = LEVEL1_COMPLIANCE_WORKBENCH;
  */
 export const LEVEL1_WORK_LOG_DESTINATION = {
   id: "work-log",
-  label: "Work Log",
+  label: "Work History",
 } as const;
 
 /** Stable sidebar order for Level 1 workflow groups (persona-visible only). */

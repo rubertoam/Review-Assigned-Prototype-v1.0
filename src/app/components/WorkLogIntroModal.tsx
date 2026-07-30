@@ -16,7 +16,7 @@ function WorkLogOpenDemo() {
         "aspect-[16/10] w-full",
       )}
       role="img"
-      aria-label="Animation showing the mouse cursor hovering over the Work Log history icon in the sidebar header"
+      aria-label="Animation showing the mouse cursor hovering over the Work History icon in the sidebar header"
     >
       <div className="absolute inset-0 flex items-start justify-center px-6 pt-10">
         <div
@@ -64,7 +64,7 @@ function WorkLogOpenDemo() {
                   )}
                   style={notoVar}
                 >
-                  Work Log
+                  Work History
                 </p>
               </div>
               {/* Cursor tip targets the history icon (same Material Symbol as the sidebar). */}
@@ -113,7 +113,7 @@ export function WorkLogIntroModal({
     <DialogModal
       open={open}
       onClose={onClose}
-      title="Your Work Log is ready"
+      title="Your Work History is ready"
       size="lg"
       fitContent
       primaryAction={{
@@ -129,7 +129,7 @@ export function WorkLogIntroModal({
           )}
           style={notoVar}
         >
-          Submitted matches are recorded in the Work Log so you can review what you completed
+          Submitted matches are recorded in the Work History so you can review what you completed
           this session. Open it anytime from the history icon in the top right of the Review
           Assigned sidebar.
         </p>

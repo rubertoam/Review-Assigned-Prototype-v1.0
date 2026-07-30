@@ -1384,6 +1384,7 @@ export function Level1ReviewInterface() {
                 selectedRows={selectedScreeningRows}
                 onDeselectAllScreening={() => setScreeningSelectedIds(new Set())}
                 onBulkQuickClear={handleBulkQuickClear}
+                onOpenWorkLog={() => setWorkLogOpen(true)}
               />
             ) : null}
           </div>

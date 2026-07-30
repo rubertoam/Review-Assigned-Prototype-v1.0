@@ -35,7 +35,7 @@ export type ReviewAssignedSidebarProps = {
   workflowItems: readonly ReviewSidebarWorkflowItem[];
   selection: ReviewAssignedSidebarSelection;
   onSelectionChange: (selection: ReviewAssignedSidebarSelection) => void;
-  /** Opens the Work Log modal owned by the review interface. */
+  /** Opens the Work History modal owned by the review interface. */
   onOpenWorkLog?: () => void;
   className?: string;
 };
@@ -131,21 +131,23 @@ export function ReviewAssignedSidebar({
   ]);
 
   const workLogTrigger = (
-    <AceTooltip>
-      <AceTooltipTrigger asChild>
-        <button
-          type="button"
-          aria-label="Work Log"
-          className={screeningToolbarIconButtonClass}
-          onClick={() => onOpenWorkLog?.()}
-        >
-          <MaterialSymbol name="history" size="md" className="text-current" />
-        </button>
-      </AceTooltipTrigger>
-      <AceTooltipContent side="bottom" variant="screening-toolbar" hideArrow>
-        Work Log
-      </AceTooltipContent>
-    </AceTooltip>
+    <div className="inline-flex size-8 shrink-0 items-center justify-center leading-none">
+      <AceTooltip>
+        <AceTooltipTrigger asChild>
+          <button
+            type="button"
+            aria-label="Work History"
+            className={cn(screeningToolbarIconButtonClass, "leading-none")}
+            onClick={() => onOpenWorkLog?.()}
+          >
+            <MaterialSymbol name="history" size="md" weight={300} className="text-current" />
+          </button>
+        </AceTooltipTrigger>
+        <AceTooltipContent side="top" variant="screening-toolbar" hideArrow>
+          Work History
+        </AceTooltipContent>
+      </AceTooltip>
+    </div>
   );
 
   const onlineHelp = (
@@ -153,8 +155,8 @@ export function ReviewAssignedSidebar({
       type="button"
       className={cn(
         "flex w-full items-center gap-3 rounded-[var(--ace-sidebar-item-radius)] border-0 bg-transparent px-3 py-2 text-left",
-        "text-[var(--ace-button-purple-500)] transition-colors",
-        "hover:bg-[var(--ace-sidebar-item-hover-bg)]",
+        "text-[var(--ace-button-purple-400)] transition-colors",
+        "hover:bg-[var(--ace-sidebar-item-selected-bg)]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)]",
         "focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--screening-primary-ring-offset)]",
       )}
@@ -162,12 +164,12 @@ export function ReviewAssignedSidebar({
       <MaterialSymbol
         name="help"
         size="md"
-        className="shrink-0 text-[var(--ace-button-purple-500)]"
+        className="shrink-0 text-[var(--ace-button-purple-400)]"
       />
       <span
         className={cn(
           "[font:var(--ace-type-paragraph-p1-regular)] [letter-spacing:var(--ace-type-paragraph-p1-regular-tracking)]",
-          "truncate text-sm text-[var(--ace-button-purple-500)]",
+          "truncate text-sm text-[var(--ace-button-purple-400)]",
         )}
       >
         Online Help
