@@ -70,6 +70,7 @@ import {
 import { isLevel1InProcessStatus } from "../../lib/reviewDecisionConfig";
 import { useScreeningRowsByCase } from "../../lib/screeningState";
 import { useCompleteCaseSubmit } from "../../lib/useCompleteCaseSubmit";
+import { ToastViewport } from "../../lib/toastPresentation";
 import {
   buildSubmitUndoSnapshot,
   useBulkSubmitUndoToast,
@@ -1125,7 +1126,7 @@ export function Level2ReviewInterface() {
         </div>
       </div>
       {completeCaseConfirmDialog}
-      {bulkSubmitToast}
+      <ToastViewport>{bulkSubmitToast}</ToastViewport>
     </div>
     </ThemeProvider>
   );

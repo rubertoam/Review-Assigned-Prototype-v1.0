@@ -1,4 +1,5 @@
 import {
+  Children,
   useCallback,
   useEffect,
   useRef,
@@ -173,3 +174,14 @@ export const toastViewportClass = cn(
   "flex w-[var(--ace-toast-width)] flex-col gap-3",
   "overflow-visible",
 );
+
+/**
+ * Single fixed host for concurrent toasts. Hooks should return toast cards only —
+ * wrap all Level toast nodes in one viewport so they stack with gap instead of
+ * overlapping at the same fixed corner.
+ */
+export function ToastViewport({ children }: { children: ReactNode }) {
+  const items = Children.toArray(children).filter(Boolean);
+  if (items.length === 0) return null;
+  return <div className={toastViewportClass}>{items}</div>;
+}

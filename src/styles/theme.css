@@ -248,16 +248,16 @@
   animation: activity-pulse 1.6s ease-in-out 2;
 }
 
-/* Work Log intro — cursor hovers the real history icon button. */
+/* Work History intro — cursor hovers the page-header history icon (next to Last updated). */
 @keyframes work-log-intro-cursor {
   0%,
   10% {
     opacity: 0;
-    transform: translate(1.75rem, 2.75rem);
+    transform: translate(1.5rem, 2.25rem);
   }
   22% {
     opacity: 1;
-    transform: translate(1.75rem, 2.75rem);
+    transform: translate(1.5rem, 2.25rem);
   }
   40%,
   74% {

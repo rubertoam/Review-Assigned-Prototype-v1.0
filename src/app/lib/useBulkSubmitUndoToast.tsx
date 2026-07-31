@@ -6,7 +6,6 @@ import type { ScreeningResultRow } from "../components/ScreeningResultsTable";
 import {
   ToastMotionShell,
   TOAST_DURATION_MS,
-  toastViewportClass,
 } from "./toastPresentation";
 
 /** Default screening rule name shown in undo-success copy (matches activity feed seed data). */
@@ -233,22 +232,20 @@ export function useBulkSubmitUndoToast({
   }, []);
 
   const bulkSubmitToast = activeToast ? (
-    <div className={toastViewportClass}>
-      {activeToast.kind === "submit" ? (
-        <SubmitSuccessToast
-          key={activeToast.id}
-          toast={activeToast}
-          onDismissed={handleSubmitDismissed}
-          onUndo={handleUndo}
-        />
-      ) : (
-        <UndoSuccessToast
-          key={activeToast.id}
-          toast={activeToast}
-          onDismissed={handleUndoSuccessDismissed}
-        />
-      )}
-    </div>
+    activeToast.kind === "submit" ? (
+      <SubmitSuccessToast
+        key={activeToast.id}
+        toast={activeToast}
+        onDismissed={handleSubmitDismissed}
+        onUndo={handleUndo}
+      />
+    ) : (
+      <UndoSuccessToast
+        key={activeToast.id}
+        toast={activeToast}
+        onDismissed={handleUndoSuccessDismissed}
+      />
+    )
   ) : null;
 
   return { showBulkSubmitToast, commitPendingToast, bulkSubmitToast };

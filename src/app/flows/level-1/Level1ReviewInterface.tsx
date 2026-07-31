@@ -77,6 +77,7 @@ import {
 } from "../../lib/workLogState";
 import { WorkLogModal } from "../../components/WorkLogModal";
 import { WorkLogIntroModal } from "../../components/WorkLogIntroModal";
+import { ToastViewport } from "../../lib/toastPresentation";
 import { useOverdueWarningToast } from "../../lib/useOverdueWarningToast";
 import {
   caseMatchesFilters,
@@ -1401,7 +1402,6 @@ export function Level1ReviewInterface() {
                 selectedRows={selectedScreeningRows}
                 onDeselectAllScreening={() => setScreeningSelectedIds(new Set())}
                 onBulkQuickClear={handleBulkQuickClear}
-                onOpenWorkLog={() => setWorkLogOpen(true)}
               />
             ) : null}
           </div>
@@ -1423,8 +1423,10 @@ export function Level1ReviewInterface() {
         </div>
       </div>
       {completeCaseConfirmDialog}
-      {bulkSubmitToast}
-      {overdueWarningToast}
+      <ToastViewport>
+        {bulkSubmitToast}
+        {overdueWarningToast}
+      </ToastViewport>
       <WorkLogModal
         open={workLogOpen}
         onClose={() => setWorkLogOpen(false)}

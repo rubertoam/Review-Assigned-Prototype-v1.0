@@ -6,7 +6,6 @@ import { casesData, clientProfileForCaseIndex } from "./reviewCaseData";
 import {
   ToastMotionShell,
   TOAST_DURATION_MS,
-  toastViewportClass,
 } from "./toastPresentation";
 
 const SHOW_AFTER_MS = 10_000;
@@ -82,12 +81,10 @@ export function useOverdueWarningToast(): ReactNode {
   const caseName = casesData[OVERDUE_WARNING_CASE_INDEX]?.name ?? "Case";
 
   return (
-    <div className={toastViewportClass}>
-      <OverdueWarningToastCard
-        caseName={caseName}
-        expiringIn={EXPIRING_IN_LABEL}
-        onDismissed={handleDismissed}
-      />
-    </div>
+    <OverdueWarningToastCard
+      caseName={caseName}
+      expiringIn={EXPIRING_IN_LABEL}
+      onDismissed={handleDismissed}
+    />
   );
 }
