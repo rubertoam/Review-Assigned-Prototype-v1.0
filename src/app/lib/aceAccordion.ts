@@ -5,6 +5,8 @@ export const aceAccordionFixedHeaderClass =
 /**
  * Fill + scroll chain for a flex-sized `AceAccordion` body without switching the
  * panel region off `display: grid` (grid is required for ACE expand/collapse motion).
+ * Prefer content-height growth + external page/detail scroll for Matches; use this
+ * only when the accordion must fill a bounded flex pane and scroll internally.
  */
 export const aceAccordionPanelFillClass =
   "[&>[role=region]]:min-h-0 [&>[role=region]]:flex-1 [&>[role=region]>div]:min-h-0 [&>[role=region]>div]:h-full [&>[role=region]>div>div]:flex [&>[role=region]>div>div]:h-full [&>[role=region]>div>div]:min-h-0 [&>[role=region]>div>div]:flex-col";

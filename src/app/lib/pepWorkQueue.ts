@@ -150,24 +150,40 @@ function buildPepRows(caseIndex: number, caseName: string, matchCount: number): 
   }));
 }
 
-/** Builds a fresh randomized PEP Screening queue (cases + matches). */
-export function buildRandomPepWorkQueue(): PepWorkQueue {
-  const caseCount = randInt(4, 6);
-  const usedNames = new Set<string>();
-  const cases: PepCaseListItem[] = [];
-  const screeningRowsByCase: Record<number, ScreeningResultRow[]> = {};
+/** First two PEP cases — stable names with 110 New matches for table scroll testing. */
+const PEP_SCROLL_TEST_CASES = [
+  { name: "Elena Vargas", matchCount: 110 },
+  { name: "Marcus Chen", matchCount: 110 },
+] as const;
 
-  for (let i = 0; i < caseCount; i++) {
+/** Builds a PEP Screening queue (cases + matches). First two cases are always scroll-test seeds. */
+export function buildRandomPepWorkQueue(): PepWorkQueue {
+  const extraCaseCount = randInt(3, 5);
+  const usedNames = new Set<string>(PEP_SCROLL_TEST_CASES.map((c) => c.name));
+  const cases: PepCaseListItem[] = PEP_SCROLL_TEST_CASES.map((c, index) => ({
+    name: c.name,
+    results: c.matchCount,
+    selected: index === 0,
+  }));
+  const screeningRowsByCase: Record<number, ScreeningResultRow[]> = {};
+  for (let i = 0; i < PEP_SCROLL_TEST_CASES.length; i++) {
+    const c = PEP_SCROLL_TEST_CASES[i]!;
+    screeningRowsByCase[i] = buildPepRows(i, c.name, c.matchCount);
+  }
+
+  const scrollSeedCount = PEP_SCROLL_TEST_CASES.length;
+  for (let i = 0; i < extraCaseCount; i++) {
+    const caseIndex = scrollSeedCount + i;
     const isEntity = Math.random() < 0.22;
     const name = isEntity ? uniqueEntityName(usedNames) : uniqueIndividualName(usedNames);
     const matchCount = randInt(2, 8);
     cases.push({
       name,
       results: matchCount,
-      selected: i === 0,
+      selected: false,
       ...(isEntity ? { isEntity: true } : {}),
     });
-    screeningRowsByCase[i] = buildPepRows(i, name, matchCount);
+    screeningRowsByCase[caseIndex] = buildPepRows(caseIndex, name, matchCount);
   }
 
   return { cases, screeningRowsByCase };

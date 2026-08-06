@@ -80,7 +80,7 @@ export type CaseSortValue = (typeof CASE_SORT_OPTIONS)[number]["value"];
 export type CaseRecordType = "individual" | "organization" | "unknown";
 
 export const casesData = [
-  { name: "John Smith", results: 8, selected: true },
+  { name: "John Smith", results: 110, selected: true },
   { name: "Mr. Jose A Gonzalez", results: 8, selected: false },
   { name: "Muammar Qadhafi", results: 7, selected: false },
   { name: "Jane Doe", results: 5, selected: false },

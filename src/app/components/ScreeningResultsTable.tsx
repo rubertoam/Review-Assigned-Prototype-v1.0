@@ -11,6 +11,11 @@ import {
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { AceInputField } from "@ace-ds/components/atoms/AceInputField";
+import {
+  AceTooltip,
+  AceTooltipContent,
+  AceTooltipTrigger,
+} from "@ace-ds/components/atoms/AceTooltip/AceTooltip";
 import { Toggle } from "@ace-ds/components/atoms/Toggle/Toggle";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
 import { AceFilterToggleChip } from "@ace-ds/components/molecules/AceFiltering/AceFilterToggleChip";
@@ -19,7 +24,7 @@ import {
   screeningStatusFilterLabelClass,
   screeningToolbarIconButtonClass,
 } from "@ace-ds/components/organisms/ScreeningResultsTable/screeningTableToolbar";
-import { aceAccordionFixedHeaderClass, aceAccordionPanelFillClass } from "../lib/aceAccordion";
+import { aceAccordionFixedHeaderClass } from "../lib/aceAccordion";
 import { aceDropShadowXsClass } from "../lib/aceShadow";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { cn } from "./ui/utils";
@@ -174,7 +179,8 @@ export type ScreeningTableDisplayRow = ScreeningResultRow & {
 /** Level 2 analyst name shown in the Reviewer column for L2 decisions. */
 export const LEVEL2_ANALYST_REVIEWER = "Laura";
 
-const CASE_RESULT_COUNTS = [8, 8, 7, 5, 3, 2] as const;
+/** John Smith (index 0) has 110 matches for table scroll testing; others keep small queues. */
+const CASE_RESULT_COUNTS = [110, 8, 7, 5, 3, 2] as const;
 
 /** Mock Level 1 reviewers per case (aligned with `CASE_RESULT_COUNTS` indices). */
 const LEVEL1_CASE_REVIEWERS = [
@@ -253,7 +259,7 @@ export function getScreeningRowsForCase(caseIndex: number): ScreeningResultRow[]
   const names = CASE_VARIANT_NAMES[ci];
   const rows: ScreeningResultRow[] = [];
   for (let i = 0; i < total; i++) {
-    const name = names[Math.min(i, names.length - 1)];
+    const name = names[i % names.length];
     const score = Math.max(22, 93 - i * 7 - (ci % 3) * 2);
     const tiles = TILE_ROTATIONS[i % TILE_ROTATIONS.length];
     const reopenedFromConfirmedSafe = reopenedFromConfirmedSafeForRow(ci, i);
@@ -496,16 +502,16 @@ function ScreeningColumnReorderMenuItem({
         checked={checked}
         disabled={disabled}
         tabIndex={-1}
-        className="pointer-events-none"
+        className="pointer-events-none self-center"
         aria-hidden
       />
-      <span className="min-w-0 flex-1 truncate text-left">{label}</span>
+      <span className="min-w-0 flex-1 truncate self-center text-left">{label}</span>
       <button
         type="button"
         draggable
         aria-label={`Reorder ${label}`}
         className={cn(
-          "inline-flex size-5 shrink-0 items-center justify-center rounded text-[var(--screening-icon-muted)]",
+          "inline-flex h-5 w-5 shrink-0 items-center justify-center self-center rounded text-[var(--screening-icon-muted)]",
           "cursor-grab opacity-0 active:cursor-grabbing",
           "transition-opacity",
           screeningColumnDragMotionClass,
@@ -529,7 +535,7 @@ function ScreeningColumnReorderMenuItem({
         }}
         onPointerDown={(event) => event.stopPropagation()}
       >
-        <MaterialSymbol name="drag_handle" size="sm" className="size-3.5" />
+        <MaterialSymbol name="drag_handle" size="sm" weight={300} className="leading-none" />
       </button>
     </DropdownMenuPrimitive.Item>
   );
@@ -908,7 +914,7 @@ interface ScreeningResultsTableProps {
   flowVariant?: "level-1" | "level-2";
   /** Which case-list bucket is active — scopes visible rows (todo vs sent-away). */
   caseListSection?: CaseListSectionContext;
-  /** Optional root classes (e.g. `w-full`). Table body scroll is internal to the component; avoid `flex-1` on the root so the closed accordion does not stretch. */
+  /** Optional root classes (e.g. `w-full`). Accordion grows with content; page/detail scroll is external — avoid `flex-1` on the root so the closed accordion does not stretch. */
   className?: string;
   /** When both are passed, row selection is controlled by the parent (e.g. task bar). */
   selectedIds?: Set<string>;
@@ -2013,11 +2019,9 @@ export function ScreeningResultsTable({
   return (
     <AceAccordion
       className={cn(
-        "flex w-full flex-col border-[var(--screening-border-strong)]",
-        screeningAccordionOpen ? "min-h-0 flex-initial" : "shrink-0",
+        "flex w-full shrink-0 flex-col border-[var(--screening-border-strong)]",
         aceAccordionFixedHeaderClass,
         aceDropShadowXsClass,
-        screeningAccordionOpen && aceAccordionPanelFillClass,
         className,
       )}
       surface="white"
@@ -2037,23 +2041,89 @@ export function ScreeningResultsTable({
       headerTrailing={tableHeaderTrailing}
       contentPadding={false}
     >
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <div className="relative flex min-h-0 flex-1 overflow-hidden">
+          <div className="flex min-w-0 flex-col" data-coach-target="matches">
+            <div className="relative flex flex-col">
               <div
                 className={cn(
-                  "flex min-h-0 w-[200%] shrink-0 transition-transform will-change-transform",
+                  "flex w-[200%] shrink-0 transition-transform will-change-transform",
                   durationDrilldownSwipe,
                   easeDrilldownSwipe,
                   drilldownVisible ? "-translate-x-1/2" : "translate-x-0",
                 )}
               >
                 <div
-                  className="flex min-h-0 w-1/2 min-w-0 flex-col overflow-hidden self-stretch"
+                  className="flex w-1/2 min-w-0 flex-col self-stretch"
                   aria-hidden={drilldownVisible}
                 >
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+            <div className="flex flex-col">
             <div className="shrink-0 border-b border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-4 py-3">
-              <div className="flex flex-nowrap items-center justify-between gap-3">
+              <div className="flex flex-nowrap items-center gap-3">
+                <DropdownMenu
+                  onOpenChange={(open) => {
+                    if (!open) {
+                      setColumnDropIndicator(null);
+                      setDraggedColumnKey(null);
+                      setColumnDropLineTop(null);
+                    }
+                  }}
+                >
+                  <AceTooltip>
+                    <AceTooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Show or hide columns"
+                          className={screeningToolbarIconButtonClass}
+                        >
+                          <MaterialSymbol name="view_list" size="md" weight={300} />
+                        </button>
+                      </DropdownMenuTrigger>
+                    </AceTooltipTrigger>
+                    <AceTooltipContent side="top" variant="screening-toolbar" hideArrow>
+                      Edit Columns
+                    </AceTooltipContent>
+                  </AceTooltip>
+                  <DropdownMenuContent
+                    align="start"
+                    className="min-w-[15rem]"
+                    onDragLeave={(event) => {
+                      if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+                        setColumnDropIndicator(null);
+                        setColumnDropLineTop(null);
+                      }
+                    }}
+                  >
+                    <DropdownMenuLabel>Columns</DropdownMenuLabel>
+                    <div ref={columnListRef} className="relative">
+                      {columnDropLineTop !== null ? (
+                        <span
+                          aria-hidden
+                          className={cn(
+                            screeningColumnDropLineClass,
+                            draggedColumnKey ? "scale-x-100 opacity-100" : "scale-x-[0.98] opacity-0",
+                          )}
+                          style={{ top: columnDropLineTop }}
+                        />
+                      ) : null}
+                      {columnMenuOptions.map((column) => (
+                        <ScreeningColumnReorderMenuItem
+                          key={column.key}
+                          columnKey={column.key}
+                          label={column.label}
+                          checked={visibleColumns.has(column.key)}
+                          disabled={visibleColumns.has(column.key) && visibleColumns.size <= 1}
+                          draggedColumnKey={draggedColumnKey}
+                          dropIndicator={columnDropIndicator}
+                          onCheckedChange={(checked) => toggleColumnVisibility(column.key, checked)}
+                          onReorder={reorderColumns}
+                          onDropIndicatorChange={setColumnDropIndicator}
+                          onDraggedColumnKeyChange={setDraggedColumnKey}
+                          onItemRef={registerColumnMenuItemRef}
+                        />
+                      ))}
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 {showStatusFilter ? (
                   <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                     <span className={screeningStatusFilterLabelClass}>Filter by</span>
@@ -2072,79 +2142,6 @@ export function ScreeningResultsTable({
                   <div className="min-w-0 flex-1" aria-hidden />
                 )}
                 <div className="flex shrink-0 flex-nowrap items-center gap-3">
-                  <DropdownMenu
-                    onOpenChange={(open) => {
-                      if (!open) {
-                        setColumnDropIndicator(null);
-                        setDraggedColumnKey(null);
-                        setColumnDropLineTop(null);
-                      }
-                    }}
-                  >
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            type="button"
-                            aria-label="Show or hide columns"
-                            className={screeningToolbarIconButtonClass}
-                          >
-                            <MaterialSymbol name="view_list" size="md" weight={300} />
-                          </button>
-                        </DropdownMenuTrigger>
-                      </TooltipTrigger>
-                      <TooltipContent
-                        side="top"
-                        hideArrow
-                        className={cn(
-                          aceTypography(ACE_TYPE.captionSemiBold),
-                          "border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] text-[var(--screening-text-primary)] shadow-[var(--ace-drop-shadow-xs)]",
-                        )}
-                      >
-                        Columns
-                      </TooltipContent>
-                    </Tooltip>
-                    <DropdownMenuContent
-                      align="end"
-                      className="min-w-[15rem]"
-                      onDragLeave={(event) => {
-                        if (!event.currentTarget.contains(event.relatedTarget as Node)) {
-                          setColumnDropIndicator(null);
-                          setColumnDropLineTop(null);
-                        }
-                      }}
-                    >
-                      <DropdownMenuLabel>Columns</DropdownMenuLabel>
-                      <div ref={columnListRef} className="relative">
-                        {columnDropLineTop !== null ? (
-                          <span
-                            aria-hidden
-                            className={cn(
-                              screeningColumnDropLineClass,
-                              draggedColumnKey ? "scale-x-100 opacity-100" : "scale-x-[0.98] opacity-0",
-                            )}
-                            style={{ top: columnDropLineTop }}
-                          />
-                        ) : null}
-                        {columnMenuOptions.map((column) => (
-                          <ScreeningColumnReorderMenuItem
-                            key={column.key}
-                            columnKey={column.key}
-                            label={column.label}
-                            checked={visibleColumns.has(column.key)}
-                            disabled={visibleColumns.has(column.key) && visibleColumns.size <= 1}
-                            draggedColumnKey={draggedColumnKey}
-                            dropIndicator={columnDropIndicator}
-                            onCheckedChange={(checked) => toggleColumnVisibility(column.key, checked)}
-                            onReorder={reorderColumns}
-                            onDropIndicatorChange={setColumnDropIndicator}
-                            onDraggedColumnKeyChange={setDraggedColumnKey}
-                            onItemRef={registerColumnMenuItemRef}
-                          />
-                        ))}
-                      </div>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                   {showReviewHistoryToggle ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -2281,7 +2278,7 @@ export function ScreeningResultsTable({
             </div>
                 </div>
                 <div
-                  className="flex h-full min-h-0 w-1/2 min-w-0 flex-col overflow-hidden"
+                  className="flex w-1/2 min-w-0 flex-col self-stretch"
                   aria-hidden={!drilldownVisible}
                 >
                   {drilldownRow && drilldownView === "screening-history" ? (

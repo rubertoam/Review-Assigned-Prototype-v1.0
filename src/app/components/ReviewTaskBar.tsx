@@ -50,6 +50,7 @@ export function ReviewTaskBar({
 
   return (
     <div
+      data-coach-target="task-bar"
       className={cn(
         "flex shrink-0 items-center justify-end gap-4 rounded-[var(--radius-sm)] border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-4 py-4",
         aceDropShadowXsClass,

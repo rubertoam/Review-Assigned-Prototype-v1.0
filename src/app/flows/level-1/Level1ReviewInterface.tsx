@@ -77,6 +77,10 @@ import {
 } from "../../lib/workLogState";
 import { WorkLogModal } from "../../components/WorkLogModal";
 import { WorkLogIntroModal } from "../../components/WorkLogIntroModal";
+import {
+  ReviewOnboardingCoach,
+  useReviewOnboardingCoach,
+} from "../../components/ReviewOnboardingCoach";
 import { ToastViewport } from "../../lib/toastPresentation";
 import { useOverdueWarningToast } from "../../lib/useOverdueWarningToast";
 import {
@@ -121,6 +125,7 @@ interface PageHeaderProps {
   levelLabel: string;
   onTriggerClick: () => void;
   onOpenWorkLog: () => void;
+  suppressSidebarTooltip?: boolean;
 }
 
 function PageHeader({
@@ -129,23 +134,39 @@ function PageHeader({
   levelLabel,
   onTriggerClick,
   onOpenWorkLog,
+  suppressSidebarTooltip = false,
 }: PageHeaderProps) {
+  const sidebarToggleButton = (
+    <button
+      type="button"
+      aria-expanded={isSidebarOpen}
+      aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+      className={sidebarIconButtonClass}
+      onClick={onTriggerClick}
+    >
+      <MaterialSymbol
+        name="left_panel_close"
+        size="md"
+        className={cn("text-current", !sidebarPinned && "rotate-180")}
+      />
+    </button>
+  );
+
   return (
     <div className="flex shrink-0 items-center justify-between border-b border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-4 py-3 md:px-8">
       <div className="flex items-center gap-5">
-        <button
-          type="button"
-          aria-expanded={isSidebarOpen}
-          aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
-          className={sidebarIconButtonClass}
-          onClick={onTriggerClick}
-        >
-          <MaterialSymbol
-            name="left_panel_close"
-            size="md"
-            className={cn("text-current", !sidebarPinned && "rotate-180")}
-          />
-        </button>
+        <div className="relative inline-flex" data-coach-target="sidebar-toggle">
+          {suppressSidebarTooltip ? (
+            sidebarToggleButton
+          ) : (
+            <AceTooltip>
+              <AceTooltipTrigger asChild>{sidebarToggleButton}</AceTooltipTrigger>
+              <AceTooltipContent side="top" variant="screening-toolbar" hideArrow>
+                {isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+              </AceTooltipContent>
+            </AceTooltip>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <p className={cn(aceTypography(ACE_TYPE.h6Bold), "leading-[1.65] text-[var(--screening-text-primary)]")}>
             Review Assigned
@@ -516,6 +537,7 @@ function CaseList({
     <div
       ref={listRef}
       tabIndex={0}
+      data-coach-target="case-list"
       onFocus={() => setIsFocused(true)}
       onBlur={() => setIsFocused(false)}
       className={cn(
@@ -561,7 +583,7 @@ function CaseList({
       </div>
       <div className="flex flex-col">
         <CaseListSection
-          title={isWorkflowView ? "Cases" : "Case List - To Do"}
+          title={isWorkflowView ? "Cases" : "Case List"}
           count={visibleRows.length}
           collapsible={false}
           emptyContent={
@@ -643,7 +665,7 @@ function DetailPanel({
   }
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto">
       {isWorkflowView ? (
         <ReviewPanelInlineInfoMessage>
           The matches in this case are part of an active workflow.
@@ -653,7 +675,10 @@ function DetailPanel({
           Read only. This case is locked and in review by another user.
         </ReviewPanelInlineInfoMessage>
       ) : null}
-      <div className="flex shrink-0 flex-col gap-2">
+      <div
+        className="sticky top-0 z-20 flex shrink-0 flex-col gap-2 bg-[var(--screening-surface-muted)] pb-2"
+        data-coach-target="client-profile"
+      >
         <p
           className={cn(
             aceTypography(ACE_TYPE.labelBold),
@@ -832,7 +857,7 @@ function DetailPanel({
       </AceAccordion>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+      <div className="flex shrink-0 flex-col gap-2">
         <p
           className={cn(
             aceTypography(ACE_TYPE.labelBold),
@@ -857,6 +882,21 @@ function DetailPanel({
 
 export function Level1ReviewInterface() {
   const [sidebarPinned, setSidebarPinned] = useState(true);
+  const ensureSidebarOpen = useCallback(() => {
+    setSidebarPinned(true);
+  }, []);
+  const {
+    promptOpen: onboardingPromptOpen,
+    active: onboardingCoachActive,
+    step: onboardingCoachStep,
+    stepIndex: onboardingCoachStepIndex,
+    stepCount: onboardingCoachStepCount,
+    isLast: onboardingCoachIsLast,
+    startTour: startOnboardingCoach,
+    declineTour: declineOnboardingCoach,
+    next: advanceOnboardingCoach,
+    dismiss: dismissOnboardingCoach,
+  } = useReviewOnboardingCoach({ onEnsureSidebarOpen: ensureSidebarOpen });
   const [selectedCaseIndex, setSelectedCaseIndex] = useState(0);
   const [selectedCaseListSection, setSelectedCaseListSection] =
     useState<CaseListSectionContext>("todo");
@@ -1339,6 +1379,9 @@ export function Level1ReviewInterface() {
         levelLabel="Level 1"
         onTriggerClick={handleTriggerClick}
         onOpenWorkLog={() => setWorkLogOpen(true)}
+        suppressSidebarTooltip={
+          onboardingCoachActive && onboardingCoachStep.id === "sidebar-toggle"
+        }
       />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <ReviewSidebar
@@ -1435,6 +1478,18 @@ export function Level1ReviewInterface() {
       <WorkLogIntroModal
         open={workLogIntroOpen}
         onClose={() => setWorkLogIntroOpen(false)}
+      />
+      <ReviewOnboardingCoach
+        promptOpen={onboardingPromptOpen}
+        onStartTour={startOnboardingCoach}
+        onDeclineTour={declineOnboardingCoach}
+        active={onboardingCoachActive}
+        step={onboardingCoachStep}
+        stepIndex={onboardingCoachStepIndex}
+        stepCount={onboardingCoachStepCount}
+        isLast={onboardingCoachIsLast}
+        onNext={advanceOnboardingCoach}
+        onDismiss={dismissOnboardingCoach}
       />
     </div>
     </ThemeProvider>

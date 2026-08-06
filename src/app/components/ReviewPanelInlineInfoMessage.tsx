@@ -22,12 +22,11 @@ export function ReviewPanelInlineInfoMessage({
       )}
       role="status"
     >
-      <span
-        className="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-[var(--screening-primary)] text-white dark:bg-[#7c6bc4]"
-        aria-hidden
-      >
-        <MaterialSymbol name="info" size="sm" className="text-white" />
-      </span>
+      <MaterialSymbol
+        name="info"
+        size="sm"
+        className="shrink-0 text-[var(--screening-primary)] dark:text-[#7c6bc4]"
+      />
       <span
         className={cn(
           aceTypography(ACE_TYPE.p1Regular),

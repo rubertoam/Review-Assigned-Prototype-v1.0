@@ -72,6 +72,10 @@ import { useScreeningRowsByCase } from "../../lib/screeningState";
 import { useCompleteCaseSubmit } from "../../lib/useCompleteCaseSubmit";
 import { ToastViewport } from "../../lib/toastPresentation";
 import {
+  ReviewOnboardingCoach,
+  useReviewOnboardingCoach,
+} from "../../components/ReviewOnboardingCoach";
+import {
   buildSubmitUndoSnapshot,
   useBulkSubmitUndoToast,
 } from "../../lib/useBulkSubmitUndoToast";
@@ -101,6 +105,7 @@ interface PageHeaderProps {
   sidebarPinned: boolean;
   levelLabel: string;
   onTriggerClick: () => void;
+  suppressSidebarTooltip?: boolean;
 }
 
 /**
@@ -137,23 +142,39 @@ function PageHeader({
   sidebarPinned,
   levelLabel,
   onTriggerClick,
+  suppressSidebarTooltip = false,
 }: PageHeaderProps) {
+  const sidebarToggleButton = (
+    <button
+      type="button"
+      aria-expanded={isSidebarOpen}
+      aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+      className={sidebarIconButtonClass}
+      onClick={onTriggerClick}
+    >
+      <MaterialSymbol
+        name="left_panel_close"
+        size="md"
+        className={cn("text-current", !sidebarPinned && "rotate-180")}
+      />
+    </button>
+  );
+
   return (
     <div className="flex shrink-0 items-center justify-between border-b border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-4 py-3 md:px-8">
       <div className="flex items-center gap-5">
-        <button
-          type="button"
-          aria-expanded={isSidebarOpen}
-          aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
-          className={sidebarIconButtonClass}
-          onClick={onTriggerClick}
-        >
-          <MaterialSymbol
-            name="left_panel_close"
-            size="md"
-            className={cn("text-current", !sidebarPinned && "rotate-180")}
-          />
-        </button>
+        <div className="relative inline-flex" data-coach-target="sidebar-toggle">
+          {suppressSidebarTooltip ? (
+            sidebarToggleButton
+          ) : (
+            <AceTooltip>
+              <AceTooltipTrigger asChild>{sidebarToggleButton}</AceTooltipTrigger>
+              <AceTooltipContent side="top" variant="screening-toolbar" hideArrow>
+                {isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+              </AceTooltipContent>
+            </AceTooltip>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <p className={cn(aceTypography(ACE_TYPE.h6Bold), "leading-[1.65] text-[var(--screening-text-primary)]")}>
             Review Assigned
@@ -469,6 +490,7 @@ function CaseList({
     <div
       ref={listRef}
       tabIndex={0}
+      data-coach-target="case-list"
       onFocus={() => setIsFocused(true)}
       onBlur={() => setIsFocused(false)}
       className={cn(
@@ -511,7 +533,7 @@ function CaseList({
       </div>
       <div className="flex flex-col">
         <CaseListSection
-          title="Case List - To Do"
+          title="Case List"
           count={pendingRows.length}
           collapsible={false}
           emptyContent={
@@ -608,8 +630,11 @@ function DetailPanel({
   const showOverdueWarning = profile.reviewTargetOverdue && !isCaseComplete;
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
-      <div className="flex shrink-0 flex-col gap-2">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto">
+      <div
+        className="sticky top-0 z-20 flex shrink-0 flex-col gap-2 bg-[var(--screening-surface-muted)] pb-2"
+        data-coach-target="client-profile"
+      >
         <p
           className={cn(
             aceTypography(ACE_TYPE.labelBold),
@@ -786,7 +811,7 @@ function DetailPanel({
       </AceAccordion>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+      <div className="flex shrink-0 flex-col gap-2">
         <p
           className={cn(
             aceTypography(ACE_TYPE.labelBold),
@@ -843,6 +868,40 @@ export function Level2ReviewInterface() {
     setClientProfileAction(null);
   }, []);
   const [screeningRowsByCase, setScreeningRowsByCase] = useScreeningRowsByCase();
+
+  const ensureSidebarOpen = useCallback(() => {
+    setSidebarPinned(true);
+  }, []);
+  const ensureDetailVisible = useCallback(() => {
+    setSelectedCaseIndex((current) => {
+      if (current !== null) return current;
+      for (let index = 0; index < casesData.length; index += 1) {
+        const rows =
+          screeningRowsByCase[index] ?? getScreeningRowsForCase(index);
+        if (caseHasLevel2QueueWork(rows)) {
+          setSelectedCaseListSection("todo");
+          return index;
+        }
+      }
+      setSelectedCaseListSection("todo");
+      return 0;
+    });
+  }, [screeningRowsByCase]);
+  const {
+    promptOpen: onboardingPromptOpen,
+    active: onboardingCoachActive,
+    step: onboardingCoachStep,
+    stepIndex: onboardingCoachStepIndex,
+    stepCount: onboardingCoachStepCount,
+    isLast: onboardingCoachIsLast,
+    startTour: startOnboardingCoach,
+    declineTour: declineOnboardingCoach,
+    next: advanceOnboardingCoach,
+    dismiss: dismissOnboardingCoach,
+  } = useReviewOnboardingCoach({
+    onEnsureSidebarOpen: ensureSidebarOpen,
+    onEnsureDetailVisible: ensureDetailVisible,
+  });
 
   const screeningRows = useMemo(
     () =>
@@ -1059,6 +1118,9 @@ export function Level2ReviewInterface() {
         sidebarPinned={sidebarPinned}
         levelLabel="Level 2"
         onTriggerClick={handleTriggerClick}
+        suppressSidebarTooltip={
+          onboardingCoachActive && onboardingCoachStep.id === "sidebar-toggle"
+        }
       />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <ReviewSidebar
@@ -1127,6 +1189,18 @@ export function Level2ReviewInterface() {
       </div>
       {completeCaseConfirmDialog}
       <ToastViewport>{bulkSubmitToast}</ToastViewport>
+      <ReviewOnboardingCoach
+        promptOpen={onboardingPromptOpen}
+        onStartTour={startOnboardingCoach}
+        onDeclineTour={declineOnboardingCoach}
+        active={onboardingCoachActive}
+        step={onboardingCoachStep}
+        stepIndex={onboardingCoachStepIndex}
+        stepCount={onboardingCoachStepCount}
+        isLast={onboardingCoachIsLast}
+        onNext={advanceOnboardingCoach}
+        onDismiss={dismissOnboardingCoach}
+      />
     </div>
     </ThemeProvider>
   );
