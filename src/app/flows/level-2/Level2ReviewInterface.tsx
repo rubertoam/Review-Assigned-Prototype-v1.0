@@ -942,12 +942,23 @@ export function Level2ReviewInterface() {
     [screeningRowsByCase],
   );
 
+  /** Only one inline drawer at a time — opening either replaces the other. */
+  const handleOpenClientProfileAction = useCallback((action: ClientProfileActionId) => {
+    setIsReviewDrawerOpen(false);
+    setClientProfileAction(action);
+  }, []);
+
   const handleShowReview = useCallback(() => {
-    setIsReviewDrawerOpen((open) => !open);
+    setIsReviewDrawerOpen((open) => {
+      const next = !open;
+      if (next) setClientProfileAction(null);
+      return next;
+    });
   }, []);
 
   useEffect(() => {
     if (screeningSelectedIds.size > 0) {
+      setClientProfileAction(null);
       setIsReviewDrawerOpen(true);
     }
   }, [screeningSelectedIds]);
@@ -1156,7 +1167,7 @@ export function Level2ReviewInterface() {
                 showFilterEmptyState={
                   caseFilterVisibility.filtersActive && caseFilterVisibility.filteredCount === 0
                 }
-                onOpenClientProfileAction={setClientProfileAction}
+                onOpenClientProfileAction={handleOpenClientProfileAction}
               />
             </div>
             {!allCasesCleared && !awaitingLevel1Work ? (
@@ -1174,7 +1185,7 @@ export function Level2ReviewInterface() {
           <ClientProfileActionDrawer
             open={clientProfileAction !== null}
             action={clientProfileAction ?? "notes"}
-            onActionChange={setClientProfileAction}
+            onActionChange={handleOpenClientProfileAction}
             onClose={() => setClientProfileAction(null)}
             caseIndex={selectedCaseIndex ?? 0}
           />

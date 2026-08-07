@@ -440,7 +440,9 @@ function ActivityFilterPill({
       className={cn(
         "inline-flex cursor-pointer items-center rounded-[4px] px-2 py-1 transition-colors",
         "text-[10px] font-normal leading-[1.65] tracking-[0.2px]",
-        selected ? "bg-[#523eb9] text-white" : "bg-[#e4e6ea] text-[#23262c]",
+        selected
+          ? "bg-[var(--screening-primary)] text-white"
+          : "bg-[var(--screening-surface-hover)] text-[var(--screening-text-primary)]",
       )}
       style={notoVar}
     >

@@ -1316,6 +1316,8 @@ export function ScreeningResultsTable({
   const [columnDropIndicator, setColumnDropIndicator] = useState<ColumnDropIndicator>(null);
   const [draggedColumnKey, setDraggedColumnKey] = useState<ScreeningColumnKey | null>(null);
   const [columnDropLineTop, setColumnDropLineTop] = useState<number | null>(null);
+  const [columnsMenuOpen, setColumnsMenuOpen] = useState(false);
+  const [columnsTooltipOpen, setColumnsTooltipOpen] = useState(false);
   const columnListRef = useRef<HTMLDivElement>(null);
   const columnItemRefs = useRef(new Map<ScreeningColumnKey, HTMLElement>());
   const [paginationMenuPortal, setPaginationMenuPortal] = useState<HTMLElement | null>(null);
@@ -2109,6 +2111,8 @@ export function ScreeningResultsTable({
               <div className="flex flex-nowrap items-center gap-3">
                 <DropdownMenu
                   onOpenChange={(open) => {
+                    setColumnsMenuOpen(open);
+                    if (open) setColumnsTooltipOpen(false);
                     if (!open) {
                       setColumnDropIndicator(null);
                       setDraggedColumnKey(null);
@@ -2116,20 +2120,27 @@ export function ScreeningResultsTable({
                     }
                   }}
                 >
-                  <AceTooltip>
+                  <AceTooltip
+                    open={columnsTooltipOpen}
+                    onOpenChange={(open) => {
+                      if (!columnsMenuOpen) setColumnsTooltipOpen(open);
+                    }}
+                  >
                     <AceTooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          aria-label="Show or hide columns"
-                          className={screeningToolbarIconButtonClass}
-                        >
-                          <MaterialSymbol name="view_list" size="md" weight={300} />
-                        </button>
-                      </DropdownMenuTrigger>
+                      <span className="inline-flex">
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label="Edit Columns"
+                            className={screeningToolbarIconButtonClass}
+                          >
+                            <MaterialSymbol name="view_list" size="md" weight={300} />
+                          </button>
+                        </DropdownMenuTrigger>
+                      </span>
                     </AceTooltipTrigger>
                     <AceTooltipContent side="top" variant="screening-toolbar" hideArrow>
-                      Table Columns
+                      Edit Columns
                     </AceTooltipContent>
                   </AceTooltip>
                   <DropdownMenuContent

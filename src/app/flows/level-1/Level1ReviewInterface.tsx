@@ -1141,12 +1141,23 @@ export function Level1ReviewInterface() {
     setScreeningRowsByCase((prev) => ensureScreeningRowsForCase(prev, selectedCaseIndex));
   }, [selectedCaseIndex, isPepWork, isWorkflowView, setScreeningRowsByCase]);
 
+  /** Only one inline drawer at a time — opening either replaces the other. */
+  const handleOpenClientProfileAction = useCallback((action: ClientProfileActionId) => {
+    setIsReviewDrawerOpen(false);
+    setClientProfileAction(action);
+  }, []);
+
   const handleShowReview = useCallback(() => {
-    setIsReviewDrawerOpen((open) => !open);
+    setIsReviewDrawerOpen((open) => {
+      const next = !open;
+      if (next) setClientProfileAction(null);
+      return next;
+    });
   }, []);
 
   useEffect(() => {
     if (screeningSelectedIds.size > 0) {
+      setClientProfileAction(null);
       setIsReviewDrawerOpen(true);
     }
   }, [screeningSelectedIds]);
@@ -1471,7 +1482,7 @@ export function Level1ReviewInterface() {
                 isCaseReadOnly={isSelectedCaseReadOnly}
                 workflowLabel={selectedWorkflowLabel}
                 workflowReadOnly={isWorkflowReadOnlyView}
-                onOpenClientProfileAction={setClientProfileAction}
+                onOpenClientProfileAction={handleOpenClientProfileAction}
               />
             </div>
             {!allCasesCleared &&
@@ -1491,7 +1502,7 @@ export function Level1ReviewInterface() {
           <ClientProfileActionDrawer
             open={clientProfileAction !== null}
             action={clientProfileAction ?? "notes"}
-            onActionChange={setClientProfileAction}
+            onActionChange={handleOpenClientProfileAction}
             onClose={() => setClientProfileAction(null)}
             caseIndex={selectedCaseIndex}
           />
