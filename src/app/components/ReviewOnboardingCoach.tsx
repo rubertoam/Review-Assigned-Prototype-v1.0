@@ -396,6 +396,7 @@ export function ReviewOnboardingCoach({
         title="Take a quick tour?"
         size="lg"
         fitContent
+        closeOnOverlayClick={false}
         description='Welcome to the new Review Assigned screen. Click "Take Tour" below to get a short walkthrough of the basic interactions in this new feature.'
         secondaryAction={{
           label: "Not now",
