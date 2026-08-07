@@ -475,14 +475,14 @@ function CaseList({
         ? pendingCount
         : caseItem.results;
     const isSelected = selectedCaseIndex === index && selectedCaseListSection === section;
-    const isOverdueWarning = profile.reviewTargetOverdue;
+    const hasOverdueRowHighlight = profile.reviewTargetOverdue || profile.reviewTargetPastDue;
     const lockReviewer = applyCaseLocks ? lockedCaseReviewer(index) : null;
     return (
       <div
         key={`${section}-${index}`}
         className={cn(
           "group relative cursor-pointer px-4 pb-2.5 pt-1 transition-colors",
-          isOverdueWarning
+          hasOverdueRowHighlight
             ? isSelected
               ? "bg-[var(--ace-warning-50)]"
               : "bg-[var(--ace-warning-50)] hover:bg-[var(--ace-warning-100)]"

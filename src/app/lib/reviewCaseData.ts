@@ -339,6 +339,12 @@ export function compareCasesBySort(
   return sort === "name-desc" ? -nameCompare : nameCompare;
 }
 
+/** Extra generated cases that should surface as Review Target — Overdue Warning. */
+const EXTRA_OVERDUE_WARNING_NAMES = new Set([
+  "Fatima El-Sayed",
+  "Viktor Sokolov",
+]);
+
 export function clientProfileForCaseIndex(caseIndex: number): ClientProfileFields {
   if (caseIndex < CLIENT_PROFILES.length) {
     return CLIENT_PROFILES[caseIndex]!;
@@ -346,11 +352,15 @@ export function clientProfileForCaseIndex(caseIndex: number): ClientProfileField
   const base = CLIENT_PROFILES[caseIndex % CLIENT_PROFILES.length]!;
   const caseItem = casesData[caseIndex];
   const isEntity = Boolean(caseItem && "isEntity" in caseItem && caseItem.isEntity);
+  const namedOverdueWarning = EXTRA_OVERDUE_WARNING_NAMES.has(caseItem?.name ?? "");
+  const reviewTargetOverdue = caseIndex % 11 === 0 || namedOverdueWarning;
+  // Past-due is mutually exclusive with overdue-warning so filters and row chrome stay clear.
+  const reviewTargetPastDue = caseIndex % 19 === 0 && !reviewTargetOverdue;
   return {
     ...base,
     clientId: `C${(1000 + caseIndex).toString(36).toUpperCase()}`,
-    reviewTargetOverdue: caseIndex % 11 === 0,
-    reviewTargetPastDue: caseIndex % 19 === 0,
+    reviewTargetOverdue,
+    reviewTargetPastDue,
     riskBand: (["low", "medium", "high"] as const)[caseIndex % 3],
     recordType: isEntity ? "organization" : base.recordType ?? "individual",
     dob: isEntity ? null : base.dob,
