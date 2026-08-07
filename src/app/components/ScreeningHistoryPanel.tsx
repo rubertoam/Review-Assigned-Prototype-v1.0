@@ -35,7 +35,7 @@ export function ScreeningHistoryPanel({ row, onBack }: ScreeningHistoryPanelProp
           className={cn(aceTypography(ACE_TYPE.p1SemiBold), "text-[var(--screening-text-primary)]")}
           style={notoVar}
         >
-          Screening History
+          Match History
         </p>
         <p className="sr-only">Selected match: {row.name}</p>
       </div>

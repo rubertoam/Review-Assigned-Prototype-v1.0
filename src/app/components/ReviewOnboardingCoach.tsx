@@ -12,17 +12,14 @@ import { DialogModal } from "@ace-ds/components/molecules/DialogModal/DialogModa
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { cn } from "./ui/utils";
 
-/** Set only after the tour is completed or skipped mid-tour — not after “Not now”. */
-export const REVIEW_ONBOARDING_COACH_STORAGE_KEY =
-  "review-assigned-onboarding-coach-completed";
-
 export type ReviewOnboardingCoachStepId =
   | "sidebar-toggle"
   | "assignment"
   | "case-list"
   | "client-profile"
   | "matches"
-  | "task-bar";
+  | "task-bar"
+  | "dark-mode";
 
 type CoachStep = {
   id: ReviewOnboardingCoachStepId;
@@ -55,7 +52,7 @@ const COACH_STEPS: readonly CoachStep[] = [
   },
   {
     id: "case-list",
-    title: "Case list",
+    title: "Cases",
     description:
       "Browse the cases in your queue. Select a case to review its profile and matches.",
     side: "right",
@@ -88,28 +85,20 @@ const COACH_STEPS: readonly CoachStep[] = [
     align: "end",
     requiresDetail: true,
   },
+  {
+    id: "dark-mode",
+    title: "Dark mode",
+    description:
+      "Prefer a darker workspace? Open your profile menu and turn on Dark mode anytime.",
+    side: "bottom",
+    align: "end",
+  },
 ] as const;
 
 const POPOVER_WIDTH = 280;
 const POPOVER_GAP = 12;
 const ARROW_SIZE = 8;
 const POPOVER_SURFACE = "var(--ace-button-purple-500)";
-
-function hasSeenCoach(): boolean {
-  try {
-    return localStorage.getItem(REVIEW_ONBOARDING_COACH_STORAGE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function markCoachSeen(): void {
-  try {
-    localStorage.setItem(REVIEW_ONBOARDING_COACH_STORAGE_KEY, "1");
-  } catch {
-    /* ignore quota / private mode */
-  }
-}
 
 function prepareStep(
   step: CoachStep | undefined,
@@ -134,14 +123,12 @@ export function useReviewOnboardingCoach(options?: {
   const onEnsureDetailVisible = options?.onEnsureDetailVisible;
 
   useEffect(() => {
-    const id = window.setTimeout(() => {
-      if (!hasSeenCoach()) setPromptOpen(true);
-    }, 450);
+    // Always offer the tour when the prototype loads (no persistence).
+    const id = window.setTimeout(() => setPromptOpen(true), 450);
     return () => window.clearTimeout(id);
   }, []);
 
   const declineTour = useCallback(() => {
-    // Invite only — do not persist, so a refresh can offer the tour again.
     setPromptOpen(false);
     setActive(false);
   }, []);
@@ -157,14 +144,12 @@ export function useReviewOnboardingCoach(options?: {
   }, [onEnsureDetailVisible, onEnsureSidebarOpen]);
 
   const dismiss = useCallback(() => {
-    markCoachSeen();
     setActive(false);
   }, []);
 
   const next = useCallback(() => {
     setStepIndex((current) => {
       if (current >= COACH_STEPS.length - 1) {
-        markCoachSeen();
         setActive(false);
         return current;
       }
@@ -214,7 +199,32 @@ function resolveTargetRect(stepId: ReviewOnboardingCoachStepId): DOMRect | null 
     const bandHeight = Math.min(72, Math.max(40, rect.height * 0.2));
     return new DOMRect(rect.left, bandTop, rect.width, bandHeight);
   }
+  // Client profile sticky block is tall/wide — pin to the header band on the left.
+  if (stepId === "client-profile") {
+    const bandHeight = Math.min(88, Math.max(52, Math.min(rect.height, 88)));
+    const width = Math.min(rect.width, 360);
+    return new DOMRect(rect.left, rect.top, width, bandHeight);
+  }
+  // Task bar is full-width; actions sit on the right — target that cluster.
+  if (stepId === "task-bar") {
+    const actions = el.querySelector<HTMLElement>(":scope > div");
+    if (actions) {
+      const actionsRect = actions.getBoundingClientRect();
+      if (actionsRect.width > 1 && actionsRect.height > 1) return actionsRect;
+    }
+  }
   return rect;
+}
+
+/** Horizontal point on the target the arrow should aim at (respects popover align). */
+function arrowAnchorX(rect: DOMRect, align: CoachStep["align"]): number {
+  if (align === "start") return rect.left + Math.min(28, rect.width / 2);
+  if (align === "end") return rect.right - Math.min(28, rect.width / 2);
+  return rect.left + rect.width / 2;
+}
+
+function clampArrowOffset(offset: number): number {
+  return Math.min(Math.max(offset, 16), POPOVER_WIDTH - 24);
 }
 
 function popoverPosition(
@@ -258,22 +268,20 @@ function popoverPosition(
     else if (align === "end") transform = "translateY(-100%)";
   }
 
+  const arrowX = clampArrowOffset(
+    arrowAnchorX(rect, align) - clampedLeft - ARROW_SIZE,
+  );
+
   const arrow: CSSProperties = { position: "absolute", width: 0, height: 0 };
   if (side === "bottom") {
     arrow.top = -ARROW_SIZE;
-    arrow.left = Math.min(
-      Math.max(rect.left + rect.width / 2 - clampedLeft - ARROW_SIZE, 16),
-      POPOVER_WIDTH - 24,
-    );
+    arrow.left = arrowX;
     arrow.borderLeft = `${ARROW_SIZE}px solid transparent`;
     arrow.borderRight = `${ARROW_SIZE}px solid transparent`;
     arrow.borderBottom = `${ARROW_SIZE}px solid ${POPOVER_SURFACE}`;
   } else if (side === "top") {
     arrow.bottom = -ARROW_SIZE;
-    arrow.left = Math.min(
-      Math.max(rect.left + rect.width / 2 - clampedLeft - ARROW_SIZE, 16),
-      POPOVER_WIDTH - 24,
-    );
+    arrow.left = arrowX;
     arrow.borderLeft = `${ARROW_SIZE}px solid transparent`;
     arrow.borderRight = `${ARROW_SIZE}px solid transparent`;
     arrow.borderTop = `${ARROW_SIZE}px solid ${POPOVER_SURFACE}`;

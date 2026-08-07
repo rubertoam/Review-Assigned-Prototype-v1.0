@@ -71,15 +71,15 @@ export function caseFilterTriggerLabel(selectedFilters: ReadonlySet<CaseFilterVa
 export const CASE_SORT_OPTIONS = [
   { value: "name-asc", label: "A-Z" },
   { value: "name-desc", label: "Z-A" },
-  { value: "results-asc", label: "Low to High" },
-  { value: "results-desc", label: "High to Low" },
+  { value: "results-asc", label: "Matches: Low to High" },
+  { value: "results-desc", label: "Matches: High to Low" },
 ] as const;
 
 export type CaseSortValue = (typeof CASE_SORT_OPTIONS)[number]["value"];
 
 export type CaseRecordType = "individual" | "organization" | "unknown";
 
-export const casesData = [
+const SANCTION_CASE_SEED = [
   { name: "John Smith", results: 110, selected: true },
   { name: "Mr. Jose A Gonzalez", results: 8, selected: false },
   { name: "Muammar Qadhafi", results: 7, selected: false },
@@ -87,6 +87,73 @@ export const casesData = [
   { name: "Bank of Iran", results: 3, selected: false, isEntity: true },
   { name: "Bank of Moscow", results: 2, selected: false, isEntity: true },
 ] as const;
+
+/** Extra names so Sanction Matches case list can scroll (~50 total). */
+const SANCTION_CASE_EXTRA_NAMES = [
+  "Elena Vargas",
+  "Marcus Chen",
+  "Sofia Rahman",
+  "David Okonkwo",
+  "Priya Nair",
+  "Hassan Al-Rashid",
+  "Claire Fontaine",
+  "Andrei Petrov",
+  "Mei Lin Zhao",
+  "Carlos Mendoza",
+  "Amara Diallo",
+  "Noah Bergman",
+  "Yuki Tanaka",
+  "Fatima El-Sayed",
+  "Lucas Ferreira",
+  "Ingrid Solberg",
+  "Omar Haddad",
+  "Grace Okafor",
+  "Kenji Watanabe",
+  "Isabella Rossi",
+  "Samuel Wright",
+  "Nadia Kowalski",
+  "Theo Martin",
+  "Aisha Patel",
+  "Diego Alvarez",
+  "Hannah Berg",
+  "Ravi Krishnan",
+  "Lena Hofmann",
+  "Peter Novak",
+  "Camille Dubois",
+  "Jin Park",
+  "Maya Thompson",
+  "Viktor Sokolov",
+  "Leila Mansour",
+  "Owen Gallagher",
+  "Sara Lindqvist",
+  "Mohammed Farooq",
+  "Chloe Bennett",
+  "Antonio Silva",
+  "Yara Haddadin",
+  "Global Trade LLC",
+  "Northern Holdings AG",
+  "Pacific Rim Partners",
+  "Atlas Shipping Co",
+] as const;
+
+function buildSanctionCasesData() {
+  const extras = SANCTION_CASE_EXTRA_NAMES.map((name, index) => {
+    const isEntity =
+      name.includes("LLC") ||
+      name.includes("AG") ||
+      name.includes("Partners") ||
+      name.includes("Co");
+    return {
+      name,
+      results: 2 + (index % 9),
+      selected: false,
+      ...(isEntity ? { isEntity: true as const } : {}),
+    };
+  });
+  return [...SANCTION_CASE_SEED, ...extras];
+}
+
+export const casesData = buildSanctionCasesData();
 
 export type ClientRiskBand = "low" | "medium" | "high";
 
@@ -273,8 +340,23 @@ export function compareCasesBySort(
 }
 
 export function clientProfileForCaseIndex(caseIndex: number): ClientProfileFields {
-  const i = Math.max(0, Math.min(caseIndex, CLIENT_PROFILES.length - 1));
-  return CLIENT_PROFILES[i];
+  if (caseIndex < CLIENT_PROFILES.length) {
+    return CLIENT_PROFILES[caseIndex]!;
+  }
+  const base = CLIENT_PROFILES[caseIndex % CLIENT_PROFILES.length]!;
+  const caseItem = casesData[caseIndex];
+  const isEntity = Boolean(caseItem && "isEntity" in caseItem && caseItem.isEntity);
+  return {
+    ...base,
+    clientId: `C${(1000 + caseIndex).toString(36).toUpperCase()}`,
+    reviewTargetOverdue: caseIndex % 11 === 0,
+    reviewTargetPastDue: caseIndex % 19 === 0,
+    riskBand: (["low", "medium", "high"] as const)[caseIndex % 3],
+    recordType: isEntity ? "organization" : base.recordType ?? "individual",
+    dob: isEntity ? null : base.dob,
+    gender: isEntity ? null : base.gender,
+    showIdVerified: !isEntity,
+  };
 }
 
 export function riskBandPresentation(band: ClientRiskBand): { box: string; text: string; label: string } {

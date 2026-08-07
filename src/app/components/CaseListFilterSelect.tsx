@@ -37,6 +37,8 @@ export function CaseListFilterSelect({
           label: item.label,
           checked: selectedFilters.has(item.value),
           style: "assignment",
+          emphasized:
+            item.value === "review-target-overdue-warning" ? "warning" : undefined,
           onCheckedChange: (checked) => setFilterChecked(item.value, checked),
         });
       }

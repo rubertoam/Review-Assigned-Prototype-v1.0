@@ -70,6 +70,7 @@ import { MatchSimulatorPanel } from "./MatchSimulatorPanel";
 import { DocumentsPanel } from "./DocumentsPanel";
 import { ListHistoryPanel } from "./ListHistoryPanel";
 import { ScreeningHistoryPanel } from "./ScreeningHistoryPanel";
+import { casesData } from "../lib/reviewCaseData";
 
 export { easeAccordion, durationAccordion } from "./ExpandableFinScanTable";
 
@@ -179,10 +180,7 @@ export type ScreeningTableDisplayRow = ScreeningResultRow & {
 /** Level 2 analyst name shown in the Reviewer column for L2 decisions. */
 export const LEVEL2_ANALYST_REVIEWER = "Laura";
 
-/** John Smith (index 0) has 110 matches for table scroll testing; others keep small queues. */
-const CASE_RESULT_COUNTS = [110, 8, 7, 5, 3, 2] as const;
-
-/** Mock Level 1 reviewers per case (aligned with `CASE_RESULT_COUNTS` indices). */
+/** Mock Level 1 reviewers — cycles for additional sanction cases. */
 const LEVEL1_CASE_REVIEWERS = [
   "Janet",
   "Laura",
@@ -243,6 +241,27 @@ function initialOpenStatusForRow(
   return "New";
 }
 
+/** Documents Required seed count for a case (no row materialization). */
+export function getSeedDocumentsRequiredCount(caseIndex: number): number {
+  let count = 0;
+  for (const key of DOCUMENTS_REQUIRED_SEED) {
+    const dash = key.indexOf("-");
+    if (dash === -1) continue;
+    if (Number(key.slice(0, dash)) === caseIndex) count += 1;
+  }
+  return count;
+}
+
+/**
+ * Seed My Work ("New") pending count without building full screening row objects.
+ * Used by the case list so a large Sanction queue does not freeze first paint.
+ */
+export function getSeedLevel1MyWorkPendingCount(caseIndex: number): number {
+  const caseItem = casesData[Math.max(0, Math.min(caseIndex, casesData.length - 1))];
+  const total = caseItem?.results ?? 0;
+  return Math.max(0, total - getSeedDocumentsRequiredCount(caseIndex));
+}
+
 /** ~50% of rows per case — deterministic — show Confirmed Safe → New in history / review panel. */
 function reopenedFromConfirmedSafeForRow(caseIndex: number, rowIndex: number): boolean {
   const seed = (caseIndex + 1) * 419 + (rowIndex + 1) * 907;
@@ -254,20 +273,22 @@ function level1ReviewerForCase(caseIndex: number): string {
 }
 
 export function getScreeningRowsForCase(caseIndex: number): ScreeningResultRow[] {
-  const ci = Math.max(0, Math.min(caseIndex, CASE_RESULT_COUNTS.length - 1));
-  const total = CASE_RESULT_COUNTS[ci];
-  const names = CASE_VARIANT_NAMES[ci];
+  const caseItem = casesData[Math.max(0, Math.min(caseIndex, casesData.length - 1))];
+  const total = caseItem?.results ?? 3;
+  const nameVariants =
+    CASE_VARIANT_NAMES[caseIndex] ??
+    ([caseItem?.name ?? "Unknown", `${caseItem?.name ?? "Unknown"} Alt`] as const);
   const rows: ScreeningResultRow[] = [];
   for (let i = 0; i < total; i++) {
-    const name = names[i % names.length];
-    const score = Math.max(22, 93 - i * 7 - (ci % 3) * 2);
+    const name = nameVariants[i % nameVariants.length]!;
+    const score = Math.max(22, 93 - i * 7 - (caseIndex % 3) * 2);
     const tiles = TILE_ROTATIONS[i % TILE_ROTATIONS.length];
-    const reopenedFromConfirmedSafe = reopenedFromConfirmedSafeForRow(ci, i);
-    const status = initialOpenStatusForRow(ci, i, total);
+    const reopenedFromConfirmedSafe = reopenedFromConfirmedSafeForRow(caseIndex, i);
+    const status = initialOpenStatusForRow(caseIndex, i, total);
     rows.push({
-      id: `c${ci}-${i + 1}`,
+      id: `c${caseIndex}-${i + 1}`,
       name,
-      dob: randomDobForRow(ci, i),
+      dob: randomDobForRow(caseIndex, i),
       matchAgeLabel: AGE_LABELS[i % AGE_LABELS.length],
       matchAgeTone: TONE_ROTATION[i % TONE_ROTATION.length],
       matchScore: score,
@@ -276,7 +297,7 @@ export function getScreeningRowsForCase(caseIndex: number): ScreeningResultRow[]
       ...(reopenedFromConfirmedSafe && status === "New"
         ? {
             reopenedFromConfirmedSafe: true,
-            level1Reviewer: level1ReviewerForCase(ci),
+            level1Reviewer: level1ReviewerForCase(caseIndex),
             level1Reason: "Confirmed Safe",
           }
         : {}),
@@ -362,12 +383,12 @@ const SCREENING_COLUMN_DEFINITIONS: ReadonlyArray<{
   { key: "clientDob", label: "Client DOB", defaultVisible: false },
   { key: "matchAge", label: "Match Age", defaultVisible: true },
   { key: "matchScore", label: "Match Score", defaultVisible: true },
-  { key: "listId", label: "List ID", defaultVisible: true },
+  { key: "matchString", label: "Match String", defaultVisible: true },
+  { key: "listId", label: "List ID", defaultVisible: false },
   { key: "listCategory", label: "List Category", defaultVisible: true },
-  { key: "listProfileId", label: "List Profile ID", defaultVisible: true },
+  { key: "listProfileId", label: "List Profile ID", defaultVisible: false },
   { key: "reviewer", label: "Reviewer", defaultVisible: true },
   { key: "comments", label: "Comments", defaultVisible: false },
-  { key: "matchString", label: "Match String", defaultVisible: false },
   { key: "reason", label: "Reason", defaultVisible: false },
   { key: "matchedNameType", label: "Matched Name Type", defaultVisible: false },
   { key: "finscanCategory", label: "FinScan Category", defaultVisible: false },
@@ -545,14 +566,42 @@ export function scoreIsHighRisk(score: number): boolean {
   return score >= 85;
 }
 
+/** Match-string tiles — AceBadge status-pill surface/label/border (light + dark). */
 export function tileSoftStyle(code: string): { bg: string; fg: string; border: string } {
   const upper = code.toUpperCase();
-  if (upper === "E") return { bg: "#fdeaea", fg: "#9e2a2a", border: "rgba(194,40,40,0.12)" };
-  if (upper === "N") return { bg: "#e8f4ea", fg: "#2d6a3e", border: "rgba(46,125,50,0.12)" };
-  if (upper === "C1" || upper === "C") return { bg: "#fff4e8", fg: "#b35c00", border: "rgba(230,126,0,0.12)" };
-  if (upper === "C2") return { bg: "#fff9e6", fg: "#9a6b00", border: "rgba(249,168,37,0.15)" };
-  if (upper === "B") return { bg: "#f0f1f3", fg: "#5c6370", border: "rgba(106,114,130,0.15)" };
-  return { bg: "#f0f1f3", fg: "#5c6370", border: "rgba(106,114,130,0.15)" };
+  if (upper === "E") {
+    return {
+      bg: "var(--screening-tile-e-bg)",
+      fg: "var(--screening-tile-e-fg)",
+      border: "var(--screening-tile-e-border)",
+    };
+  }
+  if (upper === "N") {
+    return {
+      bg: "var(--screening-tile-n-bg)",
+      fg: "var(--screening-tile-n-fg)",
+      border: "var(--screening-tile-n-border)",
+    };
+  }
+  if (upper === "C1" || upper === "C") {
+    return {
+      bg: "var(--screening-tile-c1-bg)",
+      fg: "var(--screening-tile-c1-fg)",
+      border: "var(--screening-tile-c1-border)",
+    };
+  }
+  if (upper === "C2") {
+    return {
+      bg: "var(--screening-tile-c2-bg)",
+      fg: "var(--screening-tile-c2-fg)",
+      border: "var(--screening-tile-c2-border)",
+    };
+  }
+  return {
+    bg: "var(--screening-tile-b-bg)",
+    fg: "var(--screening-tile-b-fg)",
+    border: "var(--screening-tile-b-border)",
+  };
 }
 
 /** Match-string tiles — same markup as the screening results table column. */
@@ -1175,7 +1224,7 @@ function ScreeningRowActionsMenu({
           className={screeningRowActionsMenuItemClass}
           onSelect={() => onOpenDrilldown(row, "screening-history")}
         >
-          Screening History
+          Match History
         </DropdownMenuItem>
         <DropdownMenuItem
           className={screeningRowActionsMenuItemClass}
@@ -1833,6 +1882,13 @@ export function ScreeningResultsTable({
           </span>
         ),
       },
+      matchString: {
+        key: "matchString",
+        label: "Match String",
+        headerClassName: "whitespace-nowrap",
+        cellClassName: "whitespace-nowrap",
+        render: (row) => <MatchStringTiles tiles={row.matchTiles} />,
+      },
       listId: {
         key: "listId",
         label: "List ID",
@@ -1876,13 +1932,6 @@ export function ScreeningResultsTable({
           if (!comment) return emptySecondary;
           return comment;
         },
-      },
-      matchString: {
-        key: "matchString",
-        label: "Match String",
-        headerClassName: "whitespace-nowrap",
-        cellClassName: "whitespace-nowrap",
-        render: (row) => <MatchStringTiles tiles={row.matchTiles} />,
       },
       reason: {
         key: "reason",
@@ -2080,7 +2129,7 @@ export function ScreeningResultsTable({
                       </DropdownMenuTrigger>
                     </AceTooltipTrigger>
                     <AceTooltipContent side="top" variant="screening-toolbar" hideArrow>
-                      Edit Columns
+                      Table Columns
                     </AceTooltipContent>
                   </AceTooltip>
                   <DropdownMenuContent

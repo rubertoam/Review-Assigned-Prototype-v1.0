@@ -56,14 +56,17 @@ import { CaseListSortSelect } from "../../components/CaseListSortSelect";
 import {
   ScreeningResultsTable,
   getScreeningRowsForCase,
+  getSeedLevel1MyWorkPendingCount,
   isCaseScreeningComplete,
   isLevel2ReviewedRow,
-  screeningNewPillSurfaceClass,
   type CaseListSectionContext,
   type ScreeningResultRow,
   type ScreeningRowStatus,
 } from "../../components/ScreeningResultsTable";
-import { useScreeningRowsByCase } from "../../lib/screeningState";
+import {
+  ensureScreeningRowsForCase,
+  useScreeningRowsByCase,
+} from "../../lib/screeningState";
 import { useCompleteCaseSubmit } from "../../lib/useCompleteCaseSubmit";
 import {
   buildSubmitUndoSnapshot,
@@ -308,24 +311,36 @@ function CaseList({
     [workflowId],
   );
 
+  /** Prefer cached rows; materialize only for the selected case (never the whole queue). */
   const caseRowsForIndex = useCallback(
-    (index: number) => screeningRowsByCase[index] ?? getRowsForCase(index),
-    [screeningRowsByCase, getRowsForCase],
+    (index: number) => {
+      const cached = screeningRowsByCase[index];
+      if (cached) return cached;
+      if (index === selectedCaseIndex) return getRowsForCase(index);
+      return null;
+    },
+    [screeningRowsByCase, getRowsForCase, selectedCaseIndex],
   );
 
   /** Results still awaiting Level 1 review in My Work. */
   const pendingResultCount = useCallback(
-    (index: number) =>
-      caseRowsForIndex(index).filter((r) => isLevel1MyWorkStatus(r.status)).length,
-    [caseRowsForIndex],
+    (index: number) => {
+      const rows = screeningRowsByCase[index];
+      if (rows) return rows.filter((r) => isLevel1MyWorkStatus(r.status)).length;
+      return getSeedLevel1MyWorkPendingCount(index);
+    },
+    [screeningRowsByCase],
   );
 
   const workflowResultCount = useCallback(
-    (index: number) =>
-      caseRowsForIndex(index).filter((r) =>
+    (index: number) => {
+      const rows = screeningRowsByCase[index];
+      if (!rows) return 0;
+      return rows.filter((r) =>
         workflowStatuses.includes(r.status as (typeof workflowStatuses)[number]),
-      ).length,
-    [caseRowsForIndex, workflowStatuses],
+      ).length;
+    },
+    [screeningRowsByCase, workflowStatuses],
   );
 
   const filteredRows = useMemo(() => {
@@ -358,8 +373,12 @@ function CaseList({
     if (isWorkflowView) {
       return filteredRows.filter((row) => workflowResultCount(row.index) > 0);
     }
-    return filteredRows.filter((row) => !isCaseScreeningComplete(caseRowsForIndex(row.index)));
-  }, [filteredRows, isWorkflowView, workflowResultCount, caseRowsForIndex]);
+    return filteredRows.filter((row) => {
+      const rows = screeningRowsByCase[row.index];
+      if (!rows) return getSeedLevel1MyWorkPendingCount(row.index) > 0;
+      return !isCaseScreeningComplete(rows);
+    });
+  }, [filteredRows, isWorkflowView, workflowResultCount, screeningRowsByCase]);
 
   useEffect(() => {
     onFilterVisibilityChange?.({
@@ -371,24 +390,28 @@ function CaseList({
   const caseReviewProgress = useMemo(
     () =>
       cases.map((_, i) => {
-        const rows = caseRowsForIndex(i);
+        const rows = screeningRowsByCase[i];
+        if (!rows) {
+          const pending = getSeedLevel1MyWorkPendingCount(i);
+          return { done: 0, total: pending };
+        }
         const done = rows.filter((r) => isLevel1DecisionStatus(r.status)).length;
         return { done, total: rows.filter((r) => r.status !== "Documents Required").length };
       }),
-    [cases, caseRowsForIndex],
+    [cases, screeningRowsByCase],
   );
 
   useEffect(() => {
     if (isWorkflowView) return;
     const rows = caseRowsForIndex(selectedCaseIndex);
-    wasSelectedCaseCompleteRef.current = isCaseScreeningComplete(rows);
+    wasSelectedCaseCompleteRef.current = rows ? isCaseScreeningComplete(rows) : false;
   }, [selectedCaseIndex, caseRowsForIndex, isWorkflowView]);
 
   useEffect(() => {
     if (isWorkflowView) return;
     if (selectedCaseListSection !== "todo") return;
     const rows = caseRowsForIndex(selectedCaseIndex);
-    const complete = isCaseScreeningComplete(rows);
+    const complete = rows ? isCaseScreeningComplete(rows) : false;
     if (complete && !wasSelectedCaseCompleteRef.current && visibleRows.length > 0) {
       onSelectCase(visibleRows[0].index, "todo");
     }
@@ -452,13 +475,20 @@ function CaseList({
         ? pendingCount
         : caseItem.results;
     const isSelected = selectedCaseIndex === index && selectedCaseListSection === section;
+    const isOverdueWarning = profile.reviewTargetOverdue;
     const lockReviewer = applyCaseLocks ? lockedCaseReviewer(index) : null;
     return (
       <div
         key={`${section}-${index}`}
         className={cn(
           "group relative cursor-pointer px-4 pb-2.5 pt-1 transition-colors",
-          isSelected ? "bg-[#e4e6ea] dark:bg-[#333a42]" : "hover:bg-[#e4e6ea] dark:hover:bg-[#333a42]",
+          isOverdueWarning
+            ? isSelected
+              ? "bg-[var(--ace-warning-50)]"
+              : "bg-[var(--ace-warning-50)] hover:bg-[var(--ace-warning-100)]"
+            : isSelected
+              ? "bg-[#e4e6ea] dark:bg-[#333a42]"
+              : "hover:bg-[#e4e6ea] dark:hover:bg-[#333a42]",
         )}
         onClick={() => onSelectCase(index, section)}
       >
@@ -541,22 +571,19 @@ function CaseList({
       onFocus={() => setIsFocused(true)}
       onBlur={() => setIsFocused(false)}
       className={cn(
-        "flex min-h-0 w-64 flex-1 flex-col overflow-x-hidden overflow-y-auto rounded-[var(--radius-sm)] border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] outline-none lg:w-72",
+        "flex min-h-0 w-64 flex-1 flex-col overflow-hidden rounded-[var(--radius-sm)] border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] outline-none lg:w-72",
         aceDropShadowXsClass,
       )}
     >
-      <div className="flex items-center justify-between px-3 pb-3 pt-5">
+      <div className="flex shrink-0 items-center px-3 pb-3 pt-5">
         <p
           className="font-['Noto_Sans:Bold',sans-serif] text-[14px] font-bold leading-[1.65] text-[var(--screening-text-primary)]"
           style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
         >
           {listTitle}
         </p>
-        <AceBadge appearance="tag" variant="purple">
-          {visibleRows.length}
-        </AceBadge>
       </div>
-      <div className="shrink-0 border-b border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-3 py-2.5">
+      <div className="shrink-0 bg-[var(--screening-surface)] px-3 py-2.5">
         <div className="flex items-end gap-2">
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
             <span
@@ -581,11 +608,12 @@ function CaseList({
           </div>
         </div>
       </div>
-      <div className="flex flex-col">
+      <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
         <CaseListSection
-          title={isWorkflowView ? "Cases" : "Case List"}
+          title="Cases"
           count={visibleRows.length}
           collapsible={false}
+          stickyHeader
           emptyContent={
             selectedCaseFilters.size > 0 && visibleRows.length === 0 ? (
               <CaseListFilterEmptyState />
@@ -680,10 +708,8 @@ function DetailPanel({
         data-coach-target="client-profile"
       >
         <p
-          className={cn(
-            aceTypography(ACE_TYPE.labelBold),
-            "m-0 text-[var(--screening-text-primary)]",
-          )}
+          className="m-0 font-['Noto_Sans:Bold',sans-serif] text-[14px] font-bold leading-[1.65] text-[var(--screening-text-primary)]"
+          style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
         >
           Client Profile
         </p>
@@ -755,47 +781,6 @@ function DetailPanel({
         }
       >
             <div className="flex min-h-[260px] gap-4 items-stretch">
-              <div className="flex min-h-0 flex-1 flex-col gap-3">
-                <div
-                  className={cn(
-                    "flex min-h-[120px] flex-1 flex-col items-center justify-center rounded p-6",
-                    screeningNewPillSurfaceClass,
-                  )}
-                >
-                  <p className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[#523eb9] text-[20px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                    In Process
-                  </p>
-                </div>
-                <AceTooltip>
-                  <AceTooltipTrigger asChild>
-                    <button
-                      type="button"
-                      aria-label="View Risk Rating"
-                      onClick={() => onOpenClientProfileAction?.("risk-rating")}
-                      className={cn(
-                        "flex min-h-[120px] flex-1 flex-col items-center justify-center rounded p-6",
-                        "cursor-pointer border-0 transition-opacity hover:opacity-90",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2",
-                        riskPresentation.box,
-                      )}
-                    >
-                      <p
-                        className={cn(
-                          "font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[20px]",
-                          riskPresentation.text,
-                        )}
-                        style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-                      >
-                        {riskPresentation.label}
-                      </p>
-                    </button>
-                  </AceTooltipTrigger>
-                  <AceTooltipContent side="top" variant="screening-toolbar">
-                    View Risk Rating
-                  </AceTooltipContent>
-                </AceTooltip>
-              </div>
-
               <div className="flex min-h-0 flex-1 flex-col gap-2 self-stretch rounded border border-[#cfd2d9] dark:border-[#38414a] bg-white dark:bg-[#22272b] p-6">
                 <ClientProfileAddressSection addressLines={profile.addressLines} />
                 <ClientProfileClientIdRow clientId={profile.clientId} />
@@ -853,18 +838,45 @@ function DetailPanel({
                   {profile.lastModified}
                 </ClientProfileMetaLine>
               </div>
+
+              <AceTooltip>
+                <AceTooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="View Risk Rating"
+                    onClick={() => onOpenClientProfileAction?.("risk-rating")}
+                    className={cn(
+                      "flex min-h-0 min-w-[140px] flex-1 flex-col items-center justify-center self-stretch rounded p-6",
+                      "cursor-pointer border-0 transition-opacity hover:opacity-90",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2",
+                      riskPresentation.box,
+                    )}
+                  >
+                    <p
+                      className={cn(
+                        "font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[20px]",
+                        riskPresentation.text,
+                      )}
+                      style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+                    >
+                      {riskPresentation.label}
+                    </p>
+                  </button>
+                </AceTooltipTrigger>
+                <AceTooltipContent side="top" variant="screening-toolbar">
+                  View Risk Rating
+                </AceTooltipContent>
+              </AceTooltip>
             </div>
       </AceAccordion>
       </div>
 
       <div className="flex shrink-0 flex-col gap-2">
         <p
-          className={cn(
-            aceTypography(ACE_TYPE.labelBold),
-            "m-0 shrink-0 text-[var(--screening-text-primary)]",
-          )}
+          className="m-0 shrink-0 font-['Noto_Sans:Bold',sans-serif] text-[14px] font-bold leading-[1.65] text-[var(--screening-text-primary)]"
+          style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
         >
-          Screening Results
+          Match Alerts
         </p>
       <ScreeningResultsTable
         rows={screeningRows}
@@ -1061,14 +1073,30 @@ export function Level1ReviewInterface() {
 
   const allCasesCleared = useMemo(
     () =>
-      activeCases.every((_, index) => isCaseScreeningComplete(getActiveRowsForCase(index))),
-    [activeCases, getActiveRowsForCase],
+      activeCases.every((_, index) => {
+        if (isPepWork && !isWorkflowView) {
+          return isCaseScreeningComplete(pepScreeningRowsByCase[index] ?? []);
+        }
+        const rows = screeningRowsByCase[index];
+        if (!rows) return getSeedLevel1MyWorkPendingCount(index) === 0;
+        return isCaseScreeningComplete(rows);
+      }),
+    [
+      activeCases,
+      isPepWork,
+      isWorkflowView,
+      pepScreeningRowsByCase,
+      screeningRowsByCase,
+    ],
   );
 
   const pendingSanctionCount = useMemo(
     () =>
       casesData.reduce((count, _, index) => {
-        const rows = screeningRowsByCase[index] ?? getScreeningRowsForCase(index);
+        const rows = screeningRowsByCase[index];
+        if (!rows) {
+          return count + (getSeedLevel1MyWorkPendingCount(index) > 0 ? 1 : 0);
+        }
         return isCaseScreeningComplete(rows) ? count : count + 1;
       }, 0),
     [screeningRowsByCase],
@@ -1100,16 +1128,28 @@ export function Level1ReviewInterface() {
   const workflowHasCases = useMemo(() => {
     if (!isWorkflowView) return true;
     return casesData.some((_, index) => {
-      const rows = screeningRowsByCase[index] ?? getScreeningRowsForCase(index);
+      const rows = screeningRowsByCase[index];
+      if (!rows) return false;
       return rows.some((row) =>
         workflowStatuses.includes(row.status as (typeof workflowStatuses)[number]),
       );
     });
   }, [isWorkflowView, screeningRowsByCase, workflowStatuses]);
 
+  useEffect(() => {
+    if (isPepWork && !isWorkflowView) return;
+    setScreeningRowsByCase((prev) => ensureScreeningRowsForCase(prev, selectedCaseIndex));
+  }, [selectedCaseIndex, isPepWork, isWorkflowView, setScreeningRowsByCase]);
+
   const handleShowReview = useCallback(() => {
     setIsReviewDrawerOpen((open) => !open);
   }, []);
+
+  useEffect(() => {
+    if (screeningSelectedIds.size > 0) {
+      setIsReviewDrawerOpen(true);
+    }
+  }, [screeningSelectedIds]);
 
   const restoreSubmittedRows = useCallback(
     (caseIndex: number, previousRowsById: Record<string, (typeof screeningRows)[number]>) => {

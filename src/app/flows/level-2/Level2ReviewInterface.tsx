@@ -62,13 +62,15 @@ import {
   isCaseReviewComplete,
   isLevel2ReviewedRow,
   LEVEL2_ANALYST_REVIEWER,
-  screeningNewPillSurfaceClass,
   type CaseListSectionContext,
   type ScreeningResultRow,
   type ScreeningRowStatus,
 } from "../../components/ScreeningResultsTable";
 import { isLevel1InProcessStatus } from "../../lib/reviewDecisionConfig";
-import { useScreeningRowsByCase } from "../../lib/screeningState";
+import {
+  ensureScreeningRowsForCase,
+  useScreeningRowsByCase,
+} from "../../lib/screeningState";
 import { useCompleteCaseSubmit } from "../../lib/useCompleteCaseSubmit";
 import { ToastViewport } from "../../lib/toastPresentation";
 import {
@@ -284,7 +286,7 @@ function CaseList({
   const wasSelectedCaseCompleteRef = useRef(false);
 
   const caseRowsForIndex = useCallback(
-    (index: number) => screeningRowsByCase[index] ?? getScreeningRowsForCase(index),
+    (index: number) => screeningRowsByCase[index] ?? [],
     [screeningRowsByCase],
   );
 
@@ -432,12 +434,19 @@ function CaseList({
     const progressPct = total > 0 ? (done / total) * 100 : 0;
     const isSelected =
       selectedCaseIndex === index && selectedCaseListSection === section;
+    const isOverdueWarning = profile.reviewTargetOverdue;
     return (
       <div
         key={`${section}-${index}`}
         className={cn(
           "group relative cursor-pointer px-4 pb-2.5 pt-1 transition-colors",
-          isSelected ? "bg-[#e4e6ea] dark:bg-[#333a42]" : "hover:bg-[#e4e6ea] dark:hover:bg-[#333a42]",
+          isOverdueWarning
+            ? isSelected
+              ? "bg-[var(--ace-warning-50)]"
+              : "bg-[var(--ace-warning-50)] hover:bg-[var(--ace-warning-100)]"
+            : isSelected
+              ? "bg-[#e4e6ea] dark:bg-[#333a42]"
+              : "hover:bg-[#e4e6ea] dark:hover:bg-[#333a42]",
         )}
         onClick={() => onSelectCase(index, section)}
       >
@@ -494,19 +503,16 @@ function CaseList({
       onFocus={() => setIsFocused(true)}
       onBlur={() => setIsFocused(false)}
       className={cn(
-        "flex min-h-0 w-64 flex-1 flex-col overflow-x-hidden overflow-y-auto rounded-[var(--radius-sm)] border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] outline-none lg:w-72",
+        "flex min-h-0 w-64 flex-1 flex-col overflow-hidden rounded-[var(--radius-sm)] border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] outline-none lg:w-72",
         aceDropShadowXsClass,
       )}
     >
-      <div className="flex items-center justify-between px-3 pb-3 pt-5">
+      <div className="flex shrink-0 items-center px-3 pb-3 pt-5">
         <p className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[14px] text-[var(--screening-text-primary)]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
           Sanction Matches
         </p>
-        <AceBadge appearance="tag" variant="purple">
-          {pendingRows.length}
-        </AceBadge>
       </div>
-      <div className="shrink-0 border-b border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-3 py-2.5">
+      <div className="shrink-0 bg-[var(--screening-surface)] px-3 py-2.5">
         <div className="flex items-end gap-2">
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
             <span
@@ -531,11 +537,12 @@ function CaseList({
           </div>
         </div>
       </div>
-      <div className="flex flex-col">
+      <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
         <CaseListSection
-          title="Case List"
+          title="Cases"
           count={pendingRows.length}
           collapsible={false}
+          stickyHeader
           emptyContent={
             selectedCaseFilters.size > 0 ? (
               <CaseListFilterEmptyState />
@@ -636,10 +643,8 @@ function DetailPanel({
         data-coach-target="client-profile"
       >
         <p
-          className={cn(
-            aceTypography(ACE_TYPE.labelBold),
-            "m-0 text-[var(--screening-text-primary)]",
-          )}
+          className="m-0 font-['Noto_Sans:Bold',sans-serif] text-[14px] font-bold leading-[1.65] text-[var(--screening-text-primary)]"
+          style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
         >
           Client Profile
         </p>
@@ -709,47 +714,6 @@ function DetailPanel({
         }
       >
             <div className="flex min-h-[260px] gap-4 items-stretch">
-              <div className="flex min-h-0 flex-1 flex-col gap-3">
-                <div
-                  className={cn(
-                    "flex min-h-[120px] flex-1 flex-col items-center justify-center rounded p-6",
-                    screeningNewPillSurfaceClass,
-                  )}
-                >
-                  <p className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[#523eb9] text-[20px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                    In Process
-                  </p>
-                </div>
-                <AceTooltip>
-                  <AceTooltipTrigger asChild>
-                    <button
-                      type="button"
-                      aria-label="View Risk Rating"
-                      onClick={() => onOpenClientProfileAction?.("risk-rating")}
-                      className={cn(
-                        "flex min-h-[120px] flex-1 flex-col items-center justify-center rounded p-6",
-                        "cursor-pointer border-0 transition-opacity hover:opacity-90",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2",
-                        riskPresentation.box,
-                      )}
-                    >
-                      <p
-                        className={cn(
-                          "font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[20px]",
-                          riskPresentation.text,
-                        )}
-                        style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-                      >
-                        {riskPresentation.label}
-                      </p>
-                    </button>
-                  </AceTooltipTrigger>
-                  <AceTooltipContent side="top" variant="screening-toolbar">
-                    View Risk Rating
-                  </AceTooltipContent>
-                </AceTooltip>
-              </div>
-
               <div className="flex min-h-0 flex-1 flex-col gap-2 self-stretch rounded border border-[#cfd2d9] dark:border-[#38414a] bg-white dark:bg-[#22272b] p-6">
                 <ClientProfileAddressSection addressLines={profile.addressLines} />
                 <ClientProfileClientIdRow clientId={profile.clientId} />
@@ -807,18 +771,45 @@ function DetailPanel({
                   {profile.lastModified}
                 </ClientProfileMetaLine>
               </div>
+
+              <AceTooltip>
+                <AceTooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="View Risk Rating"
+                    onClick={() => onOpenClientProfileAction?.("risk-rating")}
+                    className={cn(
+                      "flex min-h-0 min-w-[140px] flex-1 flex-col items-center justify-center self-stretch rounded p-6",
+                      "cursor-pointer border-0 transition-opacity hover:opacity-90",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2",
+                      riskPresentation.box,
+                    )}
+                  >
+                    <p
+                      className={cn(
+                        "font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[20px]",
+                        riskPresentation.text,
+                      )}
+                      style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+                    >
+                      {riskPresentation.label}
+                    </p>
+                  </button>
+                </AceTooltipTrigger>
+                <AceTooltipContent side="top" variant="screening-toolbar">
+                  View Risk Rating
+                </AceTooltipContent>
+              </AceTooltip>
             </div>
       </AceAccordion>
       </div>
 
       <div className="flex shrink-0 flex-col gap-2">
         <p
-          className={cn(
-            aceTypography(ACE_TYPE.labelBold),
-            "m-0 shrink-0 text-[var(--screening-text-primary)]",
-          )}
+          className="m-0 shrink-0 font-['Noto_Sans:Bold',sans-serif] text-[14px] font-bold leading-[1.65] text-[var(--screening-text-primary)]"
+          style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
         >
-          Screening Results
+          Match Alerts
         </p>
       <ScreeningResultsTable
         rows={screeningRows}
@@ -876,9 +867,8 @@ export function Level2ReviewInterface() {
     setSelectedCaseIndex((current) => {
       if (current !== null) return current;
       for (let index = 0; index < casesData.length; index += 1) {
-        const rows =
-          screeningRowsByCase[index] ?? getScreeningRowsForCase(index);
-        if (caseHasLevel2QueueWork(rows)) {
+        const rows = screeningRowsByCase[index];
+        if (rows && caseHasLevel2QueueWork(rows)) {
           setSelectedCaseListSection("todo");
           return index;
         }
@@ -919,8 +909,8 @@ export function Level2ReviewInterface() {
   const awaitingLevel1Work = useMemo(
     () =>
       !casesData.some((_, index) => {
-        const rows = screeningRowsByCase[index] ?? getScreeningRowsForCase(index);
-        return caseHasLevel2Activity(rows);
+        const rows = screeningRowsByCase[index];
+        return rows ? caseHasLevel2Activity(rows) : false;
       }),
     [screeningRowsByCase],
   );
@@ -928,19 +918,24 @@ export function Level2ReviewInterface() {
   const allCasesCleared = useMemo(() => {
     if (awaitingLevel1Work) return false;
     return casesData.every((_, index) => {
-      const rows = screeningRowsByCase[index] ?? getScreeningRowsForCase(index);
-      return !caseHasLevel2QueueWork(rows);
+      const rows = screeningRowsByCase[index];
+      return rows ? !caseHasLevel2QueueWork(rows) : true;
     });
   }, [screeningRowsByCase, awaitingLevel1Work]);
 
   const pendingSanctionCount = useMemo(
     () =>
       casesData.reduce((count, _, index) => {
-        const rows = screeningRowsByCase[index] ?? getScreeningRowsForCase(index);
-        return caseHasLevel2QueueWork(rows) ? count + 1 : count;
+        const rows = screeningRowsByCase[index];
+        return rows && caseHasLevel2QueueWork(rows) ? count + 1 : count;
       }, 0),
     [screeningRowsByCase],
   );
+
+  useEffect(() => {
+    if (selectedCaseIndex === null) return;
+    setScreeningRowsByCase((prev) => ensureScreeningRowsForCase(prev, selectedCaseIndex));
+  }, [selectedCaseIndex, setScreeningRowsByCase]);
 
   const sidebarWorkflowItems = useMemo(
     () => deriveReviewSidebarWorkflows(screeningRowsByCase, "level-2"),
@@ -950,6 +945,12 @@ export function Level2ReviewInterface() {
   const handleShowReview = useCallback(() => {
     setIsReviewDrawerOpen((open) => !open);
   }, []);
+
+  useEffect(() => {
+    if (screeningSelectedIds.size > 0) {
+      setIsReviewDrawerOpen(true);
+    }
+  }, [screeningSelectedIds]);
 
   const restoreSubmittedRows = useCallback(
     (caseIndex: number, previousRowsById: Record<string, (typeof screeningRows)[number]>) => {

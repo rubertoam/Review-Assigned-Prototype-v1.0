@@ -204,7 +204,12 @@ function ProfileMenuDropdown({ profile }: { profile: FinScanProfileAvatar }) {
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <button type="button" aria-label="User profile menu" className={profileTriggerClass}>
+        <button
+          type="button"
+          aria-label="User profile menu"
+          className={profileTriggerClass}
+          data-coach-target="dark-mode"
+        >
           {profile.imageUrl ? (
             <img
               src={profile.imageUrl}
