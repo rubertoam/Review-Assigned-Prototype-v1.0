@@ -284,6 +284,8 @@ export interface ListHistoryPanelProps {
   /** When true, open the differences modal on mount / row change. */
   openDifferencesOnShow?: boolean;
   onDifferencesOpenChange?: (open: boolean) => void;
+  /** When true, omit Back + title (parent shell provides navigation). */
+  hideChrome?: boolean;
 }
 
 export function ListHistoryPanel({
@@ -291,6 +293,7 @@ export function ListHistoryPanel({
   onBack,
   openDifferencesOnShow = false,
   onDifferencesOpenChange,
+  hideChrome = false,
 }: ListHistoryPanelProps) {
   const [versions, setVersions] = useState(() => initialListHistoryVersionsForRow(row));
   const [pageIndex, setPageIndex] = useState(0);
@@ -313,31 +316,33 @@ export function ListHistoryPanel({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      <div className="shrink-0 bg-[var(--screening-surface)] px-4 pb-2 pt-3">
-        <button
-          type="button"
-          onClick={onBack}
-          className={cn(
-            "mb-3 inline-flex cursor-pointer items-center gap-1 rounded-[var(--radius-sm)] border-0 bg-transparent p-0 text-[var(--screening-primary)] transition-colors",
-            "hover:text-[var(--dialog-modal-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2",
-          )}
-        >
-          <MaterialSymbol name="keyboard_arrow_left" size="md" />
-          <span
-            className={cn(aceTypography(ACE_TYPE.p1Bold), "text-[var(--screening-primary)]")}
+      {hideChrome ? null : (
+        <div className="shrink-0 bg-[var(--screening-surface)] px-4 pb-2 pt-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className={cn(
+              "mb-3 inline-flex cursor-pointer items-center gap-1 rounded-[var(--radius-sm)] border-0 bg-transparent p-0 text-[var(--screening-primary)] transition-colors",
+              "hover:text-[var(--dialog-modal-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2",
+            )}
+          >
+            <MaterialSymbol name="keyboard_arrow_left" size="md" />
+            <span
+              className={cn(aceTypography(ACE_TYPE.p1Bold), "text-[var(--screening-primary)]")}
+              style={notoVar}
+            >
+              Back to List
+            </span>
+          </button>
+          <p
+            className={cn(aceTypography(ACE_TYPE.p1SemiBold), "text-[var(--screening-text-primary)]")}
             style={notoVar}
           >
-            Back to List
-          </span>
-        </button>
-        <p
-          className={cn(aceTypography(ACE_TYPE.p1SemiBold), "text-[var(--screening-text-primary)]")}
-          style={notoVar}
-        >
-          List History
-        </p>
-        <p className="sr-only">Selected match: {row.name}</p>
-      </div>
+            List History
+          </p>
+          <p className="sr-only">Selected match: {row.name}</p>
+        </div>
+      )}
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden bg-[var(--screening-surface)] px-4 py-4">
         <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1">

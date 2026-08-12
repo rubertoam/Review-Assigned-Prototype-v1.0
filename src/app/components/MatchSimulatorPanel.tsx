@@ -9,9 +9,25 @@ const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 export interface MatchSimulatorPanelProps {
   row: ScreeningResultRow;
   onBack: () => void;
+  /** When true, omit Back + title (parent shell provides navigation). */
+  hideChrome?: boolean;
 }
 
-export function MatchSimulatorPanel({ row, onBack }: MatchSimulatorPanelProps) {
+export function MatchSimulatorPanel({
+  row,
+  onBack,
+  hideChrome = false,
+}: MatchSimulatorPanelProps) {
+  const body = (
+    <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--screening-surface)] px-4 py-4">
+      <MatchSimulatorContent row={row} layout="inline" />
+    </div>
+  );
+
+  if (hideChrome) {
+    return <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{body}</div>;
+  }
+
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <div className="shrink-0 bg-[var(--screening-surface)] px-4 pb-2 pt-3">
@@ -38,9 +54,7 @@ export function MatchSimulatorPanel({ row, onBack }: MatchSimulatorPanelProps) {
           Match Simulator
         </p>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--screening-surface)] px-4 py-4">
-        <MatchSimulatorContent row={row} layout="inline" />
-      </div>
+      {body}
     </div>
   );
 }

@@ -70,6 +70,10 @@ import { MatchSimulatorPanel } from "./MatchSimulatorPanel";
 import { DocumentsPanel } from "./DocumentsPanel";
 import { ListHistoryPanel } from "./ListHistoryPanel";
 import { ScreeningHistoryPanel } from "./ScreeningHistoryPanel";
+import {
+  RowDrilldownShell,
+  type RowDrilldownViewId,
+} from "./RowDrilldownShell";
 import { casesData } from "../lib/reviewCaseData";
 
 export { easeAccordion, durationAccordion } from "./ExpandableFinScanTable";
@@ -83,14 +87,7 @@ const durationDrilldownSwipe = "duration-[560ms]";
 /** Balanced ease-in-out — avoids the whip-start of accordion ease-out on long travels. */
 const easeDrilldownSwipe = "[transition-timing-function:cubic-bezier(0.4,0,0.2,1)]";
 
-const ROW_DRILLDOWN_VIEWS = [
-  "screening-history",
-  "documents",
-  "match-simulator",
-  "list-history",
-] as const;
-
-type RowDrilldownView = (typeof ROW_DRILLDOWN_VIEWS)[number];
+type RowDrilldownView = RowDrilldownViewId;
 
 /** Level 1 decision outcomes plus Level 2 terminal statuses. */
 export type ScreeningRowStatus = Level1ScreeningStatus | Level2DecisionStatus;
@@ -2341,17 +2338,42 @@ export function ScreeningResultsTable({
                   className="flex w-1/2 min-w-0 flex-col self-stretch"
                   aria-hidden={!drilldownVisible}
                 >
-                  {drilldownRow && drilldownView === "screening-history" ? (
-                    <ScreeningHistoryPanel row={drilldownRow} onBack={closeRowDrilldown} />
-                  ) : null}
-                  {drilldownRow && drilldownView === "documents" ? (
-                    <DocumentsPanel row={drilldownRow} onBack={closeRowDrilldown} />
-                  ) : null}
-                  {drilldownRow && drilldownView === "match-simulator" ? (
-                    <MatchSimulatorPanel row={drilldownRow} onBack={closeRowDrilldown} />
-                  ) : null}
-                  {drilldownRow && drilldownView === "list-history" ? (
-                    <ListHistoryPanel row={drilldownRow} onBack={closeRowDrilldown} />
+                  {drilldownRow && drilldownView ? (
+                    <RowDrilldownShell
+                      view={drilldownView}
+                      onViewChange={setDrilldownView}
+                      onBack={closeRowDrilldown}
+                      matchName={drilldownRow.name}
+                    >
+                      {drilldownView === "screening-history" ? (
+                        <ScreeningHistoryPanel
+                          row={drilldownRow}
+                          onBack={closeRowDrilldown}
+                          hideChrome
+                        />
+                      ) : null}
+                      {drilldownView === "documents" ? (
+                        <DocumentsPanel
+                          row={drilldownRow}
+                          onBack={closeRowDrilldown}
+                          hideChrome
+                        />
+                      ) : null}
+                      {drilldownView === "match-simulator" ? (
+                        <MatchSimulatorPanel
+                          row={drilldownRow}
+                          onBack={closeRowDrilldown}
+                          hideChrome
+                        />
+                      ) : null}
+                      {drilldownView === "list-history" ? (
+                        <ListHistoryPanel
+                          row={drilldownRow}
+                          onBack={closeRowDrilldown}
+                          hideChrome
+                        />
+                      ) : null}
+                    </RowDrilldownShell>
                   ) : null}
                 </div>
               </div>

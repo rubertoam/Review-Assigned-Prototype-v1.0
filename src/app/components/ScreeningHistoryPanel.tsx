@@ -9,9 +9,25 @@ const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 export interface ScreeningHistoryPanelProps {
   row: ScreeningResultRow;
   onBack: () => void;
+  /** When true, omit Back + title (parent shell provides navigation). */
+  hideChrome?: boolean;
 }
 
-export function ScreeningHistoryPanel({ row, onBack }: ScreeningHistoryPanelProps) {
+export function ScreeningHistoryPanel({
+  row,
+  onBack,
+  hideChrome = false,
+}: ScreeningHistoryPanelProps) {
+  const body = (
+    <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--screening-surface)] px-4 py-4">
+      <ScreeningHistoryTimelineView row={row} />
+    </div>
+  );
+
+  if (hideChrome) {
+    return <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{body}</div>;
+  }
+
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <div className="shrink-0 bg-[var(--screening-surface)] px-4 pb-2 pt-3">
@@ -39,9 +55,7 @@ export function ScreeningHistoryPanel({ row, onBack }: ScreeningHistoryPanelProp
         </p>
         <p className="sr-only">Selected match: {row.name}</p>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--screening-surface)] px-4 py-4">
-        <ScreeningHistoryTimelineView row={row} />
-      </div>
+      {body}
     </div>
   );
 }

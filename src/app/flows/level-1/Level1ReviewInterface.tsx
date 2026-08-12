@@ -296,6 +296,7 @@ function CaseList({
 }: CaseListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
+  const [caseListMinimized, setCaseListMinimized] = useState(false);
   const [selectedCaseFilters, setSelectedCaseFilters] = useState<ReadonlySet<CaseFilterValue>>(
     () => new Set(),
   );
@@ -571,67 +572,123 @@ function CaseList({
       onFocus={() => setIsFocused(true)}
       onBlur={() => setIsFocused(false)}
       className={cn(
-        "flex min-h-0 w-64 flex-1 flex-col overflow-hidden rounded-[var(--radius-sm)] border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] outline-none lg:w-72",
+        "flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-sm)] border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] outline-none",
+        "transition-[width] duration-200 ease-out",
+        caseListMinimized ? "w-10" : "w-64 lg:w-72",
         aceDropShadowXsClass,
       )}
     >
-      <div className="flex shrink-0 items-center px-3 pb-3 pt-5">
-        <p
-          className="font-['Noto_Sans:Bold',sans-serif] text-[14px] font-bold leading-[1.65] text-[var(--screening-text-primary)]"
-          style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-        >
-          {listTitle}
-        </p>
-      </div>
-      <div className="shrink-0 bg-[var(--screening-surface)] px-3 py-2.5">
-        <div className="flex items-end gap-2">
-          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <span
-              className="font-['Noto_Sans:SemiBold',sans-serif] text-[13px] text-[#23262c] dark:text-[#b6c2cf]"
-              style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-            >
-              Filter by
-            </span>
-            <CaseListFilterSelect
-              selectedFilters={selectedCaseFilters}
-              onSelectedFiltersChange={setSelectedCaseFilters}
-            />
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <span
-              className="font-['Noto_Sans:SemiBold',sans-serif] text-[13px] text-[#23262c] dark:text-[#b6c2cf]"
-              style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-            >
-              Sort by
-            </span>
-            <CaseListSortSelect value={caseSort} onValueChange={setCaseSort} />
-          </div>
+      {caseListMinimized ? (
+        <div className="flex h-full min-h-0 flex-col items-center gap-3 px-1 pb-3 pt-3">
+          <AceTooltip>
+            <AceTooltipTrigger asChild>
+              <button
+                type="button"
+                aria-expanded={false}
+                aria-label="Expand case list"
+                className={sidebarIconButtonClass}
+                onClick={() => setCaseListMinimized(false)}
+              >
+                <MaterialSymbol
+                  name="keyboard_arrow_right"
+                  size="md"
+                  className="text-current"
+                />
+              </button>
+            </AceTooltipTrigger>
+            <AceTooltipContent side="right" variant="screening-toolbar" hideArrow>
+              Expand case list
+            </AceTooltipContent>
+          </AceTooltip>
+          <span
+            className="max-h-full truncate font-['Noto_Sans:Bold',sans-serif] text-[12px] font-bold leading-none tracking-[0.02em] text-[var(--screening-text-secondary)]"
+            style={{
+              fontVariationSettings: "'CTGR' 0, 'wdth' 100",
+              writingMode: "vertical-rl",
+              transform: "rotate(180deg)",
+            }}
+            title={listTitle}
+          >
+            {listTitle}
+          </span>
         </div>
-      </div>
-      <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
-        <CaseListSection
-          title="Cases"
-          count={visibleRows.length}
-          collapsible={false}
-          stickyHeader
-          emptyContent={
-            selectedCaseFilters.size > 0 && visibleRows.length === 0 ? (
-              <CaseListFilterEmptyState />
-            ) : isWorkflowView && visibleRows.length === 0 ? (
-              <div className="px-4 py-8 text-center">
-                <p
-                  className="m-0 font-['Noto_Sans:Regular',sans-serif] text-[13px] leading-[1.65] text-[var(--ace-neutral-800)]"
+      ) : (
+        <>
+          <div className="flex shrink-0 items-center justify-between gap-2 px-3 pb-3 pt-5">
+            <p
+              className="min-w-0 truncate font-['Noto_Sans:Bold',sans-serif] text-[14px] font-bold leading-[1.65] text-[var(--screening-text-primary)]"
+              style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+            >
+              {listTitle}
+            </p>
+            <AceTooltip>
+              <AceTooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-expanded={true}
+                  aria-label="Minimize case list"
+                  className={cn(sidebarIconButtonClass, "shrink-0")}
+                  onClick={() => setCaseListMinimized(true)}
+                >
+                  <MaterialSymbol name="keyboard_arrow_left" size="md" className="text-current" />
+                </button>
+              </AceTooltipTrigger>
+              <AceTooltipContent side="top" variant="screening-toolbar" hideArrow>
+                Minimize case list
+              </AceTooltipContent>
+            </AceTooltip>
+          </div>
+          <div className="shrink-0 bg-[var(--screening-surface)] px-3 py-2.5">
+            <div className="flex items-end gap-2">
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <span
+                  className="font-['Noto_Sans:SemiBold',sans-serif] text-[13px] text-[#23262c] dark:text-[#b6c2cf]"
                   style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
                 >
-                  No cases in this workflow yet.
-                </p>
+                  Filter by
+                </span>
+                <CaseListFilterSelect
+                  selectedFilters={selectedCaseFilters}
+                  onSelectedFiltersChange={setSelectedCaseFilters}
+                />
               </div>
-            ) : undefined
-          }
-        >
-          {visibleRows.map(({ item, index }) => renderCaseRow(item, index))}
-        </CaseListSection>
-      </div>
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <span
+                  className="font-['Noto_Sans:SemiBold',sans-serif] text-[13px] text-[#23262c] dark:text-[#b6c2cf]"
+                  style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+                >
+                  Sort by
+                </span>
+                <CaseListSortSelect value={caseSort} onValueChange={setCaseSort} />
+              </div>
+            </div>
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
+            <CaseListSection
+              title="Cases"
+              count={visibleRows.length}
+              collapsible={false}
+              stickyHeader
+              emptyContent={
+                selectedCaseFilters.size > 0 && visibleRows.length === 0 ? (
+                  <CaseListFilterEmptyState />
+                ) : isWorkflowView && visibleRows.length === 0 ? (
+                  <div className="px-4 py-8 text-center">
+                    <p
+                      className="m-0 font-['Noto_Sans:Regular',sans-serif] text-[13px] leading-[1.65] text-[var(--ace-neutral-800)]"
+                      style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+                    >
+                      No cases in this workflow yet.
+                    </p>
+                  </div>
+                ) : undefined
+              }
+            >
+              {visibleRows.map(({ item, index }) => renderCaseRow(item, index))}
+            </CaseListSection>
+          </div>
+        </>
+      )}
     </div>
   );
 }
