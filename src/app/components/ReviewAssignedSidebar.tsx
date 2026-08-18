@@ -125,7 +125,7 @@ export function ReviewAssignedSidebar({
   );
 
   return (
-    <div className="h-full shrink-0">
+    <div className="h-full shrink-0" data-coach-target="assignment">
       <AceSidebar
         open={open}
         variant="navigation"

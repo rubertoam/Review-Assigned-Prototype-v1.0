@@ -14,6 +14,7 @@ import {
   type ListHistoryVersion,
 } from "../lib/listHistoryData";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
+import { renderDiffHighlightedText } from "../lib/textDiffHighlight";
 import noDocumentsEmptyImage from "../../assets/client-documents/no-documents-empty.png";
 import { ListProfileAllTabView } from "./ListProfileTabContent";
 import { cn } from "./ui/utils";
@@ -226,17 +227,23 @@ export function ListDifferencesModal({
                         >
                           {row.label}
                         </td>
-                        <td
-                          className={cn(diffCellClass, row.changed && diffHighlightClass)}
-                          style={notoVar}
-                        >
-                          {row.newerValue}
+                        <td className={diffCellClass} style={notoVar}>
+                          {row.changed
+                            ? renderDiffHighlightedText(
+                                row.newerValue,
+                                row.olderValue,
+                                diffHighlightClass,
+                              )
+                            : row.newerValue}
                         </td>
-                        <td
-                          className={cn(diffCellClass, row.changed && diffHighlightClass)}
-                          style={notoVar}
-                        >
-                          {row.olderValue}
+                        <td className={diffCellClass} style={notoVar}>
+                          {row.changed
+                            ? renderDiffHighlightedText(
+                                row.olderValue,
+                                row.newerValue,
+                                diffHighlightClass,
+                              )
+                            : row.olderValue}
                         </td>
                       </tr>
                     ))}

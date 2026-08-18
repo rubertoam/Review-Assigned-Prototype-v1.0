@@ -44,17 +44,16 @@ const COACH_STEPS: readonly CoachStep[] = [
   {
     id: "assignment",
     title: "Assigned Work",
-    description:
-      "You can view your assigned work here, including any cases that belong to a workflow.",
+    description: "You can view your assigned work here.",
     side: "right",
     align: "start",
     requiresSidebarOpen: true,
   },
   {
     id: "case-list",
-    title: "Cases",
+    title: "Clients",
     description:
-      "Browse the cases in your queue. Select a case to review its profile and matches.",
+      "Browse client profiles and select one to review match alerts.",
     side: "right",
     align: "start",
   },
@@ -62,7 +61,7 @@ const COACH_STEPS: readonly CoachStep[] = [
     id: "client-profile",
     title: "Client profile",
     description:
-      "Review key client details here while you work through the case.",
+      "Review key client details here while you work through alerts.",
     side: "bottom",
     align: "start",
     requiresDetail: true,
@@ -71,7 +70,7 @@ const COACH_STEPS: readonly CoachStep[] = [
     id: "matches",
     title: "Matches",
     description:
-      "Compare screening matches, select rows, and clear or escalate results.",
+      "Review Match Alerts in the table. Use the three dot menu to review the List Profile, Match History, Match Simulator and more.",
     side: "bottom",
     align: "center",
     requiresDetail: true,
@@ -80,7 +79,7 @@ const COACH_STEPS: readonly CoachStep[] = [
     id: "task-bar",
     title: "Task bar",
     description:
-      "Use Quick Clear and Show Review to act on the matches you’ve selected.",
+      "Use the task bar to open the Review Panel to clear alerts and review match activity.",
     side: "top",
     align: "end",
     requiresDetail: true,
@@ -181,8 +180,9 @@ function resolveTargetElement(
 ): HTMLElement | null {
   if (stepId === "assignment") {
     return (
-      document.querySelector<HTMLElement>('[data-sidebar-group-id="my-work"]') ??
-      document.querySelector<HTMLElement>('[data-coach-target="assignment"]')
+      document.querySelector<HTMLElement>('[data-coach-target="assignment"]') ??
+      document.querySelector<HTMLElement>('[aria-label="Sidebar navigation"]') ??
+      document.querySelector<HTMLElement>('[data-sidebar-group-id="my-work"]')
     );
   }
   return document.querySelector<HTMLElement>(`[data-coach-target="${stepId}"]`);
@@ -341,12 +341,18 @@ export function ReviewOnboardingCoach({
       return;
     }
 
+    // Drop the previous step's rect so we don't flash the wrong popover while
+    // waiting for the next target (e.g. after sidebar layout changes).
+    setRect(null);
+
     const el = resolveTargetElement(step.id);
     el?.scrollIntoView({ block: "nearest", inline: "nearest" });
 
     let frame = 0;
     let attempts = 0;
+    let cancelled = false;
     const measure = () => {
+      if (cancelled) return;
       const nextRect = resolveTargetRect(step.id);
       if (nextRect) {
         setRect(nextRect);
@@ -369,6 +375,7 @@ export function ReviewOnboardingCoach({
     window.addEventListener("scroll", onResize, true);
 
     return () => {
+      cancelled = true;
       window.clearTimeout(frame);
       window.clearTimeout(delayed);
       window.removeEventListener("resize", onResize);
@@ -408,84 +415,86 @@ export function ReviewOnboardingCoach({
         }}
       />
 
-      {active && rect && placement ? (
+      {active ? (
         <div className="fixed inset-0 z-[70]" aria-live="polite">
           <div
             aria-hidden
             className="absolute inset-0 bg-[rgb(35_38_44/0.48)]"
           />
 
-          <div
-            ref={popoverRef}
-            role="dialog"
-            aria-label={step.title}
-            className={cn(
-              "pointer-events-auto absolute z-[1] flex flex-col gap-3 border p-4",
-              "rounded-[var(--radius-md)] border-[var(--ace-button-purple-500)]",
-              "bg-[var(--ace-button-purple-500)] text-[var(--ace-button-on-solid)]",
-              "shadow-[var(--ace-drop-shadow-md)]",
-            )}
-            style={{
-              top: placement.top,
-              left: placement.left,
-              width: POPOVER_WIDTH,
-              transform: placement.transform,
-            }}
-          >
-            <span style={placement.arrow} aria-hidden />
-            <div className="flex flex-col gap-1">
-              <div className="flex items-start justify-between gap-2">
+          {rect && placement ? (
+            <div
+              ref={popoverRef}
+              role="dialog"
+              aria-label={step.title}
+              className={cn(
+                "pointer-events-auto absolute z-[1] flex flex-col gap-3 border p-4",
+                "rounded-[var(--radius-md)] border-[var(--ace-button-purple-500)]",
+                "bg-[var(--ace-button-purple-500)] text-[var(--ace-button-on-solid)]",
+                "shadow-[var(--ace-drop-shadow-md)]",
+              )}
+              style={{
+                top: placement.top,
+                left: placement.left,
+                width: POPOVER_WIDTH,
+                transform: placement.transform,
+              }}
+            >
+              <span style={placement.arrow} aria-hidden />
+              <div className="flex flex-col gap-1">
+                <div className="flex items-start justify-between gap-2">
+                  <p
+                    className={cn(
+                      aceTypography(ACE_TYPE.h6Bold),
+                      "min-w-0 flex-1 leading-[1.65] text-[var(--ace-button-on-solid)]",
+                    )}
+                  >
+                    {step.title}
+                  </p>
+                  <button
+                    type="button"
+                    aria-label="Close tour"
+                    onClick={onDismiss}
+                    className={cn(
+                      "inline-flex size-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)]",
+                      "text-[var(--ace-button-on-solid)] transition-colors",
+                      "hover:bg-[color-mix(in_srgb,var(--ace-button-on-solid)_16%,transparent)]",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ace-button-on-solid)]",
+                    )}
+                  >
+                    <MaterialSymbol name="close" size="md" className="text-current" />
+                  </button>
+                </div>
                 <p
                   className={cn(
-                    aceTypography(ACE_TYPE.h6Bold),
-                    "min-w-0 flex-1 leading-[1.65] text-[var(--ace-button-on-solid)]",
+                    aceTypography(ACE_TYPE.p1Regular),
+                    "text-sm leading-[1.65] text-[var(--ace-button-on-solid)]/85",
                   )}
                 >
-                  {step.title}
+                  {step.description}
                 </p>
-                <button
-                  type="button"
-                  aria-label="Close tour"
-                  onClick={onDismiss}
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span
                   className={cn(
-                    "inline-flex size-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)]",
-                    "text-[var(--ace-button-on-solid)] transition-colors",
-                    "hover:bg-[color-mix(in_srgb,var(--ace-button-on-solid)_16%,transparent)]",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ace-button-on-solid)]",
+                    aceTypography(ACE_TYPE.captionSemiBold),
+                    "text-[var(--ace-button-on-solid)]/75",
                   )}
                 >
-                  <MaterialSymbol name="close" size="md" className="text-current" />
-                </button>
+                  {stepIndex + 1}/{stepCount}
+                </span>
+                <AceButton
+                  type="button"
+                  variant="secondary"
+                  palette="purple"
+                  size="sm"
+                  onClick={onNext}
+                >
+                  {isLast ? "Got it" : "Next"}
+                </AceButton>
               </div>
-              <p
-                className={cn(
-                  aceTypography(ACE_TYPE.p1Regular),
-                  "text-sm leading-[1.65] text-[var(--ace-button-on-solid)]/85",
-                )}
-              >
-                {step.description}
-              </p>
             </div>
-            <div className="flex items-center justify-between gap-2">
-              <span
-                className={cn(
-                  aceTypography(ACE_TYPE.captionSemiBold),
-                  "text-[var(--ace-button-on-solid)]/75",
-                )}
-              >
-                {stepIndex + 1}/{stepCount}
-              </span>
-              <AceButton
-                type="button"
-                variant="secondary"
-                palette="purple"
-                size="sm"
-                onClick={onNext}
-              >
-                {isLast ? "Got it" : "Next"}
-              </AceButton>
-            </div>
-          </div>
+          ) : null}
         </div>
       ) : null}
     </>
