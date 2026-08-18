@@ -228,7 +228,7 @@ function ProfileMenuDropdown({ profile }: { profile: FinScanProfileAvatar }) {
           )}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={4}>
+      <DropdownMenuContent align="end" sideOffset={4} className="min-w-[12rem]">
         <DropdownMenuLabel>Appearance</DropdownMenuLabel>
         <DropdownMenuToggleItem
           checked={isDark}

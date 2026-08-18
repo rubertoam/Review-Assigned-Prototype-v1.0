@@ -25,7 +25,10 @@ export interface CaseListSectionProps {
   onExpandedChange?: (expanded: boolean) => void;
   /** Omit the entire section when count is zero. */
   hideWhenEmpty?: boolean;
-  /** Pin the section title + count to the top of the scroll container. */
+  /**
+   * Pin the section title + count above the list; only the body scrolls so the
+   * scrollbar starts under the header line.
+   */
   stickyHeader?: boolean;
   emptyContent?: ReactNode;
   children: ReactNode;
@@ -55,28 +58,28 @@ export function CaseListSection({
     </span>
   );
 
-  const stickyHeaderClass = stickyHeader
-    ? // Above case-row selection chrome (z-20); solid fill so rows never show through.
-      "sticky top-0 z-30 border-b border-[#cfd2d9] dark:border-[#38414a]"
-    : undefined;
-  const stickyHeaderStyle = stickyHeader
-    ? ({ backgroundColor: "var(--screening-surface)" } as const)
-    : undefined;
+  const pinnedHeaderClass =
+    "flex w-full shrink-0 items-center gap-2 border-b border-[#cfd2d9] px-4 py-2.5 dark:border-[#38414a]";
+  const pinnedHeaderStyle = {
+    backgroundColor: "var(--screening-surface)",
+  } as const;
 
   if (!collapsible) {
+    if (stickyHeader) {
+      return (
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className={pinnedHeaderClass} style={pinnedHeaderStyle}>
+            {headerLabel}
+            <SectionCountBadge count={count} />
+          </div>
+          <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">{body}</div>
+        </div>
+      );
+    }
+
     return (
-      <div
-        className={cn(
-          !stickyHeader && "border-t border-[#cfd2d9] dark:border-[#38414a]",
-        )}
-      >
-        <div
-          className={cn(
-            "flex w-full items-center gap-2 px-4 py-2.5",
-            stickyHeaderClass,
-          )}
-          style={stickyHeaderStyle}
-        >
+      <div className="border-t border-[#cfd2d9] dark:border-[#38414a]">
+        <div className="flex w-full items-center gap-2 px-4 py-2.5">
           {headerLabel}
           <SectionCountBadge count={count} />
         </div>
@@ -91,11 +94,7 @@ export function CaseListSection({
         type="button"
         aria-expanded={expanded}
         onClick={() => onExpandedChange?.(!expanded)}
-        className={cn(
-          "flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 text-left transition-colors hover:bg-[#eff0f2] dark:hover:bg-[#2c333a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#523eb9]/35",
-          stickyHeaderClass,
-        )}
-        style={stickyHeaderStyle}
+        className="flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 text-left transition-colors hover:bg-[#eff0f2] dark:hover:bg-[#2c333a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#523eb9]/35"
       >
         <MaterialSymbol
           name="keyboard_arrow_right"

@@ -1,7 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   AceSidebar,
-  type AceSidebarGroup,
   type AceSidebarNavItem,
 } from "@ace-ds/components/organisms/AceSidebar/AceSidebar";
 import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
@@ -25,10 +24,12 @@ export type ReviewAssignedSidebarProps = {
   open: boolean;
   organizations: readonly { id: string; label: string }[];
   workCategories: readonly ReviewAssignedWorkCategory[];
-  /** Empty until cleared work exists — Workflows group is omitted. */
+  /** Cleared-work destinations — appended as flat nav items when present. */
   workflowItems: readonly ReviewSidebarWorkflowItem[];
   selection: ReviewAssignedSidebarSelection;
   onSelectionChange: (selection: ReviewAssignedSidebarSelection) => void;
+  /** Optional control to the right of the organization switcher (e.g. search). */
+  headerTrailing?: ReactNode;
   className?: string;
 };
 
@@ -70,8 +71,8 @@ function workflowToNavItem(
 }
 
 /**
- * Review Assigned sidebar — AceSidebar `variant="groups"`.
- * My Work always; Workflows only after cleared work produces destinations.
+ * Review Assigned sidebar — AceSidebar `variant="navigation"`.
+ * Flat list of work queues (and workflow destinations when present).
  */
 export function ReviewAssignedSidebar({
   open,
@@ -80,46 +81,21 @@ export function ReviewAssignedSidebar({
   workflowItems,
   selection,
   onSelectionChange,
+  headerTrailing,
   className,
 }: ReviewAssignedSidebarProps) {
   const [selectedOrgId, setSelectedOrgId] = useState(organizations[0]?.id ?? "");
-  const [myWorkExpanded, setMyWorkExpanded] = useState(true);
-  const [workflowsExpanded, setWorkflowsExpanded] = useState(true);
 
-  const groups = useMemo((): AceSidebarGroup[] => {
-    const next: AceSidebarGroup[] = [
-      {
-        id: "my-work",
-        label: "My Work",
-        expanded: myWorkExpanded,
-        onToggle: () => setMyWorkExpanded((value) => !value),
-        items: workCategories.map((item) =>
-          categoryToNavItem(item, selection, onSelectionChange),
-        ),
-      },
+  const navItems = useMemo((): AceSidebarNavItem[] => {
+    return [
+      ...workCategories.map((item) =>
+        categoryToNavItem(item, selection, onSelectionChange),
+      ),
+      ...workflowItems.map((item) =>
+        workflowToNavItem(item, selection, onSelectionChange),
+      ),
     ];
-
-    if (workflowItems.length > 0) {
-      next.push({
-        id: "workflows",
-        label: "Workflows",
-        expanded: workflowsExpanded,
-        onToggle: () => setWorkflowsExpanded((value) => !value),
-        items: workflowItems.map((item) =>
-          workflowToNavItem(item, selection, onSelectionChange),
-        ),
-      });
-    }
-
-    return next;
-  }, [
-    myWorkExpanded,
-    workflowsExpanded,
-    workCategories,
-    workflowItems,
-    selection,
-    onSelectionChange,
-  ]);
+  }, [workCategories, workflowItems, selection, onSelectionChange]);
 
   const onlineHelp = (
     <button
@@ -152,12 +128,12 @@ export function ReviewAssignedSidebar({
     <div className="h-full shrink-0">
       <AceSidebar
         open={open}
-        variant="groups"
+        variant="navigation"
         organizations={[...organizations]}
         selectedOrganizationId={selectedOrgId}
         onOrganizationChange={setSelectedOrgId}
-        groups={groups}
-        showGroupAdd={false}
+        navItems={navItems}
+        headerTrailing={headerTrailing}
         className={className ?? "h-full"}
       >
         <div className="mt-auto shrink-0 pb-4 pt-2">

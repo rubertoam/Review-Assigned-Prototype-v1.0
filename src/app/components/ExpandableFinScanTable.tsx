@@ -1,7 +1,10 @@
 import {
   Fragment,
+  startTransition,
   useCallback,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   type Dispatch,
   type ReactNode,
@@ -25,6 +28,61 @@ export const durationAccordion = "duration-[var(--ace-accordion-duration)]";
 const headerLabelClass = screeningTableHeaderLabelClass;
 const headerLabelCompactClass = cn(screeningTableHeaderLabelClass, "text-[10px] leading-tight");
 const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
+
+/**
+ * Mount heavy expanded-row UI only when the row is near the viewport.
+ * Prevents expand-all from creating dozens of list-profile trees in one frame.
+ */
+function DeferredExpandedContent({
+  open,
+  children,
+}: {
+  open: boolean;
+  children: ReactNode;
+}) {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [shouldMount, setShouldMount] = useState(false);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setShouldMount(false);
+      return;
+    }
+
+    const node = hostRef.current;
+    if (!node) return;
+
+    const isNearViewport = () => {
+      const rect = node.getBoundingClientRect();
+      const margin = 160;
+      return rect.bottom > -margin && rect.top < window.innerHeight + margin;
+    };
+
+    if (isNearViewport()) {
+      setShouldMount(true);
+      return;
+    }
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setShouldMount(true);
+        }
+      },
+      { root: null, rootMargin: "160px 0px", threshold: 0 },
+    );
+    io.observe(node);
+    return () => io.disconnect();
+  }, [open]);
+
+  return (
+    <div ref={hostRef}>
+      {open && shouldMount ? children : open ? (
+        <div className="h-28" aria-hidden />
+      ) : null}
+    </div>
+  );
+}
 
 /** Sort glyphs — `sm` keeps swap_vert optically aligned with header labels. */
 const sortIconIdleClass = "shrink-0 text-[var(--screening-icon-muted)] leading-none";
@@ -174,10 +232,14 @@ export function ExpandableFinScanTable<T extends { id: string }>({
   const isCompact = density === "compact";
   const cellPad = isCompact ? "px-2 py-1.5" : "px-3 py-3";
   const headerPad = isCompact ? "px-2 py-0.5" : "px-3 py-1";
+  const stickyThClass =
+    "border-b border-[var(--screening-border-strong)] bg-[var(--screening-surface-muted)]";
   const headerRowH = isCompact ? "h-7" : "h-8";
   const bodyText = isCompact ? "text-[12px]" : "text-[14px]";
   const headerLabel = isCompact ? headerLabelCompactClass : headerLabelClass;
   const [internalExpandedIds, setInternalExpandedIds] = useState<Set<string>>(new Set());
+  /** Skip grid expand motion when opening/closing many rows at once (expand all). */
+  const [animateExpandPanels, setAnimateExpandPanels] = useState(true);
   const isExpandControlled = expandedIdsProp !== undefined && onExpandedIdsChange !== undefined;
   const expandedIds = isExpandControlled ? expandedIdsProp : internalExpandedIds;
   const setExpandedIds = useCallback(
@@ -204,21 +266,26 @@ export function ExpandableFinScanTable<T extends { id: string }>({
     expandableRowIds.length > 0 &&
     expandableRowIds.every((id) => expandedIds.has(id));
 
-  const toggleExpanded = useCallback((id: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
+  const toggleExpanded = useCallback(
+    (id: string) => {
+      setAnimateExpandPanels(true);
+      setExpandedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    },
+    [setExpandedIds],
+  );
 
   const toggleExpandAll = () => {
-    if (allVisibleExpanded) {
-      setExpandedIds(new Set());
-      return;
-    }
-    setExpandedIds(new Set(expandableRowIds));
+    const nextExpanded = !allVisibleExpanded;
+    // Bulk open/close skips grid motion — animating dozens of panels freezes the UI.
+    setAnimateExpandPanels(false);
+    startTransition(() => {
+      setExpandedIds(nextExpanded ? new Set(expandableRowIds) : new Set());
+    });
   };
 
   const showExpandCol = expandable;
@@ -299,7 +366,7 @@ export function ExpandableFinScanTable<T extends { id: string }>({
     >
       <table
         className={cn(
-          "w-full border-collapse text-left",
+          "w-full border-separate border-spacing-0 text-left",
           tableLayout === "fixed" ? "table-fixed" : "table-auto",
           minWidth,
           tableClassName,
@@ -315,10 +382,10 @@ export function ExpandableFinScanTable<T extends { id: string }>({
           ))}
           {trailingColumn ? <col className="w-10" /> : null}
         </colgroup>
-        <thead className="sticky top-0 z-[1] border-b border-[var(--screening-border-strong)] bg-[var(--screening-surface-muted)] shadow-[var(--screening-shadow-thead)]">
+        <thead className="sticky top-0 z-[2]">
           <tr className={headerRowH}>
             {showExpandCol ? (
-              <th scope="col" className={cn(expandColClass, leadingHeaderPad(isCompact))}>
+              <th scope="col" className={cn(expandColClass, leadingHeaderPad(isCompact), stickyThClass)}>
                 <div className="flex items-center justify-center">
                   {expandable && showExpandAll ? renderExpandAllButton() : null}
                 </div>
@@ -326,7 +393,7 @@ export function ExpandableFinScanTable<T extends { id: string }>({
               </th>
             ) : null}
             {showSelectionCol ? (
-              <th scope="col" className={cn(selectColClass, leadingHeaderPad(isCompact))}>
+              <th scope="col" className={cn(selectColClass, leadingHeaderPad(isCompact), stickyThClass)}>
                 <SelectCheckboxCell>
                   <Checkbox
                     size="md"
@@ -349,7 +416,7 @@ export function ExpandableFinScanTable<T extends { id: string }>({
               <th
                 key={col.key}
                 scope="col"
-                className={cn(headerPad, "align-middle", col.headerClassName)}
+                className={cn(headerPad, "align-middle", stickyThClass, col.headerClassName)}
                 aria-sort={
                   sort && col.sortKey && sort.sortKey === col.sortKey
                     ? sort.sortDir === "asc"
@@ -382,7 +449,13 @@ export function ExpandableFinScanTable<T extends { id: string }>({
                 )}
               </th>
             ))}
-            {trailingColumn ? <th scope="col" className="w-10 p-0 align-middle" aria-hidden /> : null}
+            {trailingColumn ? (
+              <th
+                scope="col"
+                className={cn("w-10 p-0 align-middle", stickyThClass)}
+                aria-hidden
+              />
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -482,13 +555,16 @@ export function ExpandableFinScanTable<T extends { id: string }>({
                   <td colSpan={colSpan} className="w-full p-0 align-top">
                     <AceGridExpandPanel
                       open={expanded}
+                      animate={animateExpandPanels}
                       contentClassName={cn(
                         "bg-white dark:bg-[#1d2125]",
                         isCompact ? "px-3 py-2" : "px-4 py-3",
                         expandedContentClassName,
                       )}
                     >
-                      {renderExpandedContent?.(row)}
+                      <DeferredExpandedContent open={expanded}>
+                        {renderExpandedContent?.(row)}
+                      </DeferredExpandedContent>
                     </AceGridExpandPanel>
                   </td>
                 </tr>

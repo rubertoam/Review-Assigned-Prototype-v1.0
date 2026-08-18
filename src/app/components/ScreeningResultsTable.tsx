@@ -17,14 +17,12 @@ import {
   AceTooltipTrigger,
 } from "@ace-ds/components/atoms/AceTooltip/AceTooltip";
 import { Toggle } from "@ace-ds/components/atoms/Toggle/Toggle";
-import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
 import { AceFilterToggleChip } from "@ace-ds/components/molecules/AceFiltering/AceFilterToggleChip";
 import { AcePagination } from "@ace-ds/components/molecules/AcePagination/AcePagination";
 import {
   screeningStatusFilterLabelClass,
   screeningToolbarIconButtonClass,
 } from "@ace-ds/components/organisms/ScreeningResultsTable/screeningTableToolbar";
-import { aceAccordionFixedHeaderClass } from "../lib/aceAccordion";
 import { aceDropShadowXsClass } from "../lib/aceShadow";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { cn } from "./ui/utils";
@@ -960,7 +958,7 @@ interface ScreeningResultsTableProps {
   flowVariant?: "level-1" | "level-2";
   /** Which case-list bucket is active — scopes visible rows (todo vs sent-away). */
   caseListSection?: CaseListSectionContext;
-  /** Optional root classes (e.g. `w-full`). Accordion grows with content; page/detail scroll is external — avoid `flex-1` on the root so the closed accordion does not stretch. */
+  /** Optional root classes (e.g. `w-full`). Height hugs rows; capped by parent so overflow scrolls. */
   className?: string;
   /** When both are passed, row selection is controlled by the parent (e.g. task bar). */
   selectedIds?: Set<string>;
@@ -1264,7 +1262,7 @@ export function isCaseScreeningComplete(rows: ScreeningResultRow[]): boolean {
 
 export function ScreeningResultsTable({
   rows = MOCK_ROWS,
-  title = "Matches",
+  title = "Match Alerts",
   flowVariant = "level-1",
   caseListSection = "todo",
   className,
@@ -1301,7 +1299,6 @@ export function ScreeningResultsTable({
     },
     [isSelectionControlled, onSelectedIdsChange],
   );
-  const [sectionCollapsed, setSectionCollapsed] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [visibleColumns, setVisibleColumns] = useState<Set<ScreeningColumnKey>>(
@@ -2014,8 +2011,8 @@ export function ScreeningResultsTable({
     </>
   );
 
-  const tableHeaderTrailing = (
-    <div className="flex shrink-0 items-center gap-3" onClick={(e) => e.stopPropagation()}>
+  const tableFooterProgress = (
+    <div className="flex shrink-0 items-center gap-3">
       {isCaseComplete && isLevel2 ? (
         <div className="flex items-center gap-2">
           <span
@@ -2062,323 +2059,305 @@ export function ScreeningResultsTable({
     </div>
   );
 
-  const screeningAccordionOpen = !sectionCollapsed;
-
   return (
-    <AceAccordion
+    <div
       className={cn(
-        "flex w-full shrink-0 flex-col border-[var(--screening-border-strong)]",
-        aceAccordionFixedHeaderClass,
+        "flex h-fit max-h-full min-h-0 w-full flex-col overflow-hidden rounded-[var(--ace-accordion-radius)] border border-solid border-[var(--screening-border-strong)] bg-[var(--screening-surface)]",
         aceDropShadowXsClass,
         className,
       )}
-      surface="white"
-      dropShadow
-      showTag={false}
-      showAddIcon={false}
-      showDeleteIcon={false}
-      showEditIcon={false}
-      showMoreIcon={false}
-      open={screeningAccordionOpen}
-      onOpenChange={(next) => setSectionCollapsed(!next)}
-      title={title}
-      titleClassName={cn(
-        aceTypography(ACE_TYPE.h6SmallSemiBold),
-        "truncate leading-[1.5] text-[var(--screening-text-primary)]",
-      )}
-      headerTrailing={tableHeaderTrailing}
-      contentPadding={false}
     >
-          <div className="flex min-w-0 flex-col" data-coach-target="matches">
-            <div className="relative flex flex-col">
-              <div
-                className={cn(
-                  "flex w-[200%] shrink-0 transition-transform will-change-transform",
-                  durationDrilldownSwipe,
-                  easeDrilldownSwipe,
-                  drilldownVisible ? "-translate-x-1/2" : "translate-x-0",
-                )}
-              >
-                <div
-                  className="flex w-1/2 min-w-0 flex-col self-stretch"
-                  aria-hidden={drilldownVisible}
-                >
-            <div className="flex flex-col">
-            <div className="shrink-0 border-b border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-4 py-3">
-              <div className="flex flex-nowrap items-center gap-3">
-                <DropdownMenu
-                  onOpenChange={(open) => {
-                    setColumnsMenuOpen(open);
-                    if (open) setColumnsTooltipOpen(false);
-                    if (!open) {
-                      setColumnDropIndicator(null);
-                      setDraggedColumnKey(null);
-                      setColumnDropLineTop(null);
-                    }
-                  }}
-                >
-                  <AceTooltip
-                    open={columnsTooltipOpen}
-                    onOpenChange={(open) => {
-                      if (!columnsMenuOpen) setColumnsTooltipOpen(open);
-                    }}
-                  >
-                    <AceTooltipTrigger asChild>
-                      <span className="inline-flex">
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            type="button"
-                            aria-label="Edit Columns"
-                            className={screeningToolbarIconButtonClass}
+      <div className="flex min-h-0 max-h-full min-w-0 flex-col" data-coach-target="matches">
+        <div className="relative flex min-h-0 max-h-full flex-col overflow-hidden">
+          <div
+            className={cn(
+              "flex max-h-full min-h-0 w-[200%] transition-transform will-change-transform",
+              durationDrilldownSwipe,
+              easeDrilldownSwipe,
+              drilldownVisible ? "-translate-x-1/2" : "translate-x-0",
+            )}
+          >
+            <div
+              className="flex max-h-full min-h-0 w-1/2 min-w-0 flex-col self-stretch"
+              aria-hidden={drilldownVisible}
+            >
+              <div className="flex max-h-full min-h-0 flex-col">
+                <div className="shrink-0 border-b border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-4 py-3">
+                  <div className="flex flex-nowrap items-center gap-3">
+                    <DropdownMenu
+                      onOpenChange={(open) => {
+                        setColumnsMenuOpen(open);
+                        if (open) setColumnsTooltipOpen(false);
+                        if (!open) {
+                          setColumnDropIndicator(null);
+                          setDraggedColumnKey(null);
+                          setColumnDropLineTop(null);
+                        }
+                      }}
+                    >
+                      <AceTooltip
+                        open={columnsTooltipOpen}
+                        onOpenChange={(open) => {
+                          if (!columnsMenuOpen) setColumnsTooltipOpen(open);
+                        }}
+                      >
+                        <AceTooltipTrigger asChild>
+                          <span className="inline-flex">
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                aria-label="Edit Columns"
+                                className={screeningToolbarIconButtonClass}
+                              >
+                                <MaterialSymbol name="view_list" size="md" weight={300} />
+                              </button>
+                            </DropdownMenuTrigger>
+                          </span>
+                        </AceTooltipTrigger>
+                        <AceTooltipContent side="top" variant="screening-toolbar" hideArrow>
+                          Edit Columns
+                        </AceTooltipContent>
+                      </AceTooltip>
+                      <DropdownMenuContent
+                        align="start"
+                        className="min-w-[15rem]"
+                        onDragLeave={(event) => {
+                          if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+                            setColumnDropIndicator(null);
+                            setColumnDropLineTop(null);
+                          }
+                        }}
+                      >
+                        <DropdownMenuLabel>Columns</DropdownMenuLabel>
+                        <div ref={columnListRef} className="relative">
+                          {columnDropLineTop !== null ? (
+                            <span
+                              aria-hidden
+                              className={cn(
+                                screeningColumnDropLineClass,
+                                draggedColumnKey ? "scale-x-100 opacity-100" : "scale-x-[0.98] opacity-0",
+                              )}
+                              style={{ top: columnDropLineTop }}
+                            />
+                          ) : null}
+                          {columnMenuOptions.map((column) => (
+                            <ScreeningColumnReorderMenuItem
+                              key={column.key}
+                              columnKey={column.key}
+                              label={column.label}
+                              checked={visibleColumns.has(column.key)}
+                              disabled={visibleColumns.has(column.key) && visibleColumns.size <= 1}
+                              draggedColumnKey={draggedColumnKey}
+                              dropIndicator={columnDropIndicator}
+                              onCheckedChange={(checked) => toggleColumnVisibility(column.key, checked)}
+                              onReorder={reorderColumns}
+                              onDropIndicatorChange={setColumnDropIndicator}
+                              onDraggedColumnKeyChange={setDraggedColumnKey}
+                              onItemRef={registerColumnMenuItemRef}
+                            />
+                          ))}
+                        </div>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    {showStatusFilter ? (
+                      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                        <span className={screeningStatusFilterLabelClass}>Filter by</span>
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
+                          {statusChips.map((st) => (
+                            <AceFilterToggleChip
+                              key={st}
+                              label={st}
+                              pressed={statusFilters.has(st)}
+                              onClick={() => toggleStatusFilter(st)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="min-w-0 flex-1" aria-hidden />
+                    )}
+                    <div className="flex shrink-0 flex-nowrap items-center gap-3">
+                      {showReviewHistoryToggle ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex">
+                              <button
+                                type="button"
+                                disabled={historyToggleDisabled}
+                                aria-expanded={showReviewHistory}
+                                aria-label={
+                                  historyToggleDisabled
+                                    ? "There is no history to show"
+                                    : showReviewHistory
+                                      ? "Hide"
+                                      : "Show"
+                                }
+                                onClick={() => setShowReviewHistory((o) => !o)}
+                                className={cn(
+                                  screeningToolbarIconButtonClass,
+                                  historyToggleDisabled &&
+                                    "cursor-not-allowed border-[#cfd2d9] bg-[#f5f6f8] text-[#949baa] opacity-60 dark:border-[#38414a] dark:bg-[#2c333a] dark:text-[#6a7285]",
+                                )}
+                              >
+                                {showReviewHistory && !historyToggleDisabled ? (
+                                  <MaterialSymbol name="visibility_off" size="md" weight={300} />
+                                ) : (
+                                  <MaterialSymbol name="visibility" size="md" weight={300} />
+                                )}
+                              </button>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent
+                            side="top"
+                            hideArrow
+                            className={cn(
+                              aceTypography(ACE_TYPE.captionSemiBold),
+                              "border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] text-[var(--screening-text-primary)] shadow-[var(--ace-drop-shadow-xs)]",
+                            )}
                           >
-                            <MaterialSymbol name="view_list" size="md" weight={300} />
-                          </button>
-                        </DropdownMenuTrigger>
-                      </span>
-                    </AceTooltipTrigger>
-                    <AceTooltipContent side="top" variant="screening-toolbar" hideArrow>
-                      Edit Columns
-                    </AceTooltipContent>
-                  </AceTooltip>
-                  <DropdownMenuContent
-                    align="start"
-                    className="min-w-[15rem]"
-                    onDragLeave={(event) => {
-                      if (!event.currentTarget.contains(event.relatedTarget as Node)) {
-                        setColumnDropIndicator(null);
-                        setColumnDropLineTop(null);
-                      }
-                    }}
-                  >
-                    <DropdownMenuLabel>Columns</DropdownMenuLabel>
-                    <div ref={columnListRef} className="relative">
-                      {columnDropLineTop !== null ? (
-                        <span
-                          aria-hidden
-                          className={cn(
-                            screeningColumnDropLineClass,
-                            draggedColumnKey ? "scale-x-100 opacity-100" : "scale-x-[0.98] opacity-0",
-                          )}
-                          style={{ top: columnDropLineTop }}
-                        />
+                            {historyToggleDisabled
+                              ? "There is no history to show."
+                              : showReviewHistory
+                                ? "Hide"
+                                : "Show"}
+                          </TooltipContent>
+                        </Tooltip>
                       ) : null}
-                      {columnMenuOptions.map((column) => (
-                        <ScreeningColumnReorderMenuItem
-                          key={column.key}
-                          columnKey={column.key}
-                          label={column.label}
-                          checked={visibleColumns.has(column.key)}
-                          disabled={visibleColumns.has(column.key) && visibleColumns.size <= 1}
-                          draggedColumnKey={draggedColumnKey}
-                          dropIndicator={columnDropIndicator}
-                          onCheckedChange={(checked) => toggleColumnVisibility(column.key, checked)}
-                          onReorder={reorderColumns}
-                          onDropIndicatorChange={setColumnDropIndicator}
-                          onDraggedColumnKeyChange={setDraggedColumnKey}
-                          onItemRef={registerColumnMenuItemRef}
-                        />
-                      ))}
-                    </div>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                {showStatusFilter ? (
-                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                    <span className={screeningStatusFilterLabelClass}>Filter by</span>
-                    <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      {statusChips.map((st) => (
-                        <AceFilterToggleChip
-                          key={st}
-                          label={st}
-                          pressed={statusFilters.has(st)}
-                          onClick={() => toggleStatusFilter(st)}
-                        />
-                      ))}
+                      <AceInputField
+                        fieldSize="sm"
+                        icon="left"
+                        placeholder="Search"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        aria-label="Search screening results"
+                        className="w-[12rem] shrink-0 bg-[var(--screening-surface)]"
+                      />
                     </div>
                   </div>
-                ) : (
-                  <div className="min-w-0 flex-1" aria-hidden />
-                )}
-                <div className="flex shrink-0 flex-nowrap items-center gap-3">
-                  {showReviewHistoryToggle ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="inline-flex">
-                          <button
-                            type="button"
-                            disabled={historyToggleDisabled}
-                            aria-expanded={showReviewHistory}
-                            aria-label={
-                              historyToggleDisabled
-                                ? "There is no history to show"
-                                : showReviewHistory
-                                  ? "Hide"
-                                  : "Show"
-                            }
-                            onClick={() => setShowReviewHistory((o) => !o)}
-                            className={cn(
-                              screeningToolbarIconButtonClass,
-                              historyToggleDisabled &&
-                                "cursor-not-allowed border-[#cfd2d9] bg-[#f5f6f8] text-[#949baa] opacity-60 dark:border-[#38414a] dark:bg-[#2c333a] dark:text-[#6a7285]",
-                            )}
-                          >
-                            {showReviewHistory && !historyToggleDisabled ? (
-                              <MaterialSymbol name="visibility_off" size="md" weight={300} />
-                            ) : (
-                              <MaterialSymbol name="visibility" size="md" weight={300} />
-                            )}
-                          </button>
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent
-                        side="top"
-                        hideArrow
-                        className={cn(
-                          aceTypography(ACE_TYPE.captionSemiBold),
-                          "border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] text-[var(--screening-text-primary)] shadow-[var(--ace-drop-shadow-xs)]",
-                        )}
-                      >
-                        {historyToggleDisabled
-                          ? "There is no history to show."
-                          : showReviewHistory
-                            ? "Hide"
-                            : "Show"}
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : null}
-                  <AceInputField
-                    fieldSize="sm"
-                    icon="left"
-                    placeholder="Search"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    aria-label="Search screening results"
-                    className="w-[12rem] shrink-0 bg-[var(--screening-surface)]"
-                  />
                 </div>
-              </div>
-            </div>
-            <ExpandableFinScanTable
-              rows={paginatedRows}
-              columns={screeningColumns}
-              caption={`${title}, ${sortedRows.length} ${sortedRows.length === 1 ? "row" : "rows"}${statusFilters.size > 0 ? `, filtered by ${[...statusFilters].sort((a, b) => a.localeCompare(b)).join(", ")}` : ""}`}
-              className="shrink-0"
-              scrollY={false}
-              tableLayout="auto"
-              minWidth="min-w-full"
-              expandable
-              showExpandAll
-              expandedIds={expandedRowIds}
-              onExpandedIdsChange={setExpandedRowIds}
-              expandTooltips={{
-                expandRow: { open: "Open List Profile", close: "Close List Profile" },
-                expandAll: { show: "Show All", hide: "Hide All" },
-              }}
-              expandedContentClassName="bg-[var(--screening-surface-muted)]"
-              renderExpandedContent={(row) => (
-                <ListProfileInlineContent
-                  row={row}
-                  className="ml-10 border-l-2 border-[#523eb9]/25 pl-6"
+                <ExpandableFinScanTable
+                  rows={paginatedRows}
+                  columns={screeningColumns}
+                  caption={`${title}, ${sortedRows.length} ${sortedRows.length === 1 ? "row" : "rows"}${statusFilters.size > 0 ? `, filtered by ${[...statusFilters].sort((a, b) => a.localeCompare(b)).join(", ")}` : ""}`}
+                  className="min-h-0 flex-auto"
+                  scrollY
+                  tableLayout="auto"
+                  minWidth="min-w-full"
+                  expandable
+                  showExpandAll
+                  expandedIds={expandedRowIds}
+                  onExpandedIdsChange={setExpandedRowIds}
+                  expandTooltips={{
+                    expandRow: { open: "Open List Profile", close: "Close List Profile" },
+                    expandAll: { show: "Show All", hide: "Hide All" },
+                  }}
+                  expandedContentClassName="bg-[var(--screening-surface-muted)]"
+                  renderExpandedContent={(row) => (
+                    <ListProfileInlineContent
+                      row={row}
+                      className="ml-10 border-l-2 border-[#523eb9]/25 pl-6"
+                    />
+                  )}
+                  sort={{
+                    sortKey,
+                    sortDir,
+                    onToggleSort: (key) => toggleSort(key as SortKey),
+                  }}
+                  selection={{
+                    selectedIds,
+                    isSelectable: (row) =>
+                      readOnly
+                        ? false
+                        : isLevel2
+                          ? !row.readOnlyHistory && isLevel1Level2QueueStatus(row.status)
+                          : isLevel1RowActionable(row.status),
+                    onToggleRow: toggleRowSelect,
+                    onHeaderSelectAll: onHeaderSelectAllChange,
+                    headerCheckboxState,
+                    actionableCount: actionableRows.length,
+                  }}
+                  trailingColumn={{
+                    render: (row) => (
+                      <ScreeningRowActionsMenu
+                        row={row}
+                        onOpenDrilldown={openRowDrilldown}
+                        readOnly={readOnly}
+                      />
+                    ),
+                  }}
+                  getRowClassName={(row) => {
+                    const rowDone = isDisabledScreeningRow(row, flowVariant, readOnly);
+                    const selected = selectedIds.has(row.id);
+                    return cn(
+                      rowDone && screeningDisabledRowClass,
+                      !rowDone &&
+                        "bg-white dark:bg-[#22272b] hover:bg-[#f3f4f6] dark:hover:bg-[#2c333a] hover:shadow-[inset_2px_0_0_0_rgba(82,62,185,0.2)]",
+                      selected && !rowDone && "bg-[#f4f1fc]/60 dark:bg-[#38414a]/45",
+                    );
+                  }}
+                  emptyState={sortedRows.length === 0 ? screeningEmptyState : undefined}
                 />
-              )}
-              sort={{
-                sortKey,
-                sortDir,
-                onToggleSort: (key) => toggleSort(key as SortKey),
-              }}
-              selection={{
-                selectedIds,
-                isSelectable: (row) =>
-                  readOnly
-                    ? false
-                    : isLevel2
-                      ? !row.readOnlyHistory && isLevel1Level2QueueStatus(row.status)
-                      : isLevel1RowActionable(row.status),
-                onToggleRow: toggleRowSelect,
-                onHeaderSelectAll: onHeaderSelectAllChange,
-                headerCheckboxState,
-                actionableCount: actionableRows.length,
-              }}
-              trailingColumn={{
-                render: (row) => (
-                  <ScreeningRowActionsMenu
-                    row={row}
-                    onOpenDrilldown={openRowDrilldown}
-                    readOnly={readOnly}
+                <div className="shrink-0 border-t border-[var(--screening-border-strong)] bg-white dark:bg-[#22272b] px-4 py-3">
+                  <AcePagination
+                    totalItems={sortedRows.length}
+                    page={page}
+                    pageSize={pageSize}
+                    portalContainer={paginationMenuPortal}
+                    beforePageControls={tableFooterProgress}
+                    onPageChange={setPage}
+                    onPageSizeChange={(nextPageSize) => {
+                      setPageSize(nextPageSize);
+                      setPage(1);
+                    }}
                   />
-                ),
-              }}
-              getRowClassName={(row) => {
-                const rowDone = isDisabledScreeningRow(row, flowVariant, readOnly);
-                const selected = selectedIds.has(row.id);
-                return cn(
-                  rowDone && screeningDisabledRowClass,
-                  !rowDone &&
-                    "bg-white dark:bg-[#22272b] hover:bg-[#f3f4f6] dark:hover:bg-[#2c333a] hover:shadow-[inset_2px_0_0_0_rgba(82,62,185,0.2)]",
-                  selected && !rowDone && "bg-[#f4f1fc]/60 dark:bg-[#38414a]/45",
-                );
-              }}
-              emptyState={sortedRows.length === 0 ? screeningEmptyState : undefined}
-            />
-            <div className="shrink-0 border-t border-[var(--screening-border-strong)] bg-white dark:bg-[#22272b] px-4 py-3">
-              <AcePagination
-                totalItems={sortedRows.length}
-                page={page}
-                pageSize={pageSize}
-                portalContainer={paginationMenuPortal}
-                onPageChange={setPage}
-                onPageSizeChange={(nextPageSize) => {
-                  setPageSize(nextPageSize);
-                  setPage(1);
-                }}
-              />
-            </div>
-            </div>
-                </div>
-                <div
-                  className="flex w-1/2 min-w-0 flex-col self-stretch"
-                  aria-hidden={!drilldownVisible}
-                >
-                  {drilldownRow && drilldownView ? (
-                    <RowDrilldownShell
-                      view={drilldownView}
-                      onViewChange={setDrilldownView}
-                      onBack={closeRowDrilldown}
-                      matchName={drilldownRow.name}
-                    >
-                      {drilldownView === "screening-history" ? (
-                        <ScreeningHistoryPanel
-                          row={drilldownRow}
-                          onBack={closeRowDrilldown}
-                          hideChrome
-                        />
-                      ) : null}
-                      {drilldownView === "documents" ? (
-                        <DocumentsPanel
-                          row={drilldownRow}
-                          onBack={closeRowDrilldown}
-                          hideChrome
-                        />
-                      ) : null}
-                      {drilldownView === "match-simulator" ? (
-                        <MatchSimulatorPanel
-                          row={drilldownRow}
-                          onBack={closeRowDrilldown}
-                          hideChrome
-                        />
-                      ) : null}
-                      {drilldownView === "list-history" ? (
-                        <ListHistoryPanel
-                          row={drilldownRow}
-                          onBack={closeRowDrilldown}
-                          hideChrome
-                        />
-                      ) : null}
-                    </RowDrilldownShell>
-                  ) : null}
                 </div>
               </div>
+            </div>
+            <div
+              className="flex max-h-full min-h-0 w-1/2 min-w-0 flex-col self-stretch"
+              aria-hidden={!drilldownVisible}
+            >
+              {drilldownRow && drilldownView ? (
+                <RowDrilldownShell
+                  view={drilldownView}
+                  onViewChange={setDrilldownView}
+                  onBack={closeRowDrilldown}
+                  matchName={drilldownRow.name}
+                >
+                  {drilldownView === "screening-history" ? (
+                    <ScreeningHistoryPanel
+                      row={drilldownRow}
+                      onBack={closeRowDrilldown}
+                      hideChrome
+                    />
+                  ) : null}
+                  {drilldownView === "documents" ? (
+                    <DocumentsPanel
+                      row={drilldownRow}
+                      onBack={closeRowDrilldown}
+                      hideChrome
+                    />
+                  ) : null}
+                  {drilldownView === "match-simulator" ? (
+                    <MatchSimulatorPanel
+                      row={drilldownRow}
+                      onBack={closeRowDrilldown}
+                      hideChrome
+                    />
+                  ) : null}
+                  {drilldownView === "list-history" ? (
+                    <ListHistoryPanel
+                      row={drilldownRow}
+                      onBack={closeRowDrilldown}
+                      hideChrome
+                    />
+                  ) : null}
+                </RowDrilldownShell>
+              ) : null}
             </div>
           </div>
-    </AceAccordion>
+        </div>
+      </div>
+    </div>
   );
 }

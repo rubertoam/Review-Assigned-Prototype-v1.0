@@ -663,9 +663,9 @@ function CaseList({
               </div>
             </div>
           </div>
-          <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <CaseListSection
-              title="Cases"
+              title="Clients"
               count={visibleRows.length}
               collapsible={false}
               stickyHeader
@@ -750,7 +750,7 @@ function DetailPanel({
   }
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
       {isWorkflowView ? (
         <ReviewPanelInlineInfoMessage>
           The matches in this case are part of an active workflow.
@@ -761,7 +761,7 @@ function DetailPanel({
         </ReviewPanelInlineInfoMessage>
       ) : null}
       <div
-        className="sticky top-0 z-20 flex shrink-0 flex-col gap-2 bg-[var(--screening-surface-muted)] pb-2"
+        className="flex shrink-0 flex-col gap-2 bg-[var(--screening-surface-muted)]"
         data-coach-target="client-profile"
       >
         <p
@@ -928,22 +928,24 @@ function DetailPanel({
       </AceAccordion>
       </div>
 
-      <div className="flex shrink-0 flex-col gap-2">
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
         <p
           className="m-0 shrink-0 font-['Noto_Sans:Bold',sans-serif] text-[14px] font-bold leading-[1.65] text-[var(--screening-text-primary)]"
           style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
         >
           Match Alerts
         </p>
-      <ScreeningResultsTable
-        rows={screeningRows}
-        title="Matches"
-        caseListSection={caseListSection}
-        selectedIds={screeningSelectedIds}
-        onSelectedIdsChange={onScreeningSelectedIdsChange}
-        onQuickClearRow={onQuickClearRow}
-        readOnly={isCaseReadOnly || workflowReadOnly}
-      />
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <ScreeningResultsTable
+            rows={screeningRows}
+            title="Match Alerts"
+            caseListSection={caseListSection}
+            selectedIds={screeningSelectedIds}
+            onSelectedIdsChange={onScreeningSelectedIdsChange}
+            onQuickClearRow={onQuickClearRow}
+            readOnly={isCaseReadOnly || workflowReadOnly}
+          />
+        </div>
       </div>
     </div>
   );

@@ -369,6 +369,26 @@ export function clientProfileForCaseIndex(caseIndex: number): ClientProfileField
   };
 }
 
+/** Level 2 My Work queue ids — profiles get distinct client IDs per queue. */
+export type Level2WorkQueueId = "sanction" | "pep" | "financial";
+
+/**
+ * Client profile for a Level 2 case. Escalated PEPs / Financial Crime use the same
+ * base fields as sanctions but unique client IDs so cross-queue search can resolve.
+ */
+export function clientProfileForLevel2Case(
+  workQueueId: Level2WorkQueueId,
+  caseIndex: number,
+): ClientProfileFields {
+  const base = clientProfileForCaseIndex(caseIndex);
+  if (workQueueId === "sanction") return base;
+  const offset = workQueueId === "pep" ? 500 : 900;
+  return {
+    ...base,
+    clientId: `C${(1000 + offset + caseIndex).toString(36).toUpperCase()}`,
+  };
+}
+
 export function riskBandPresentation(band: ClientRiskBand): { box: string; text: string; label: string } {
   if (band === "high") {
     return { box: "bg-[#fdeaea] dark:bg-[#3d2f2f]", text: "text-[#9e2a2a] dark:text-[#f0b4b4]", label: "High Risk" };

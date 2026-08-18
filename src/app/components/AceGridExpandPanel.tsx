@@ -13,17 +13,21 @@ export function AceGridExpandPanel({
   children,
   className,
   contentClassName,
+  /** When false, skip the grid-rows transition (bulk expand/collapse). Default true. */
+  animate = true,
 }: {
   open: boolean;
   children: ReactNode;
   className?: string;
   contentClassName?: string;
+  animate?: boolean;
 }) {
   return (
     <div
       className={cn(
-        "grid overflow-hidden transition-[grid-template-rows]",
-        "duration-[var(--ace-accordion-duration)] [transition-timing-function:var(--ace-accordion-ease)]",
+        "grid overflow-hidden",
+        animate &&
+          "transition-[grid-template-rows] duration-[var(--ace-accordion-duration)] [transition-timing-function:var(--ace-accordion-ease)]",
         open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
         className,
       )}

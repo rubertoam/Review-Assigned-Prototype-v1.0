@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import { memo, useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import { AceTabs, aceTabButtonId } from "./ui/ace-tabs";
 import { getListProfileForRow } from "../lib/listProfileData";
 import { LIST_PROFILE_TABS, type ListProfileTabId } from "../lib/listProfileTabs";
@@ -10,7 +10,7 @@ import {
   ListProfileDataTableView,
 } from "./ListProfileTabContent";
 
-export function ListProfileInlineContent({
+export const ListProfileInlineContent = memo(function ListProfileInlineContent({
   row,
   className,
   headerTrailing,
@@ -68,4 +68,4 @@ export function ListProfileInlineContent({
       </div>
     </div>
   );
-}
+});
