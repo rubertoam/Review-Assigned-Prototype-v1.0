@@ -147,6 +147,11 @@ export type FinScanTableColumn<T> = {
   colClassName?: string;
   headerClassName?: string;
   cellClassName?: string;
+  /**
+   * When true (and `onColumnReorder` is set), this column header can be dragged to reorder.
+   * Omit or set false to pin the column (e.g. Status).
+   */
+  reorder?: boolean;
   render: (row: T) => ReactNode;
 };
 
@@ -154,6 +159,10 @@ export type FinScanTableSortConfig = {
   sortKey: string | null;
   sortDir: "asc" | "desc";
   onToggleSort: (key: string) => void;
+};
+
+export type FinScanTableColumnReorderConfig = {
+  onReorder: (fromKey: string, toKey: string, position: "before" | "after") => void;
 };
 
 export type FinScanTableSelectionConfig<T extends { id: string }> = {
@@ -171,6 +180,8 @@ export type ExpandableFinScanTableProps<T extends { id: string }> = {
   caption: string;
   minWidth?: string;
   sort?: FinScanTableSortConfig;
+  /** Drag-reorder for columns marked `reorder: true`. */
+  columnReorder?: FinScanTableColumnReorderConfig;
   selection?: FinScanTableSelectionConfig<T>;
   trailingColumn?: {
     render: (row: T) => ReactNode;
@@ -210,6 +221,7 @@ export function ExpandableFinScanTable<T extends { id: string }>({
   caption,
   minWidth = "min-w-[520px]",
   sort,
+  columnReorder,
   selection,
   trailingColumn,
   expandable = true,
@@ -240,6 +252,11 @@ export function ExpandableFinScanTable<T extends { id: string }>({
   const [internalExpandedIds, setInternalExpandedIds] = useState<Set<string>>(new Set());
   /** Skip grid expand motion when opening/closing many rows at once (expand all). */
   const [animateExpandPanels, setAnimateExpandPanels] = useState(true);
+  const [draggedColumnKey, setDraggedColumnKey] = useState<string | null>(null);
+  const [columnDropIndicator, setColumnDropIndicator] = useState<{
+    targetKey: string;
+    position: "before" | "after";
+  } | null>(null);
   const isExpandControlled = expandedIdsProp !== undefined && onExpandedIdsChange !== undefined;
   const expandedIds = isExpandControlled ? expandedIdsProp : internalExpandedIds;
   const setExpandedIds = useCallback(
@@ -251,6 +268,12 @@ export function ExpandableFinScanTable<T extends { id: string }>({
   );
 
   const selectionMode = selection != null && selection.selectedIds.size > 0;
+  const columnReorderEnabled = columnReorder != null;
+
+  const clearColumnDrag = useCallback(() => {
+    setDraggedColumnKey(null);
+    setColumnDropIndicator(null);
+  }, []);
 
   const canExpandRow = useCallback(
     (row: T) => expandable && (isRowExpandable?.(row) ?? true),
@@ -412,43 +435,146 @@ export function ExpandableFinScanTable<T extends { id: string }>({
                 <span className="sr-only">Select rows</span>
               </th>
             ) : null}
-            {columns.map((col) => (
-              <th
-                key={col.key}
-                scope="col"
-                className={cn(headerPad, "align-middle", stickyThClass, col.headerClassName)}
-                aria-sort={
-                  sort && col.sortKey && sort.sortKey === col.sortKey
-                    ? sort.sortDir === "asc"
-                      ? "ascending"
-                      : "descending"
-                    : "none"
-                }
-              >
-                {sort && col.sortKey ? (
-                  <button
-                    type="button"
-                    onClick={() => sort.onToggleSort(col.sortKey!)}
-                    className={cn(screeningTableHeaderSortButtonClass, "gap-1")}
-                  >
-                    <span className={headerLabel}>{col.label}</span>
-                    {sort.sortKey === col.sortKey ? (
-                      sort.sortDir === "asc" ? (
-                        <MaterialSymbol name="arrow_upward" size="sm" className={sortIconActiveClass} />
-                      ) : (
-                        <MaterialSymbol name="arrow_downward" size="sm" className={sortIconActiveClass} />
-                      )
+            {columns.map((col) => {
+              const isReorderable = Boolean(columnReorderEnabled && col.reorder);
+              const isDragging = draggedColumnKey === col.key;
+              const dropHere =
+                columnDropIndicator?.targetKey === col.key ? columnDropIndicator.position : null;
+
+              return (
+                <th
+                  key={col.key}
+                  scope="col"
+                  className={cn(
+                    headerPad,
+                    "group/col-header relative align-middle",
+                    stickyThClass,
+                    col.headerClassName,
+                    isDragging && "opacity-55",
+                    dropHere === "before" &&
+                      "shadow-[inset_2px_0_0_0_var(--screening-pill-new-border)]",
+                    dropHere === "after" &&
+                      "shadow-[inset_-2px_0_0_0_var(--screening-pill-new-border)]",
+                  )}
+                  aria-sort={
+                    sort && col.sortKey && sort.sortKey === col.sortKey
+                      ? sort.sortDir === "asc"
+                        ? "ascending"
+                        : "descending"
+                      : "none"
+                  }
+                  onDragOver={
+                    isReorderable
+                      ? (event) => {
+                          event.preventDefault();
+                          event.dataTransfer.dropEffect = "move";
+                          if (draggedColumnKey === col.key) return;
+                          const rect = event.currentTarget.getBoundingClientRect();
+                          const position =
+                            event.clientX < rect.left + rect.width / 2 ? "before" : "after";
+                          setColumnDropIndicator({ targetKey: col.key, position });
+                        }
+                      : undefined
+                  }
+                  onDrop={
+                    isReorderable
+                      ? (event) => {
+                          event.preventDefault();
+                          const fromKey = event.dataTransfer.getData("text/finscan-column-key");
+                          if (
+                            fromKey &&
+                            columnDropIndicator &&
+                            columnReorder &&
+                            fromKey !== columnDropIndicator.targetKey
+                          ) {
+                            columnReorder.onReorder(
+                              fromKey,
+                              columnDropIndicator.targetKey,
+                              columnDropIndicator.position,
+                            );
+                          }
+                          clearColumnDrag();
+                        }
+                      : undefined
+                  }
+                  onDragLeave={
+                    isReorderable
+                      ? (event) => {
+                          if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+                            setColumnDropIndicator((prev) =>
+                              prev?.targetKey === col.key ? null : prev,
+                            );
+                          }
+                        }
+                      : undefined
+                  }
+                >
+                  <div className="flex min-w-0 items-center gap-1">
+                    {isReorderable ? (
+                      <button
+                        type="button"
+                        draggable
+                        aria-label={`Reorder ${col.label} column`}
+                        className={cn(
+                          "inline-flex size-5 shrink-0 cursor-grab items-center justify-center rounded text-[var(--screening-icon-muted)]",
+                          "opacity-0 transition-opacity active:cursor-grabbing",
+                          "group-hover/col-header:opacity-100 focus-visible:opacity-100",
+                          isDragging && "opacity-100",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)]",
+                        )}
+                        onDragStart={(event) => {
+                          event.dataTransfer.setData("text/finscan-column-key", col.key);
+                          event.dataTransfer.effectAllowed = "move";
+                          setDraggedColumnKey(col.key);
+                        }}
+                        onDragEnd={clearColumnDrag}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                        }}
+                      >
+                        <MaterialSymbol
+                          name="drag_indicator"
+                          size="sm"
+                          weight={300}
+                          className="leading-none"
+                        />
+                      </button>
+                    ) : null}
+                    {sort && col.sortKey ? (
+                      <button
+                        type="button"
+                        onClick={() => sort.onToggleSort(col.sortKey!)}
+                        className={cn(screeningTableHeaderSortButtonClass, "min-w-0 gap-1")}
+                      >
+                        <span className={headerLabel}>{col.label}</span>
+                        {sort.sortKey === col.sortKey ? (
+                          sort.sortDir === "asc" ? (
+                            <MaterialSymbol
+                              name="arrow_upward"
+                              size="sm"
+                              className={sortIconActiveClass}
+                            />
+                          ) : (
+                            <MaterialSymbol
+                              name="arrow_downward"
+                              size="sm"
+                              className={sortIconActiveClass}
+                            />
+                          )
+                        ) : (
+                          <MaterialSymbol name="swap_vert" size="sm" className={sortIconIdleClass} />
+                        )}
+                      </button>
                     ) : (
-                      <MaterialSymbol name="swap_vert" size="sm" className={sortIconIdleClass} />
+                      <span className={headerLabel} title={col.label}>
+                        {col.label}
+                      </span>
                     )}
-                  </button>
-                ) : (
-                  <span className={headerLabel} title={col.label}>
-                    {col.label}
-                  </span>
-                )}
-              </th>
-            ))}
+                  </div>
+                </th>
+              );
+            })}
             {trailingColumn ? (
               <th
                 scope="col"

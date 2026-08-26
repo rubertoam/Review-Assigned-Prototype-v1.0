@@ -89,11 +89,14 @@ import { useOverdueWarningToast } from "../../lib/useOverdueWarningToast";
 import {
   caseMatchesFilters,
   casesData,
+  clientIdMatchesSearchQuery,
   clientProfileForCaseIndex,
   compareCasesBySort,
+  normalizeClientIdSearchQuery,
   riskBandPresentation,
   type CaseFilterValue,
   type CaseSortValue,
+  type ClientIdSeries,
 } from "../../lib/reviewCaseData";
 import {
   isCaseLockedByAnotherUser,
@@ -117,6 +120,7 @@ import {
   withWorkCounts,
   type ReviewAssignedSidebarSelection,
 } from "../../components/ReviewAssignedSidebar";
+import { SearchClientIdModal } from "../../components/SearchClientIdModal";
 import { INITIAL_PEP_WORK_QUEUE, type PepCaseListItem } from "../../lib/pepWorkQueue";
 import { sidebarIconButtonClass } from "@ace-ds/components/organisms/AceSidebar/sidebarRowActions";
 import { screeningToolbarIconButtonClass } from "@ace-ds/components/organisms/ScreeningResultsTable/screeningTableToolbar";
@@ -232,6 +236,8 @@ interface ReviewSidebarProps {
   workflowItems: ReturnType<typeof deriveReviewSidebarWorkflows>;
   selection: ReviewAssignedSidebarSelection;
   onSelectionChange: (selection: ReviewAssignedSidebarSelection) => void;
+  onOpenClientIdSearch: () => void;
+  clientIdSearchActive: boolean;
 }
 
 function ReviewSidebar({
@@ -241,6 +247,8 @@ function ReviewSidebar({
   workflowItems,
   selection,
   onSelectionChange,
+  onOpenClientIdSearch,
+  clientIdSearchActive,
 }: ReviewSidebarProps) {
   const workCategories = useMemo(
     () =>
@@ -259,6 +267,8 @@ function ReviewSidebar({
       workflowItems={workflowItems}
       selection={selection}
       onSelectionChange={onSelectionChange}
+      onOpenClientIdSearch={onOpenClientIdSearch}
+      clientIdSearchActive={clientIdSearchActive}
     />
   );
 }
@@ -269,6 +279,10 @@ interface CaseListProps {
   selectedCaseListSection: CaseListSectionContext;
   screeningRowsByCase: Record<number, ScreeningResultRow[]>;
   onFilterVisibilityChange?: (state: { filtersActive: boolean; filteredCount: number }) => void;
+  /** Case-list Client ID filter from the sidebar search modal (substring, case-insensitive). */
+  clientIdFilter?: string | null;
+  /** Disjoint ID series so Sanction vs PEP clients never share an ID. */
+  clientIdSeries?: ClientIdSeries;
   /** When set, list shows cases that have matches in this workflow (read-only destination). */
   workflowId?: string | null;
   listTitle?: string;
@@ -288,6 +302,8 @@ function CaseList({
   selectedCaseListSection,
   screeningRowsByCase,
   onFilterVisibilityChange,
+  clientIdFilter = null,
+  clientIdSeries = 1,
   workflowId = null,
   listTitle = "Sanction Matches",
   cases = casesData,
@@ -346,10 +362,14 @@ function CaseList({
 
   const filteredRows = useMemo(() => {
     const out: CaseListRow[] = [];
+    const clientNeedle = normalizeClientIdSearchQuery(clientIdFilter ?? "");
     cases.forEach((item, index) => {
-      if (caseMatchesFilters(index, selectedCaseFilters)) {
-        out.push({ item, index });
+      if (!caseMatchesFilters(index, selectedCaseFilters)) return;
+      if (clientNeedle) {
+        const clientId = clientProfileForCaseIndex(index, clientIdSeries).clientId;
+        if (!clientIdMatchesSearchQuery(clientId, clientNeedle)) return;
       }
+      out.push({ item, index });
     });
     out.sort((a, b) =>
       compareCasesBySort(
@@ -364,6 +384,8 @@ function CaseList({
   }, [
     cases,
     selectedCaseFilters,
+    clientIdFilter,
+    clientIdSeries,
     caseSort,
     pendingResultCount,
     workflowResultCount,
@@ -383,10 +405,10 @@ function CaseList({
 
   useEffect(() => {
     onFilterVisibilityChange?.({
-      filtersActive: selectedCaseFilters.size > 0,
+      filtersActive: selectedCaseFilters.size > 0 || Boolean(normalizeClientIdSearchQuery(clientIdFilter ?? "")),
       filteredCount: visibleRows.length,
     });
-  }, [visibleRows.length, selectedCaseFilters.size, onFilterVisibilityChange]);
+  }, [visibleRows.length, selectedCaseFilters.size, clientIdFilter, onFilterVisibilityChange]);
 
   const caseReviewProgress = useMemo(
     () =>
@@ -465,7 +487,7 @@ function CaseList({
   const renderCaseRow = (caseItem: PepCaseListItem | (typeof casesData)[number], index: number) => {
     const section: CaseListSectionContext = isWorkflowView ? workflowCaseSection : "todo";
     const isEntity = "isEntity" in caseItem && caseItem.isEntity;
-    const profile = clientProfileForCaseIndex(index);
+    const profile = clientProfileForCaseIndex(index, clientIdSeries);
     const clientId = profile.clientId;
     const { done, total } = caseReviewProgress[index] ?? { done: 0, total: 1 };
     const progressPct = total > 0 ? (done / total) * 100 : 0;
@@ -710,6 +732,7 @@ interface DetailPanelProps {
   /** True for workflows that have left Level 1 action (not Documents Required). */
   workflowReadOnly?: boolean;
   onOpenClientProfileAction?: (action: ClientProfileActionId) => void;
+  clientIdSeries?: ClientIdSeries;
 }
 
 function DetailPanel({
@@ -727,9 +750,10 @@ function DetailPanel({
   workflowLabel = null,
   workflowReadOnly = false,
   onOpenClientProfileAction,
+  clientIdSeries = 1,
 }: DetailPanelProps) {
   const [clientExpanded, setClientExpanded] = useState(false);
-  const profile = clientProfileForCaseIndex(selectedCaseIndex);
+  const profile = clientProfileForCaseIndex(selectedCaseIndex, clientIdSeries);
   const riskPresentation = riskBandPresentation(profile.riskBand);
   const isWorkflowView = Boolean(workflowLabel);
 
@@ -1001,6 +1025,8 @@ export function Level1ReviewInterface() {
   const [workLogEntries, setWorkLogEntries] = useState<WorkLogEntry[]>([]);
   const [workLogOpen, setWorkLogOpen] = useState(false);
   const [workLogIntroOpen, setWorkLogIntroOpen] = useState(false);
+  const [clientIdSearchOpen, setClientIdSearchOpen] = useState(false);
+  const [clientIdFilter, setClientIdFilter] = useState<string | null>(null);
   const workLogIntroShownRef = useRef(false);
   const undoWorkQueueRef = useRef<"sanction" | "pep">("sanction");
 
@@ -1062,7 +1088,8 @@ export function Level1ReviewInterface() {
     (caseIndex: number) => {
       const clientName =
         (isPepWork ? pepCases[caseIndex]?.name : casesData[caseIndex]?.name)?.trim() || "—";
-      const clientId = clientProfileForCaseIndex(caseIndex).clientId.trim() || "—";
+      const clientId =
+        clientProfileForCaseIndex(caseIndex, isPepWork ? 5 : 1).clientId.trim() || "—";
       return { clientName, clientId };
     },
     [isPepWork, pepCases],
@@ -1103,6 +1130,7 @@ export function Level1ReviewInterface() {
       setScreeningSelectedIds(new Set());
       setClientProfileAction(null);
       setIsReviewDrawerOpen(false);
+      setClientIdFilter(null);
       setSelectedCaseIndex(0);
       if (selection.kind === "workflow") {
         setSelectedCaseListSection(
@@ -1501,6 +1529,8 @@ export function Level1ReviewInterface() {
           workflowItems={sidebarWorkflowItems}
           selection={sidebarSelection}
           onSelectionChange={handleSidebarSelectionChange}
+          onOpenClientIdSearch={() => setClientIdSearchOpen(true)}
+          clientIdSearchActive={Boolean(normalizeClientIdSearchQuery(clientIdFilter ?? ""))}
         />
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <div className="flex flex-col flex-1 min-h-0 overflow-hidden px-4 pb-4 gap-4">
@@ -1512,6 +1542,8 @@ export function Level1ReviewInterface() {
                   selectedCaseListSection={selectedCaseListSection}
                   screeningRowsByCase={activeScreeningRowsByCase}
                   onFilterVisibilityChange={setCaseFilterVisibility}
+                  clientIdFilter={clientIdFilter}
+                  clientIdSeries={isPepWork && !isWorkflowView ? 5 : 1}
                   workflowId={selectedWorkflowId}
                   listTitle={selectedWorkflowLabel ?? workListTitle}
                   cases={activeCases}
@@ -1542,6 +1574,7 @@ export function Level1ReviewInterface() {
                 workflowLabel={selectedWorkflowLabel}
                 workflowReadOnly={isWorkflowReadOnlyView}
                 onOpenClientProfileAction={handleOpenClientProfileAction}
+                clientIdSeries={isPepWork && !isWorkflowView ? 5 : 1}
               />
             </div>
             {!allCasesCleared &&
@@ -1580,6 +1613,15 @@ export function Level1ReviewInterface() {
         {bulkSubmitToast}
         {overdueWarningToast}
       </ToastViewport>
+      <SearchClientIdModal
+        open={clientIdSearchOpen}
+        onClose={() => setClientIdSearchOpen(false)}
+        initialQuery={clientIdFilter ?? ""}
+        onSearch={(query) => {
+          const normalized = normalizeClientIdSearchQuery(query);
+          setClientIdFilter(normalized || null);
+        }}
+      />
       <WorkLogModal
         open={workLogOpen}
         onClose={() => setWorkLogOpen(false)}

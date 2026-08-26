@@ -4,12 +4,12 @@ import {
   type AceDropdownMenuEntry,
 } from "@ace-ds/components/molecules/AceDropdownMenu/AceDropdownMenu";
 import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
-import { screeningToolbarIconButtonClass } from "@ace-ds/components/organisms/ScreeningResultsTable/screeningTableToolbar";
 import {
   CLIENT_PROFILE_ACTIONS,
   clientProfileActionLabel,
   type ClientProfileActionId,
 } from "../lib/clientProfileActions";
+import { aceIconButtonHoverClass } from "../lib/aceIconButton";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { ClientDocumentsDrawerContent } from "./ClientDocumentsDrawerContent";
 import { ClientHistoryDrawerContent } from "./ClientHistoryDrawerContent";
@@ -74,7 +74,7 @@ export function ClientProfileActionDrawer({
               type="button"
               onClick={onClose}
               aria-label="Close"
-              className={screeningToolbarIconButtonClass}
+              className={aceIconButtonHoverClass}
             >
               <MaterialSymbol name="close" size="md" className="text-current" />
             </button>

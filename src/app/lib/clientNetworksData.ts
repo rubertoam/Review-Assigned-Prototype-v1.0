@@ -1,4 +1,4 @@
-import { casesData } from "./reviewCaseData";
+import { casesData, eightDigitClientId } from "./reviewCaseData";
 
 export type NetworkRisk = "Low" | "Medium" | "High";
 export type NetworkType = "Network" | "Household";
@@ -74,8 +74,9 @@ function networkIdFor(caseIndex: number, networkIndex: number): string {
   return String(base);
 }
 
-function clientIdFor(caseIndex: number, salt: number): string {
-  return String(100000 + Math.floor(caseUnit(caseIndex, salt) * 899999));
+/** Unique 8-digit member client ID in the network series (4xxxxxxx). */
+function clientIdFor(caseIndex: number, networkIndex: number, memberIndex: number): string {
+  return eightDigitClientId(4, caseIndex * 100 + networkIndex * 20 + memberIndex);
 }
 
 function buildMember(
@@ -84,6 +85,7 @@ function buildMember(
   memberIndex: number,
   nameOverride?: string,
   relationshipOverride?: string,
+  clientIdOverride?: string,
 ): NetworkMember {
   const salt = 200 + networkIndex * 20 + memberIndex;
   const first = pick(FIRST_NAMES, caseIndex, salt);
@@ -91,7 +93,7 @@ function buildMember(
   return {
     id: `member-${caseIndex}-${networkIndex}-${memberIndex}`,
     name: nameOverride ?? `${first} ${last}`,
-    clientId: clientIdFor(caseIndex, salt + 2),
+    clientId: clientIdOverride ?? clientIdFor(caseIndex, networkIndex, memberIndex),
     relationship: relationshipOverride ?? pick(RELATIONSHIPS, caseIndex, salt + 3),
     matches: Math.floor(caseUnit(caseIndex, salt + 4) * 8),
     focusLabel: caseUnit(caseIndex, salt + 5) > 0.35 ? "ISI Focus" : null,
@@ -111,7 +113,7 @@ const JOHN_SMITH_NETWORKS: readonly ClientNetwork[] = [
       {
         id: "member-0-0-0",
         name: "John Smith",
-        clientId: "349492",
+        clientId: eightDigitClientId(1, 0),
         relationship: "Owner",
         matches: 5,
         focusLabel: "ISI Focus",
@@ -121,7 +123,7 @@ const JOHN_SMITH_NETWORKS: readonly ClientNetwork[] = [
       {
         id: "member-0-0-1",
         name: "Sarah Smith",
-        clientId: "660502",
+        clientId: eightDigitClientId(4, 1),
         relationship: "Spouse",
         matches: 0,
         focusLabel: "ISI Focus",
@@ -165,6 +167,7 @@ function randomNetworksForCase(caseIndex: number): ClientNetwork[] {
         memberIndex,
         memberIndex === 0 && n === 0 ? clientName : undefined,
         memberIndex === 0 ? "Owner" : undefined,
+        memberIndex === 0 && n === 0 ? eightDigitClientId(1, caseIndex) : undefined,
       ),
     );
 

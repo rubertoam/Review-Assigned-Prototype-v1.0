@@ -175,10 +175,66 @@ export interface ClientProfileFields {
   showIdVerified: boolean;
 }
 
+/**
+ * Unique 8-digit numeric client ID (digits only, no letters).
+ * Looks randomized via an invertible Feistel scramble; uniqueness is guaranteed per (series, index).
+ * Series namespaces:
+ * 1 = L1 Sanction / L2 Escalated Sanctions
+ * 2 = L2 Escalated PEPs
+ * 3 = L2 Escalated Financial Crime
+ * 4 = network members
+ * 5 = L1 PEP Screening
+ */
+export type ClientIdSeries = 1 | 2 | 3 | 4 | 5;
+
+/** Invertible mix over 00000000–99999999 so IDs look random but never collide. */
+function feistelEightDigits(n: number): number {
+  let v = ((n % 100_000_000) + 100_000_000) % 100_000_000;
+  for (const [a, b] of [
+    [7919, 3141],
+    [6271, 9267],
+    [4531, 1823],
+  ] as const) {
+    const left = Math.floor(v / 10_000);
+    const right = v % 10_000;
+    const f = (right * a + b) % 10_000;
+    v = right * 10_000 + ((left + f) % 10_000);
+  }
+  return v;
+}
+
+export function eightDigitClientId(series: ClientIdSeries, index: number): string {
+  const seed = series * 100_000 + index;
+  return String(feistelEightDigits(seed * 48_271 + 17_395_841)).padStart(8, "0");
+}
+
+/**
+ * Normalize a Client ID search string so pasting labeled copy still works
+ * (e.g. "Client ID · 82070209" or "82070209 · 109 results").
+ */
+export function normalizeClientIdSearchQuery(query: string): string {
+  const trimmed = query.trim();
+  if (!trimmed) return "";
+  const eightDigit = trimmed.match(/\d{8}/);
+  if (eightDigit) return eightDigit[0];
+  return trimmed.replace(/\D/g, "");
+}
+
+/** Match a stored client ID against a (possibly messy / zero-stripped) search query. */
+export function clientIdMatchesSearchQuery(clientId: string, query: string): boolean {
+  const needle = normalizeClientIdSearchQuery(query);
+  if (!needle) return true;
+  if (clientId.includes(needle)) return true;
+  // Copied IDs sometimes lose leading zeros ("05107255" → "5107255").
+  const idUnpadded = clientId.replace(/^0+/, "") || "0";
+  const needleUnpadded = needle.replace(/^0+/, "") || "0";
+  return idUnpadded === needleUnpadded || idUnpadded.includes(needleUnpadded);
+}
+
 /** Per-case profile: aligned with `casesData` indices (0–5). */
 export const CLIENT_PROFILES: readonly ClientProfileFields[] = [
   {
-    clientId: "K7M2R9X",
+    clientId: eightDigitClientId(1, 0),
     countryLabel: "USA",
     dob: "03/23/1978",
     gender: "Male",
@@ -192,7 +248,7 @@ export const CLIENT_PROFILES: readonly ClientProfileFields[] = [
     showIdVerified: true,
   },
   {
-    clientId: "B4N8PW2Q",
+    clientId: eightDigitClientId(1, 1),
     countryLabel: "USA",
     dob: "04/11/1985",
     gender: "Male",
@@ -206,7 +262,7 @@ export const CLIENT_PROFILES: readonly ClientProfileFields[] = [
     showIdVerified: true,
   },
   {
-    clientId: "H3T9K6MV8",
+    clientId: eightDigitClientId(1, 2),
     countryLabel: "LBY",
     dob: "06/07/1942",
     gender: "Male",
@@ -220,7 +276,7 @@ export const CLIENT_PROFILES: readonly ClientProfileFields[] = [
     showIdVerified: true,
   },
   {
-    clientId: "F4R8N2J",
+    clientId: eightDigitClientId(1, 3),
     countryLabel: "USA",
     dob: "09/14/1992",
     gender: "Female",
@@ -234,7 +290,7 @@ export const CLIENT_PROFILES: readonly ClientProfileFields[] = [
     showIdVerified: true,
   },
   {
-    clientId: "M9K3V7QX",
+    clientId: eightDigitClientId(1, 4),
     countryLabel: "IRN",
     dob: null,
     gender: null,
@@ -249,7 +305,7 @@ export const CLIENT_PROFILES: readonly ClientProfileFields[] = [
     showIdVerified: false,
   },
   {
-    clientId: "R6W2K5NP",
+    clientId: eightDigitClientId(1, 5),
     countryLabel: "RUS",
     dob: null,
     gender: null,
@@ -345,9 +401,13 @@ const EXTRA_OVERDUE_WARNING_NAMES = new Set([
   "Viktor Sokolov",
 ]);
 
-export function clientProfileForCaseIndex(caseIndex: number): ClientProfileFields {
+export function clientProfileForCaseIndex(
+  caseIndex: number,
+  clientIdSeries: ClientIdSeries = 1,
+): ClientProfileFields {
   if (caseIndex < CLIENT_PROFILES.length) {
-    return CLIENT_PROFILES[caseIndex]!;
+    const base = CLIENT_PROFILES[caseIndex]!;
+    return { ...base, clientId: eightDigitClientId(clientIdSeries, caseIndex) };
   }
   const base = CLIENT_PROFILES[caseIndex % CLIENT_PROFILES.length]!;
   const caseItem = casesData[caseIndex];
@@ -358,7 +418,7 @@ export function clientProfileForCaseIndex(caseIndex: number): ClientProfileField
   const reviewTargetPastDue = caseIndex % 19 === 0 && !reviewTargetOverdue;
   return {
     ...base,
-    clientId: `C${(1000 + caseIndex).toString(36).toUpperCase()}`,
+    clientId: eightDigitClientId(clientIdSeries, caseIndex),
     reviewTargetOverdue,
     reviewTargetPastDue,
     riskBand: (["low", "medium", "high"] as const)[caseIndex % 3],
@@ -382,10 +442,10 @@ export function clientProfileForLevel2Case(
 ): ClientProfileFields {
   const base = clientProfileForCaseIndex(caseIndex);
   if (workQueueId === "sanction") return base;
-  const offset = workQueueId === "pep" ? 500 : 900;
+  const series = workQueueId === "pep" ? 2 : 3;
   return {
     ...base,
-    clientId: `C${(1000 + offset + caseIndex).toString(36).toUpperCase()}`,
+    clientId: eightDigitClientId(series, caseIndex),
   };
 }
 

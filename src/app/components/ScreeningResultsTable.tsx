@@ -3,12 +3,10 @@ import {
   useState,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useRef,
   type Dispatch,
   type SetStateAction,
 } from "react";
-import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { AceInputField } from "@ace-ds/components/atoms/AceInputField";
 import {
@@ -401,27 +399,10 @@ const SCREENING_COLUMN_LABELS = Object.fromEntries(
   SCREENING_COLUMN_DEFINITIONS.map((column) => [column.key, column.label]),
 ) as Record<ScreeningColumnKey, string>;
 
-const SCREENING_COLUMN_DRAG_MIME = "text/screening-column-key";
-
 const screeningColumnMenuRowClass = cn(
   "[font:var(--ace-type-paragraph-p1-regular)] [letter-spacing:var(--ace-type-paragraph-p1-regular-tracking)]",
   "flex w-full cursor-pointer select-none items-center gap-1.5 px-[var(--space-3)] py-[var(--space-2)] text-[var(--screening-text-primary)] outline-none",
   "data-[highlighted]:bg-[var(--screening-surface-hover)]",
-);
-
-const SCREENING_COLUMN_DRAG_MS = 140;
-
-const screeningColumnDragMotionClass = cn(
-  `duration-[${SCREENING_COLUMN_DRAG_MS}ms]`,
-  "[transition-timing-function:cubic-bezier(0.32,0.72,0,1)]",
-);
-
-const screeningColumnDropLineClass = cn(
-  "pointer-events-none absolute inset-x-2 z-20 h-0.5 rounded-full",
-  "bg-[var(--screening-pill-new-border)]",
-  "shadow-[0_0_10px_color-mix(in_srgb,var(--screening-primary)_20%,transparent)]",
-  "origin-center transition-[opacity,transform]",
-  screeningColumnDragMotionClass,
 );
 
 const FINSCAN_CATEGORY_ROTATION = ["Sanctions", "PEP", "Financial Crime"] as const;
@@ -439,122 +420,6 @@ function reorderScreeningColumnKeys(
   if (position === "after") insertIndex += 1;
   next.splice(insertIndex, 0, fromKey);
   return next;
-}
-
-type ColumnDropIndicator = {
-  targetKey: ScreeningColumnKey;
-  position: "before" | "after";
-} | null;
-
-function ScreeningColumnReorderMenuItem({
-  columnKey,
-  label,
-  checked,
-  disabled,
-  draggedColumnKey,
-  dropIndicator,
-  onCheckedChange,
-  onReorder,
-  onDropIndicatorChange,
-  onDraggedColumnKeyChange,
-  onItemRef,
-}: {
-  columnKey: ScreeningColumnKey;
-  label: string;
-  checked: boolean;
-  disabled?: boolean;
-  draggedColumnKey: ScreeningColumnKey | null;
-  dropIndicator: ColumnDropIndicator;
-  onCheckedChange: (checked: boolean) => void;
-  onReorder: (
-    fromKey: ScreeningColumnKey,
-    toKey: ScreeningColumnKey,
-    position: "before" | "after",
-  ) => void;
-  onDropIndicatorChange: (indicator: ColumnDropIndicator) => void;
-  onDraggedColumnKeyChange: (key: ScreeningColumnKey | null) => void;
-  onItemRef: (key: ScreeningColumnKey, node: HTMLElement | null) => void;
-}) {
-  const isDragging = draggedColumnKey === columnKey;
-  const isDragSessionActive = draggedColumnKey !== null;
-
-  return (
-    <DropdownMenuPrimitive.Item
-      ref={(node) => onItemRef(columnKey, node)}
-      data-slot="dropdown-menu-toggle-item"
-      disabled={disabled}
-      aria-label={label}
-      className={cn(
-        screeningColumnMenuRowClass,
-        "group/column-row relative",
-        isDragSessionActive && cn("transition-[opacity,transform]", screeningColumnDragMotionClass),
-        isDragging && "z-10 scale-[0.99] opacity-55",
-        !isDragging && isDragSessionActive && "opacity-95",
-      )}
-      onSelect={(event) => {
-        event.preventDefault();
-        if (!disabled) onCheckedChange(!checked);
-      }}
-      onDragOver={(event) => {
-        event.preventDefault();
-        event.dataTransfer.dropEffect = "move";
-        if (draggedColumnKey === columnKey) return;
-        const rect = event.currentTarget.getBoundingClientRect();
-        const position = event.clientY < rect.top + rect.height / 2 ? "before" : "after";
-        onDropIndicatorChange({ targetKey: columnKey, position });
-      }}
-      onDrop={(event) => {
-        event.preventDefault();
-        const fromKey = event.dataTransfer.getData(SCREENING_COLUMN_DRAG_MIME) as ScreeningColumnKey;
-        if (fromKey && dropIndicator) {
-          onReorder(fromKey, dropIndicator.targetKey, dropIndicator.position);
-        }
-        onDropIndicatorChange(null);
-        onDraggedColumnKeyChange(null);
-      }}
-    >
-      <Toggle
-        size="sm"
-        checked={checked}
-        disabled={disabled}
-        tabIndex={-1}
-        className="pointer-events-none self-center"
-        aria-hidden
-      />
-      <span className="min-w-0 flex-1 truncate self-center text-left">{label}</span>
-      <button
-        type="button"
-        draggable
-        aria-label={`Reorder ${label}`}
-        className={cn(
-          "inline-flex h-5 w-5 shrink-0 items-center justify-center self-center rounded text-[var(--screening-icon-muted)]",
-          "cursor-grab opacity-0 active:cursor-grabbing",
-          "transition-opacity",
-          screeningColumnDragMotionClass,
-          "group-hover/column-row:opacity-100 focus-visible:opacity-100",
-          isDragging && "opacity-100",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)]",
-        )}
-        onDragStart={(event) => {
-          event.dataTransfer.setData(SCREENING_COLUMN_DRAG_MIME, columnKey);
-          event.dataTransfer.effectAllowed = "move";
-          event.stopPropagation();
-          onDraggedColumnKeyChange(columnKey);
-        }}
-        onDragEnd={() => {
-          onDropIndicatorChange(null);
-          onDraggedColumnKeyChange(null);
-        }}
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-        }}
-        onPointerDown={(event) => event.stopPropagation()}
-      >
-        <MaterialSymbol name="drag_handle" size="sm" weight={300} className="leading-none" />
-      </button>
-    </DropdownMenuPrimitive.Item>
-  );
 }
 
 export function scoreIsHighRisk(score: number): boolean {
@@ -1307,19 +1172,9 @@ export function ScreeningResultsTable({
   const [columnOrder, setColumnOrder] = useState<ScreeningColumnKey[]>(
     () => [...DEFAULT_SCREENING_COLUMN_ORDER],
   );
-  const [columnDropIndicator, setColumnDropIndicator] = useState<ColumnDropIndicator>(null);
-  const [draggedColumnKey, setDraggedColumnKey] = useState<ScreeningColumnKey | null>(null);
-  const [columnDropLineTop, setColumnDropLineTop] = useState<number | null>(null);
   const [columnsMenuOpen, setColumnsMenuOpen] = useState(false);
   const [columnsTooltipOpen, setColumnsTooltipOpen] = useState(false);
-  const columnListRef = useRef<HTMLDivElement>(null);
-  const columnItemRefs = useRef(new Map<ScreeningColumnKey, HTMLElement>());
   const [paginationMenuPortal, setPaginationMenuPortal] = useState<HTMLElement | null>(null);
-
-  const registerColumnMenuItemRef = useCallback((key: ScreeningColumnKey, node: HTMLElement | null) => {
-    if (node) columnItemRefs.current.set(key, node);
-    else columnItemRefs.current.delete(key);
-  }, []);
 
   useEffect(() => {
     setPaginationMenuPortal(document.body);
@@ -1483,26 +1338,6 @@ export function ScreeningResultsTable({
       .map((key) => ({ key, label: SCREENING_COLUMN_LABELS[key] }));
   }, [columnOrder, isLevel2, isCaseComplete]);
 
-  useLayoutEffect(() => {
-    if (!columnDropIndicator || !draggedColumnKey || !columnListRef.current) {
-      setColumnDropLineTop(null);
-      return;
-    }
-    const item = columnItemRefs.current.get(columnDropIndicator.targetKey);
-    if (!item) {
-      setColumnDropLineTop(null);
-      return;
-    }
-    const listTop = columnListRef.current.getBoundingClientRect().top;
-    const itemRect = item.getBoundingClientRect();
-    const relativeTop = itemRect.top - listTop;
-    setColumnDropLineTop(
-      columnDropIndicator.position === "before"
-        ? relativeTop
-        : relativeTop + itemRect.height,
-    );
-  }, [columnDropIndicator, draggedColumnKey, columnMenuOptions]);
-
   const toggleColumnVisibility = useCallback((key: ScreeningColumnKey, visible: boolean) => {
     setVisibleColumns((prev) => {
       const next = new Set(prev);
@@ -1517,8 +1352,15 @@ export function ScreeningResultsTable({
   }, []);
 
   const reorderColumns = useCallback(
-    (fromKey: ScreeningColumnKey, toKey: ScreeningColumnKey, position: "before" | "after") => {
-      setColumnOrder((prev) => reorderScreeningColumnKeys(prev, fromKey, toKey, position));
+    (fromKey: string, toKey: string, position: "before" | "after") => {
+      setColumnOrder((prev) =>
+        reorderScreeningColumnKeys(
+          prev,
+          fromKey as ScreeningColumnKey,
+          toKey as ScreeningColumnKey,
+          position,
+        ),
+      );
     },
     [],
   );
@@ -1959,7 +1801,11 @@ export function ScreeningResultsTable({
     return columnOrder
       .filter((key) => key !== "reviewer" || (isLevel2 && isCaseComplete))
       .filter((key) => visibleColumns.has(key))
-      .map((key) => byKey[key]);
+      .map((key) => ({
+        ...byKey[key],
+        // Status stays pinned; all other columns can be dragged in the header.
+        reorder: key !== "status",
+      }));
   }, [isLevel2, isCaseComplete, flowVariant, visibleColumns, columnOrder]);
 
   const screeningEmptyState = (
@@ -2088,11 +1934,6 @@ export function ScreeningResultsTable({
                       onOpenChange={(open) => {
                         setColumnsMenuOpen(open);
                         if (open) setColumnsTooltipOpen(false);
-                        if (!open) {
-                          setColumnDropIndicator(null);
-                          setDraggedColumnKey(null);
-                          setColumnDropLineTop(null);
-                        }
                       }}
                     >
                       <AceTooltip
@@ -2118,45 +1959,36 @@ export function ScreeningResultsTable({
                           Edit Columns
                         </AceTooltipContent>
                       </AceTooltip>
-                      <DropdownMenuContent
-                        align="start"
-                        className="min-w-[15rem]"
-                        onDragLeave={(event) => {
-                          if (!event.currentTarget.contains(event.relatedTarget as Node)) {
-                            setColumnDropIndicator(null);
-                            setColumnDropLineTop(null);
-                          }
-                        }}
-                      >
+                      <DropdownMenuContent align="start" className="min-w-[15rem]">
                         <DropdownMenuLabel>Columns</DropdownMenuLabel>
-                        <div ref={columnListRef} className="relative">
-                          {columnDropLineTop !== null ? (
-                            <span
-                              aria-hidden
-                              className={cn(
-                                screeningColumnDropLineClass,
-                                draggedColumnKey ? "scale-x-100 opacity-100" : "scale-x-[0.98] opacity-0",
-                              )}
-                              style={{ top: columnDropLineTop }}
-                            />
-                          ) : null}
-                          {columnMenuOptions.map((column) => (
-                            <ScreeningColumnReorderMenuItem
+                        {columnMenuOptions.map((column) => {
+                          const checked = visibleColumns.has(column.key);
+                          const disabled = checked && visibleColumns.size <= 1;
+                          return (
+                            <DropdownMenuItem
                               key={column.key}
-                              columnKey={column.key}
-                              label={column.label}
-                              checked={visibleColumns.has(column.key)}
-                              disabled={visibleColumns.has(column.key) && visibleColumns.size <= 1}
-                              draggedColumnKey={draggedColumnKey}
-                              dropIndicator={columnDropIndicator}
-                              onCheckedChange={(checked) => toggleColumnVisibility(column.key, checked)}
-                              onReorder={reorderColumns}
-                              onDropIndicatorChange={setColumnDropIndicator}
-                              onDraggedColumnKeyChange={setDraggedColumnKey}
-                              onItemRef={registerColumnMenuItemRef}
-                            />
-                          ))}
-                        </div>
+                              disabled={disabled}
+                              aria-label={column.label}
+                              className={screeningColumnMenuRowClass}
+                              onSelect={(event) => {
+                                event.preventDefault();
+                                if (!disabled) toggleColumnVisibility(column.key, !checked);
+                              }}
+                            >
+                              <Toggle
+                                size="sm"
+                                checked={checked}
+                                disabled={disabled}
+                                tabIndex={-1}
+                                className="pointer-events-none self-center"
+                                aria-hidden
+                              />
+                              <span className="min-w-0 flex-1 truncate self-center text-left">
+                                {column.label}
+                              </span>
+                            </DropdownMenuItem>
+                          );
+                        })}
                       </DropdownMenuContent>
                     </DropdownMenu>
                     {showStatusFilter ? (
@@ -2247,6 +2079,7 @@ export function ScreeningResultsTable({
                   showExpandAll
                   expandedIds={expandedRowIds}
                   onExpandedIdsChange={setExpandedRowIds}
+                  columnReorder={{ onReorder: reorderColumns }}
                   expandTooltips={{
                     expandRow: { open: "Open List Profile", close: "Close List Profile" },
                     expandAll: { show: "Show All", hide: "Hide All" },

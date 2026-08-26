@@ -3,7 +3,13 @@ import {
   AceSidebar,
   type AceSidebarNavItem,
 } from "@ace-ds/components/organisms/AceSidebar/AceSidebar";
+import {
+  AceTooltip,
+  AceTooltipContent,
+  AceTooltipTrigger,
+} from "@ace-ds/components/atoms/AceTooltip/AceTooltip";
 import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
+import { sidebarIconButtonClass } from "@ace-ds/components/organisms/AceSidebar/sidebarRowActions";
 import { SidebarNavCountBadge } from "./SidebarNavCountBadge";
 import type { ReviewSidebarWorkflowItem } from "../lib/reviewSidebarWorkflows";
 import { cn } from "./ui/utils";
@@ -28,7 +34,11 @@ export type ReviewAssignedSidebarProps = {
   workflowItems: readonly ReviewSidebarWorkflowItem[];
   selection: ReviewAssignedSidebarSelection;
   onSelectionChange: (selection: ReviewAssignedSidebarSelection) => void;
-  /** Optional control to the right of the organization switcher (e.g. search). */
+  /** Opens the Search Client ID modal (icon to the right of the org switcher). */
+  onOpenClientIdSearch?: () => void;
+  /** When true, search icon uses the selected/active treatment. */
+  clientIdSearchActive?: boolean;
+  /** Optional extra control to the right of the organization switcher (after search). */
   headerTrailing?: ReactNode;
   className?: string;
 };
@@ -81,6 +91,8 @@ export function ReviewAssignedSidebar({
   workflowItems,
   selection,
   onSelectionChange,
+  onOpenClientIdSearch,
+  clientIdSearchActive = false,
   headerTrailing,
   className,
 }: ReviewAssignedSidebarProps) {
@@ -96,6 +108,38 @@ export function ReviewAssignedSidebar({
       ),
     ];
   }, [workCategories, workflowItems, selection, onSelectionChange]);
+
+  const searchButton =
+    onOpenClientIdSearch != null ? (
+      <AceTooltip>
+        <AceTooltipTrigger asChild>
+          <button
+            type="button"
+            aria-label="Search Client ID"
+            aria-pressed={clientIdSearchActive}
+            onClick={onOpenClientIdSearch}
+            className={cn(
+              sidebarIconButtonClass,
+              clientIdSearchActive &&
+                "border-[var(--ace-icon-button-border)] bg-[var(--ace-icon-button-hover-bg)] text-[var(--ace-icon-button-icon)]",
+            )}
+          >
+            <MaterialSymbol name="search" size="md" className="text-current" />
+          </button>
+        </AceTooltipTrigger>
+        <AceTooltipContent side="bottom" variant="screening-toolbar">
+          Search Client ID
+        </AceTooltipContent>
+      </AceTooltip>
+    ) : null;
+
+  const trailing =
+    searchButton != null || headerTrailing != null ? (
+      <div className="inline-flex shrink-0 items-center gap-1">
+        {searchButton}
+        {headerTrailing}
+      </div>
+    ) : undefined;
 
   const onlineHelp = (
     <button
@@ -133,7 +177,7 @@ export function ReviewAssignedSidebar({
         selectedOrganizationId={selectedOrgId}
         onOrganizationChange={setSelectedOrgId}
         navItems={navItems}
-        headerTrailing={headerTrailing}
+        headerTrailing={trailing}
         className={className ?? "h-full"}
       >
         <div className="mt-auto shrink-0 pb-4 pt-2">

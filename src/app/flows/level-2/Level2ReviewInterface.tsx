@@ -85,8 +85,10 @@ import {
 import {
   caseMatchesFilters,
   casesData,
+  clientIdMatchesSearchQuery,
   clientProfileForLevel2Case,
   compareCasesBySort,
+  normalizeClientIdSearchQuery,
   riskBandPresentation,
   type CaseFilterValue,
   type CaseSortValue,
@@ -100,10 +102,7 @@ import {
   withWorkCounts,
   type ReviewAssignedSidebarSelection,
 } from "../../components/ReviewAssignedSidebar";
-import {
-  SearchClientIdModal,
-  type ClientIdSearchHit,
-} from "../../components/SearchClientIdModal";
+import { SearchClientIdModal } from "../../components/SearchClientIdModal";
 import { sidebarIconButtonClass } from "@ace-ds/components/organisms/AceSidebar/sidebarRowActions";
 import { screeningToolbarIconButtonClass } from "@ace-ds/components/organisms/ScreeningResultsTable/screeningTableToolbar";
 import { deriveReviewSidebarWorkflows } from "../../lib/reviewSidebarWorkflows";
@@ -261,7 +260,8 @@ interface ReviewSidebarProps {
   workflowItems: ReturnType<typeof deriveReviewSidebarWorkflows>;
   selection: ReviewAssignedSidebarSelection;
   onSelectionChange: (selection: ReviewAssignedSidebarSelection) => void;
-  onSearchClientId: () => void;
+  onOpenClientIdSearch: () => void;
+  clientIdSearchActive: boolean;
 }
 
 function ReviewSidebar({
@@ -272,7 +272,8 @@ function ReviewSidebar({
   workflowItems,
   selection,
   onSelectionChange,
-  onSearchClientId,
+  onOpenClientIdSearch,
+  clientIdSearchActive,
 }: ReviewSidebarProps) {
   const workCategories = useMemo(
     () =>
@@ -292,23 +293,8 @@ function ReviewSidebar({
       workflowItems={workflowItems}
       selection={selection}
       onSelectionChange={onSelectionChange}
-      headerTrailing={
-        <AceTooltip>
-          <AceTooltipTrigger asChild>
-            <button
-              type="button"
-              aria-label="Search Client ID"
-              onClick={onSearchClientId}
-              className={screeningToolbarIconButtonClass}
-            >
-              <MaterialSymbol name="search" size="md" className="text-current" />
-            </button>
-          </AceTooltipTrigger>
-          <AceTooltipContent side="top" variant="screening-toolbar" hideArrow>
-            Search Client ID
-          </AceTooltipContent>
-        </AceTooltip>
-      }
+      onOpenClientIdSearch={onOpenClientIdSearch}
+      clientIdSearchActive={clientIdSearchActive}
     />
   );
 }
@@ -319,6 +305,8 @@ interface CaseListProps {
   selectedCaseListSection: CaseListSectionContext | null;
   screeningRowsByCase: Record<number, ScreeningResultRow[]>;
   onFilterVisibilityChange?: (state: { filtersActive: boolean; filteredCount: number }) => void;
+  /** Case-list Client ID filter from the sidebar search modal (substring, case-insensitive). */
+  clientIdFilter?: string | null;
   listTitle?: string;
   workQueueId: Level2WorkQueueId;
   cases?: readonly PepCaseListItem[] | typeof casesData;
@@ -336,6 +324,7 @@ function CaseList({
   selectedCaseListSection,
   screeningRowsByCase,
   onFilterVisibilityChange,
+  clientIdFilter = null,
   listTitle = "Escalated Sanctions",
   workQueueId,
   cases = casesData,
@@ -370,21 +359,25 @@ function CaseList({
 
   const filteredRows = useMemo(() => {
     const out: CaseListRow[] = [];
+    const clientNeedle = normalizeClientIdSearchQuery(clientIdFilter ?? "");
     cases.forEach((item, index) => {
-      if (caseMatchesFilters(index, selectedCaseFilters)) {
-        out.push({ item, index });
+      if (!caseMatchesFilters(index, selectedCaseFilters)) return;
+      if (clientNeedle) {
+        const clientId = clientProfileForLevel2Case(workQueueId, index).clientId;
+        if (!clientIdMatchesSearchQuery(clientId, clientNeedle)) return;
       }
+      out.push({ item, index });
     });
     out.sort((a, b) => compareCasesBySort(a.index, b.index, caseSort, level2ResultCount));
     return out;
-  }, [cases, selectedCaseFilters, caseSort, level2ResultCount]);
+  }, [cases, selectedCaseFilters, clientIdFilter, caseSort, level2ResultCount, workQueueId]);
 
   useEffect(() => {
     onFilterVisibilityChange?.({
-      filtersActive: selectedCaseFilters.size > 0,
+      filtersActive: selectedCaseFilters.size > 0 || Boolean(normalizeClientIdSearchQuery(clientIdFilter ?? "")),
       filteredCount: filteredRows.length,
     });
-  }, [filteredRows.length, selectedCaseFilters.size, onFilterVisibilityChange]);
+  }, [filteredRows.length, selectedCaseFilters.size, clientIdFilter, onFilterVisibilityChange]);
 
   const { pendingRows, doneRows } = useMemo(() => {
     const pending: CaseListRow[] = [];
@@ -977,7 +970,6 @@ export function Level2ReviewInterface() {
     useState<CaseListSectionContext | null>(null);
   const [isReviewDrawerOpen, setIsReviewDrawerOpen] = useState(false);
   const [insightsOpen, setInsightsOpen] = useState(false);
-  const [searchClientIdOpen, setSearchClientIdOpen] = useState(false);
   const [clientProfileAction, setClientProfileAction] = useState<ClientProfileActionId | null>(
     null,
   );
@@ -1005,6 +997,8 @@ export function Level2ReviewInterface() {
   const [financialScreeningRowsByCase, setFinancialScreeningRowsByCase] = useState(
     () => INITIAL_ESCALATED_FINANCIAL_QUEUE.screeningRowsByCase,
   );
+  const [clientIdSearchOpen, setClientIdSearchOpen] = useState(false);
+  const [clientIdFilter, setClientIdFilter] = useState<string | null>(null);
 
   const isWorkflowView = sidebarSelection.kind === "workflow";
   const workQueueId: Level2WorkQueueId = isWorkflowView
@@ -1048,6 +1042,7 @@ export function Level2ReviewInterface() {
       setClientProfileAction(null);
       setIsReviewDrawerOpen(false);
       setInsightsOpen(false);
+      setClientIdFilter(null);
       setSelectedCaseIndex(0);
       setSelectedCaseListSection(selection.kind === "workflow" ? "done" : "todo");
     },
@@ -1154,97 +1149,6 @@ export function Level2ReviewInterface() {
       : isFinancialWork
         ? "Escalated Financial Crime"
         : "Escalated Sanctions";
-
-  const clientIdSearchCatalog = useMemo((): ClientIdSearchHit[] => {
-    const hits: ClientIdSearchHit[] = [];
-
-    const pushWorkHits = (
-      queueId: Level2WorkQueueId,
-      locationLabel: string,
-      cases: readonly { name: string }[],
-      rowsByCase: Record<number, ScreeningResultRow[]>,
-    ) => {
-      cases.forEach((caseItem, index) => {
-        const rows = rowsByCase[index] ?? [];
-        const profile = clientProfileForLevel2Case(queueId, index);
-        hits.push({
-          id: `work-${queueId}-${index}`,
-          clientId: profile.clientId,
-          clientName: caseItem.name,
-          locationLabel,
-          selection: { kind: "work", id: queueId },
-          caseIndex: index,
-          section: caseIsLevel2Done(rows) ? "done" : "todo",
-        });
-      });
-    };
-
-    pushWorkHits("pep", "Escalated PEPs", pepCases, pepScreeningRowsByCase);
-    pushWorkHits("sanction", "Escalated Sanctions", casesData, screeningRowsByCase);
-    pushWorkHits(
-      "financial",
-      "Escalated Financial Crime",
-      financialCases,
-      financialScreeningRowsByCase,
-    );
-
-    casesData.forEach((caseItem, index) => {
-      const rows = screeningRowsByCase[index] ?? [];
-      const profile = clientProfileForLevel2Case("sanction", index);
-      let hasRemediate = false;
-      let hasFalsePositive = false;
-      let hasSafe = false;
-      for (const row of rows) {
-        if (row.status === "Remediate") hasRemediate = true;
-        else if (row.status === "False Positive") hasFalsePositive = true;
-        else if (row.status === "Safe" && row.decisionReviewer) hasSafe = true;
-      }
-      const workflowHits: { id: string; label: string }[] = [];
-      if (hasRemediate) {
-        workflowHits.push({ id: "level-1-remediation", label: "Level 1 Remediation" });
-      }
-      if (hasFalsePositive) {
-        workflowHits.push({ id: "false-positive", label: "False Positive" });
-      }
-      if (hasSafe) {
-        workflowHits.push({ id: "safe", label: "Safe" });
-      }
-      for (const workflow of workflowHits) {
-        hits.push({
-          id: `workflow-${workflow.id}-${index}`,
-          clientId: profile.clientId,
-          clientName: caseItem.name,
-          locationLabel: workflow.label,
-          selection: { kind: "workflow", id: workflow.id },
-          caseIndex: index,
-          section: "done",
-        });
-      }
-    });
-
-    return hits;
-  }, [
-    pepCases,
-    pepScreeningRowsByCase,
-    financialCases,
-    financialScreeningRowsByCase,
-    screeningRowsByCase,
-  ]);
-
-  const handleOpenSearchClientId = useCallback(() => {
-    setSearchClientIdOpen(true);
-  }, []);
-
-  const handleSelectClientIdHit = useCallback((hit: ClientIdSearchHit) => {
-    setSidebarSelection(hit.selection);
-    setSelectedCaseIndex(hit.caseIndex);
-    setSelectedCaseListSection(hit.section);
-    setScreeningSelectedIds(new Set());
-    setClientProfileAction(null);
-    setIsReviewDrawerOpen(false);
-    setInsightsOpen(false);
-    setSearchClientIdOpen(false);
-  }, []);
 
   useEffect(() => {
     if (sidebarSelection.kind !== "workflow") return;
@@ -1471,7 +1375,8 @@ export function Level2ReviewInterface() {
           workflowItems={sidebarWorkflowItems}
           selection={sidebarSelection}
           onSelectionChange={handleSidebarSelectionChange}
-          onSearchClientId={handleOpenSearchClientId}
+          onOpenClientIdSearch={() => setClientIdSearchOpen(true)}
+          clientIdSearchActive={Boolean(normalizeClientIdSearchQuery(clientIdFilter ?? ""))}
         />
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <div className="flex flex-col flex-1 min-h-0 overflow-hidden px-4 pb-4 gap-4">
@@ -1483,6 +1388,7 @@ export function Level2ReviewInterface() {
                   selectedCaseListSection={selectedCaseListSection}
                   screeningRowsByCase={activeScreeningRowsByCase}
                   onFilterVisibilityChange={setCaseFilterVisibility}
+                  clientIdFilter={clientIdFilter}
                   listTitle={workListTitle}
                   workQueueId={workQueueId}
                   cases={activeCases}
@@ -1544,13 +1450,16 @@ export function Level2ReviewInterface() {
         </div>
       </div>
       {completeCaseConfirmDialog}
-      <SearchClientIdModal
-        open={searchClientIdOpen}
-        onClose={() => setSearchClientIdOpen(false)}
-        catalog={clientIdSearchCatalog}
-        onSelectHit={handleSelectClientIdHit}
-      />
       <ToastViewport>{bulkSubmitToast}</ToastViewport>
+      <SearchClientIdModal
+        open={clientIdSearchOpen}
+        onClose={() => setClientIdSearchOpen(false)}
+        initialQuery={clientIdFilter ?? ""}
+        onSearch={(query) => {
+          const normalized = normalizeClientIdSearchQuery(query);
+          setClientIdFilter(normalized || null);
+        }}
+      />
       <ReviewOnboardingCoach
         promptOpen={onboardingPromptOpen}
         onStartTour={startOnboardingCoach}
