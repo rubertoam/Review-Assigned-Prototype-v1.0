@@ -9,10 +9,13 @@ export const caseActionsMenuTriggerClass = cn(
 
 export const caseActionsMenuIconClass = "text-current";
 
-/** Same trigger as client profile; always visible on screening table rows. */
+/** Same trigger as client profile; show on row hover / open / focus. */
 export const screeningRowActionsMenuTriggerClass = cn(
   caseActionsMenuTriggerClass,
+  "opacity-0 pointer-events-none group-hover/row:pointer-events-auto group-hover/row:opacity-100",
+  "data-[state=open]:pointer-events-auto data-[state=open]:opacity-100",
   "data-[state=open]:border-[var(--screening-border-hover)] data-[state=open]:bg-[var(--screening-surface-hover)] data-[state=open]:text-[var(--screening-text-primary)]",
+  "focus-visible:pointer-events-auto focus-visible:opacity-100",
 );
 
 /** Compact panel sized to longest label; at least as wide as the trigger. */
