@@ -27,12 +27,18 @@ export function SearchClientIdModal({
 }: SearchClientIdModalProps) {
   const [query, setQuery] = useState(initialQuery);
   const inputRef = useRef<HTMLInputElement>(null);
+  const queryRef = useRef(query);
+  queryRef.current = query;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const onSearchRef = useRef(onSearch);
+  onSearchRef.current = onSearch;
 
   useEffect(() => {
     if (open) setQuery(initialQuery);
   }, [open, initialQuery]);
 
-  // DialogModal focuses the primary button on open; pull focus into the field afterward.
+  // DialogModal may focus the primary button on open; move focus into the field after.
   useEffect(() => {
     if (!open) return;
     const id = window.requestAnimationFrame(() => {
@@ -46,10 +52,10 @@ export function SearchClientIdModal({
 
   const commitSearch = useCallback(() => {
     // Read from the DOM so paste → immediate Search isn't lost to a stale React state.
-    const value = (inputRef.current?.value ?? query).trim();
-    onSearch(value);
-    onClose();
-  }, [onClose, onSearch, query]);
+    const value = (inputRef.current?.value ?? queryRef.current).trim();
+    onSearchRef.current(value);
+    onCloseRef.current();
+  }, []);
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -63,12 +69,21 @@ export function SearchClientIdModal({
     }
   };
 
+  const handleClear = useCallback(() => setQuery(""), []);
+
+  // Stable action identities — DialogModal (published) re-focuses primary when these change.
   const secondaryAction = useMemo(
-    () => ({ label: "Cancel", onClick: onClose }),
-    [onClose],
+    () => ({
+      label: "Cancel",
+      onClick: () => onCloseRef.current(),
+    }),
+    [],
   );
   const primaryAction = useMemo(
-    () => ({ label: "Search", onClick: commitSearch }),
+    () => ({
+      label: "Search",
+      onClick: commitSearch,
+    }),
     [commitSearch],
   );
 
@@ -96,7 +111,7 @@ export function SearchClientIdModal({
           autoComplete="off"
           fieldSize="md"
           icon="left"
-          onClear={query ? () => setQuery("") : undefined}
+          onClear={query ? handleClear : undefined}
         />
       </form>
     </DialogModal>
