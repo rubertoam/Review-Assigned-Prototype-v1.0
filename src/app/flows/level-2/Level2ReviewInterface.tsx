@@ -1337,10 +1337,7 @@ export function Level2ReviewInterface() {
     ],
   );
 
-  const { submitReviewDecision, completeCaseConfirmDialog } = useCompleteCaseSubmit({
-    rows: screeningRows,
-    selectedIds: screeningSelectedIds,
-    flowVariant: "level-2",
+  const { submitReviewDecision } = useCompleteCaseSubmit({
     onSubmit: handleSubmitDecision,
   });
 
@@ -1449,7 +1446,6 @@ export function Level2ReviewInterface() {
           />
         </div>
       </div>
-      {completeCaseConfirmDialog}
       <ToastViewport>{bulkSubmitToast}</ToastViewport>
       <SearchClientIdModal
         open={clientIdSearchOpen}

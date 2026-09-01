@@ -1492,10 +1492,7 @@ export function Level1ReviewInterface() {
     ],
   );
 
-  const { submitReviewDecision, completeCaseConfirmDialog } = useCompleteCaseSubmit({
-    rows: screeningRows,
-    selectedIds: screeningSelectedIds,
-    flowVariant: "level-1",
+  const { submitReviewDecision } = useCompleteCaseSubmit({
     onSubmit: handleSubmitDecision,
   });
 
@@ -1608,7 +1605,6 @@ export function Level1ReviewInterface() {
           />
         </div>
       </div>
-      {completeCaseConfirmDialog}
       <ToastViewport>
         {bulkSubmitToast}
         {overdueWarningToast}
