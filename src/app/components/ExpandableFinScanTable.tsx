@@ -1,6 +1,5 @@
 import {
   Fragment,
-  startTransition,
   useCallback,
   useLayoutEffect,
   useMemo,
@@ -18,12 +17,12 @@ import {
 } from "@ace-ds/components/organisms/ScreeningResultsTable/screeningTableHeader";
 import { Checkbox } from "@ace-ds/components/atoms/Checkbox/Checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
-import { AceGridExpandPanel } from "./AceGridExpandPanel";
+import { AceGridExpandPanel, ACE_ACCORDION_DURATION_MS } from "./AceGridExpandPanel";
 import { cn } from "./ui/utils";
 
 /** Smooth open/close — same tokens as ACE `AceAccordion`. */
 export const easeAccordion = "[transition-timing-function:var(--ace-accordion-ease)]";
-export const durationAccordion = "duration-[var(--ace-accordion-duration)]";
+export const durationAccordion = "duration-[420ms]";
 
 const headerLabelClass = screeningTableHeaderLabelClass;
 const headerLabelCompactClass = cn(screeningTableHeaderLabelClass, "text-[10px] leading-tight");
@@ -32,6 +31,7 @@ const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 /**
  * Mount heavy expanded-row UI only when the row is near the viewport.
  * Prevents expand-all from creating dozens of list-profile trees in one frame.
+ * Keep content mounted through the close animation so grid-rows can collapse smoothly.
  */
 function DeferredExpandedContent({
   open,
@@ -45,8 +45,11 @@ function DeferredExpandedContent({
 
   useLayoutEffect(() => {
     if (!open) {
-      setShouldMount(false);
-      return;
+      const timeout = window.setTimeout(
+        () => setShouldMount(false),
+        ACE_ACCORDION_DURATION_MS,
+      );
+      return () => window.clearTimeout(timeout);
     }
 
     const node = hostRef.current;
@@ -77,7 +80,7 @@ function DeferredExpandedContent({
 
   return (
     <div ref={hostRef}>
-      {open && shouldMount ? children : open ? (
+      {shouldMount ? children : open ? (
         <div className="h-28" aria-hidden />
       ) : null}
     </div>
@@ -291,23 +294,38 @@ export function ExpandableFinScanTable<T extends { id: string }>({
 
   const toggleExpanded = useCallback(
     (id: string) => {
-      setAnimateExpandPanels(true);
-      setExpandedIds((prev) => {
-        const next = new Set(prev);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        return next;
-      });
+      const apply = () => {
+        setExpandedIds((prev) => {
+          const next = new Set(prev);
+          if (next.has(id)) next.delete(id);
+          else next.add(id);
+          return next;
+        });
+      };
+
+      // After expand-all, motion is off. Turn it back on for one frame before
+      // changing open, or the browser won't interpolate grid-template-rows.
+      if (!animateExpandPanels) {
+        setAnimateExpandPanels(true);
+        window.requestAnimationFrame(apply);
+        return;
+      }
+
+      apply();
     },
-    [setExpandedIds],
+    [animateExpandPanels, setExpandedIds],
   );
 
   const toggleExpandAll = () => {
     const nextExpanded = !allVisibleExpanded;
     // Bulk open/close skips grid motion — animating dozens of panels freezes the UI.
+    // Keep this synchronous (not startTransition) so `animate=false` and the id
+    // update land in the same paint.
     setAnimateExpandPanels(false);
-    startTransition(() => {
-      setExpandedIds(nextExpanded ? new Set(expandableRowIds) : new Set());
+    setExpandedIds(nextExpanded ? new Set(expandableRowIds) : new Set());
+    // Restore single-row motion after the snap paints.
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => setAnimateExpandPanels(true));
     });
   };
 

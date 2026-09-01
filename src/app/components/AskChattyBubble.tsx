@@ -18,7 +18,7 @@ type AskChattyBubbleProps = {
 const FALLBACK_REPLIES = [
   "Happy to help — try asking about Watchlist cases, Payments, KYC, or Reporting.",
   "I can walk you through FinScan features. What are you trying to do?",
-  "Got it. Ask about Assigned Cases, dashboards, or how to set your start page.",
+  "Got it. Ask about Workbench, dashboards, or how to set your start page.",
 ] as const;
 
 function buildChattyReply(input: string): string {
@@ -30,8 +30,8 @@ function buildChattyReply(input: string): string {
   if (/\b(thank|thanks|thx)\b/.test(q)) {
     return "You're welcome. Anything else I can help with?";
   }
-  if (/\b(watchlist|assigned cases?|sanction|pep)\b/.test(q)) {
-    return "On Watchlist, open Assigned Cases from the landing cards or the Watchlist menu to review matches. The red badge shows your open case count.";
+  if (/\b(watchlist|workbench|assigned cases?|sanction|pep)\b/.test(q)) {
+    return "On Watchlist, open Workbench from the landing cards or the Watchlist menu to review matches. The red badge shows your open case count.";
   }
   if (/\b(payment|transaction|safe list)\b/.test(q)) {
     return "Payments screens incoming and outgoing transactions in real time. Start from Assigned Transactions or Payments Browser on the Payments landing page.";
@@ -49,7 +49,7 @@ function buildChattyReply(input: string): string {
     return "Open your profile menu in the header and toggle Dark mode under Appearance.";
   }
   if (/\b(help|how do i|what can you)\b/.test(q)) {
-    return "I can explain FinScan landings, navigation, and common review tasks. Try: “Where are Assigned Cases?” or “How do I open Reporting?”";
+    return "I can explain FinScan landings, navigation, and common review tasks. Try: “Where is Workbench?” or “How do I open Reporting?”";
   }
   if (/\b(bye|goodbye|see you)\b/.test(q)) {
     return "Bye for now — open Ask Chatty anytime you need a hand.";

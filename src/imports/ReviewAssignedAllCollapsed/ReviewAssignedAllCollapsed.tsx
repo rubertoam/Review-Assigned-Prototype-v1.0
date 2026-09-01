@@ -428,7 +428,7 @@ function LeftAlign() {
         </svg>
       </div>
       <p className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] relative shrink-0 text-[#23262c] text-[16px] whitespace-nowrap" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-        Review Assigned
+        Workbench
       </p>
     </div>
   );
@@ -850,7 +850,7 @@ function ButtonGroup() {
 
 export default function ReviewAssignedAllCollapsed() {
   return (
-    <div className="bg-white relative size-full" data-name="Review Assigned / All Collapsed">
+    <div className="bg-white relative size-full" data-name="Workbench / All Collapsed">
       <SiteNavigationMenuHelpHover />
       <Sidebar />
       <Header />

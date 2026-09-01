@@ -1,4 +1,4 @@
-# Review Assigned (prototype)
+# Workbench (prototype)
 
 FinScan-style review UI prototype (Vite + React).
 

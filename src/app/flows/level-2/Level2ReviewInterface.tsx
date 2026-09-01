@@ -193,7 +193,7 @@ function PageHeader({
         </div>
         <div className="flex items-center gap-2">
           <p className={cn(aceTypography(ACE_TYPE.h6Bold), "leading-[1.65] text-[var(--screening-text-primary)]")}>
-            Review Assigned
+            Workbench
           </p>
           <AceBadge appearance="tag" variant="gray">
             {levelLabel}

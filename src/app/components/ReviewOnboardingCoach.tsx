@@ -404,7 +404,7 @@ export function ReviewOnboardingCoach({
         size="lg"
         fitContent
         closeOnOverlayClick={false}
-        description='Welcome to the new Review Assigned screen. Click "Take Tour" below to get a short walkthrough of the basic interactions in this new feature.'
+        description='Welcome to the new Workbench screen. Click "Take Tour" below to get a short walkthrough of the basic interactions in this new feature.'
         secondaryAction={{
           label: "Not now",
           onClick: onDeclineTour,

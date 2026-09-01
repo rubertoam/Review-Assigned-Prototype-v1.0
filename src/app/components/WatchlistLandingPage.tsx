@@ -53,7 +53,7 @@ export function WatchlistLandingPage() {
     return [
       {
         id: "assigned-cases",
-        title: "Assigned Cases",
+        title: "Workbench",
         description: "Description of the feature goes here...",
         navigates: true,
         badgeCount: assignedCount,

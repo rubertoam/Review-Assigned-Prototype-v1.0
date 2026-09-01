@@ -20,12 +20,12 @@ export const USER_FLOWS: readonly UserFlowDefinition[] = [
   {
     id: "level-1",
     label: "Level 1",
-    description: "Review Assigned — primary UX concept flow",
+    description: "Workbench — primary UX concept flow",
   },
   {
     id: "level-2",
     label: "Level 2",
-    description: "Review Assigned — Level 2 flow (cloned from Level 1)",
+    description: "Workbench — Level 2 flow (cloned from Level 1)",
   },
 ];
 

@@ -34,7 +34,7 @@ function WorkLogOpenDemo() {
             )}
             style={notoVar}
           >
-            Review Assigned
+            Workbench
           </p>
           <span
             className={cn(

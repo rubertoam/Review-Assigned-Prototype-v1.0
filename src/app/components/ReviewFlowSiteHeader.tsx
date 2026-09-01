@@ -39,7 +39,7 @@ const PRODUCT_NAV: readonly {
 ];
 
 const WATCHLIST_FEATURE_ITEMS = [
-  "Assigned Cases",
+  "Workbench",
   "Case Browser",
   "Name/Address List Search",
   "Specific Element List Search",
@@ -303,7 +303,7 @@ function WatchlistNavMenu({
         <DropdownMenuSeparator className={dashedSeparatorClass} />
 
         {WATCHLIST_FEATURE_ITEMS.map((label) => {
-          const isAssignedCases = label === "Assigned Cases";
+          const isAssignedCases = label === "Workbench";
           const isSelected = isAssignedCases && activeItem === "assigned-cases";
           return (
             <DropdownMenuItem

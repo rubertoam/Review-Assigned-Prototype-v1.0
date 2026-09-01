@@ -81,7 +81,7 @@ function workflowToNavItem(
 }
 
 /**
- * Review Assigned sidebar — AceSidebar `variant="navigation"`.
+ * Workbench sidebar — AceSidebar `variant="navigation"`.
  * Flat list of work queues (and workflow destinations when present).
  */
 export function ReviewAssignedSidebar({

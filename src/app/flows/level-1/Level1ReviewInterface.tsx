@@ -1,4 +1,4 @@
-/** Level 1 user flow — Review Assigned (primary UX concept). */
+/** Level 1 user flow — Workbench (primary UX concept). */
 import svgPaths from "../../../imports/ReviewAssignedAllCollapsed/svg-e16bopzh98";
 import {
   useCallback,
@@ -176,7 +176,7 @@ function PageHeader({
         </div>
         <div className="flex items-center gap-2">
           <p className={cn(aceTypography(ACE_TYPE.h6Bold), "leading-[1.65] text-[var(--screening-text-primary)]")}>
-            Review Assigned
+            Workbench
           </p>
           <AceBadge appearance="tag" variant="gray">
             {levelLabel}
