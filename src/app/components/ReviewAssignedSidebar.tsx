@@ -169,7 +169,7 @@ export function ReviewAssignedSidebar({
   );
 
   return (
-    <div className="h-full shrink-0" data-coach-target="assignment">
+    <div className="h-full shrink-0 overflow-hidden" data-coach-target="assignment">
       <AceSidebar
         open={open}
         variant="navigation"

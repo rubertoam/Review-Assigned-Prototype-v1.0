@@ -525,7 +525,7 @@ function CaseList({
                 {caseItem.name}
               </p>
               <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[#23262c] dark:text-[#b6c2cf] text-[10px] tracking-[0.2px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                {clientId} · {resultsCount} results
+                {clientId} · {resultsCount} Alerts
               </p>
             </div>
           </div>

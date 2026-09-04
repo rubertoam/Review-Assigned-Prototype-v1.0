@@ -387,13 +387,45 @@ export type ListProfileSummary = {
   country: string;
 };
 
+const LIST_COUNTRY_POOL = [
+  "United States",
+  "United Kingdom",
+  "Canada",
+  "Australia",
+  "Germany",
+  "France",
+  "Spain",
+  "Italy",
+  "Brazil",
+  "Mexico",
+  "India",
+  "China",
+  "Japan",
+  "South Korea",
+  "Russia",
+  "Iran",
+  "Libya",
+  "Nigeria",
+  "South Africa",
+  "Sweden",
+  "Norway",
+  "Poland",
+  "Turkey",
+  "Egypt",
+  "Singapore",
+  "United Arab Emirates",
+  "Argentina",
+  "Chile",
+  "Netherlands",
+  "Ireland",
+] as const;
+
 function listCountryForCase(caseIndex: number, rowIndex: number): string {
+  const seed = (caseIndex + 1) * 131 + (rowIndex + 1) * 17;
   const ctx = CASE_CLIENT_CONTEXT[Math.min(caseIndex, CASE_CLIENT_CONTEXT.length - 1)];
-  if (caseIndex === 0) {
-    const countries = ["United States", "United Kingdom", "Canada", "Australia"];
-    return countries[rowIndex % countries.length] ?? "United States";
-  }
-  return ctx.country;
+  // Occasionally keep the client's home country so matches still feel related.
+  if (ctx && seed % 5 === 0) return ctx.country;
+  return LIST_COUNTRY_POOL[seed % LIST_COUNTRY_POOL.length]!;
 }
 
 /** List metadata for screening table columns (aligned with General tab fields). */

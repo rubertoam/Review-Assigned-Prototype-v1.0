@@ -53,6 +53,8 @@ const toggleRowClass = checkboxRowClass;
 function panelClassForVariant(variant: DropdownMenuPanelVariant, className?: string) {
   return cn(
     aceDropdownMenuPanelClass,
+    // Solid surface fallback when color-token surfaces are unresolved.
+    "bg-[var(--screening-surface,#ffffff)]",
     "z-[250]",
     variant === "compact" && "w-[6.75rem] py-2 p-1",
     variant === "primary" && "w-[16.5rem] py-2 p-1",

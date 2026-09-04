@@ -192,6 +192,132 @@ const CASE_VARIANT_NAMES: readonly (readonly string[])[] = [
   ["Bank of Moscow", "Moscow Joint Stock Bank"],
 ];
 
+/** Common first-name spellings / nicknames for realistic list-match aliases. */
+const FIRST_NAME_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  John: ["Jon", "Johnny", "Johnathan"],
+  Jose: ["José", "Joe"],
+  Jane: ["Janet", "Jayne"],
+  Elena: ["Helena", "Lena"],
+  Marcus: ["Mark", "Marc"],
+  Sofia: ["Sophia", "Sofie"],
+  David: ["Dave", "Davide"],
+  Priya: ["Preeya"],
+  Hassan: ["Hasan", "Hussein"],
+  Claire: ["Clare"],
+  Andrei: ["Andrey", "Andrew"],
+  Mei: ["May"],
+  Carlos: ["Carlo"],
+  Amara: ["Amira"],
+  Noah: ["Noa"],
+  Yuki: ["Youki"],
+  Fatima: ["Fatimah"],
+  Lucas: ["Lukas", "Luca"],
+  Ingrid: ["Inger"],
+  Omar: ["Umar"],
+  Grace: ["Gracie"],
+  Kenji: ["Ken"],
+  Isabella: ["Isabel", "Bella"],
+  Samuel: ["Sam", "Sammy"],
+  Nadia: ["Nadya"],
+  Theo: ["Theodore", "Teo"],
+  Aisha: ["Ayesha"],
+  Diego: ["Diogo"],
+  Hannah: ["Hanna"],
+  Ravi: ["Ravee"],
+  Lena: ["Lina"],
+  Peter: ["Petr", "Pedro"],
+  Camille: ["Camila"],
+  Jin: ["Jinn"],
+  Maya: ["Maia"],
+  Viktor: ["Victor"],
+  Leila: ["Layla", "Laila"],
+  Owen: ["Eoin"],
+  Sara: ["Sarah"],
+  Mohammed: ["Muhammad", "Mohamed"],
+  Chloe: ["Chloé"],
+  Antonio: ["Anthony", "Anton"],
+  Yara: ["Yarah"],
+};
+
+const MIDDLE_INITIALS = ["A", "B", "C", "D", "J", "L", "M", "R", "S", "T"] as const;
+
+function looksLikeOrganizationName(name: string): boolean {
+  return /\b(LLC|AG|Partners|Co\.?|Corp\.?|Inc\.?|Ltd\.?|Bank|Holdings|Shipping|Trade)\b/i.test(
+    name,
+  );
+}
+
+function stripHonorific(name: string): string {
+  return name.replace(/^(Mr\.|Mrs\.|Ms\.|Dr\.)\s+/i, "").trim();
+}
+
+function splitPersonNameParts(fullName: string): { first: string; last: string; rest: string[] } {
+  const cleaned = stripHonorific(fullName);
+  const parts = cleaned.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { first: "Unknown", last: "Match", rest: [] };
+  if (parts.length === 1) return { first: parts[0]!, last: parts[0]!, rest: [] };
+  return {
+    first: parts[0]!,
+    last: parts[parts.length - 1]!,
+    rest: parts.slice(1, -1),
+  };
+}
+
+/** Deterministic, realistic list-hit name variants for a client (no “… Alt” placeholders). */
+function matchNameVariantsForCase(
+  caseIndex: number,
+  caseName: string,
+  isEntity: boolean,
+): string[] {
+  const curated = CASE_VARIANT_NAMES[caseIndex];
+  if (curated) return [...curated];
+
+  if (isEntity || looksLikeOrganizationName(caseName)) {
+    const base = caseName.replace(/\s+/g, " ").trim();
+    const short = base
+      .replace(/\b(LLC|AG|Partners|Co\.?|Corp\.?|Inc\.?|Ltd\.?)\b/gi, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    return [
+      base,
+      short || base,
+      `${short} Corp.`,
+      `${short} Ltd.`,
+      `${base} International`,
+      `${short} Holdings`,
+      base.toUpperCase(),
+      `${short} Co.`,
+    ].filter((value, index, all) => value.length > 0 && all.indexOf(value) === index);
+  }
+
+  const { first, last, rest } = splitPersonNameParts(caseName);
+  const mid =
+    rest[0]?.[0]?.toUpperCase() ??
+    MIDDLE_INITIALS[(caseIndex * 3 + first.length) % MIDDLE_INITIALS.length]!;
+  const aliases = FIRST_NAME_ALIASES[first] ?? [];
+  const altFirst = aliases[(caseIndex + last.length) % Math.max(aliases.length, 1)] ?? first;
+  const altFirst2 =
+    aliases[(caseIndex + 2) % Math.max(aliases.length, 1)] ??
+    (first.length > 1 ? `${first[0]}.` : first);
+
+  const variants = [
+    `${first} ${last}`,
+    `${first} ${mid}. ${last}`,
+    `${first[0]}. ${last}`,
+    `${last}, ${first}`,
+    `${last}, ${first} ${mid}.`,
+    `${altFirst} ${last}`,
+    `${first} ${last[0]}.`,
+    `${altFirst2} ${mid}. ${last}`,
+    `${first.toUpperCase()} ${last.toUpperCase()}`,
+    `${last} ${first}`,
+    `${first}-${last}`,
+    `${first} ${last} Jr.`,
+  ];
+
+  return variants.filter((value, index, all) => all.indexOf(value) === index);
+}
+
 const AGE_LABELS = ["4h", "9h", "12h", "18h", "22h", "1d", "2d", "3d"] as const;
 const TONE_ROTATION: ScreeningResultRow["matchAgeTone"][] = ["fresh", "fresh", "warn", "warn", "stale", "stale", "stale", "fresh"];
 
@@ -268,9 +394,11 @@ function level1ReviewerForCase(caseIndex: number): string {
 export function getScreeningRowsForCase(caseIndex: number): ScreeningResultRow[] {
   const caseItem = casesData[Math.max(0, Math.min(caseIndex, casesData.length - 1))];
   const total = caseItem?.results ?? 3;
-  const nameVariants =
-    CASE_VARIANT_NAMES[caseIndex] ??
-    ([caseItem?.name ?? "Unknown", `${caseItem?.name ?? "Unknown"} Alt`] as const);
+  const nameVariants = matchNameVariantsForCase(
+    caseIndex,
+    caseItem?.name ?? "Unknown",
+    Boolean(caseItem?.isEntity),
+  );
   const rows: ScreeningResultRow[] = [];
   for (let i = 0; i < total; i++) {
     const name = nameVariants[i % nameVariants.length]!;
@@ -1930,67 +2058,6 @@ export function ScreeningResultsTable({
               <div className="flex max-h-full min-h-0 flex-col">
                 <div className="shrink-0 border-b border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-4 py-3">
                   <div className="flex flex-nowrap items-center gap-3">
-                    <DropdownMenu
-                      onOpenChange={(open) => {
-                        setColumnsMenuOpen(open);
-                        if (open) setColumnsTooltipOpen(false);
-                      }}
-                    >
-                      <AceTooltip
-                        open={columnsTooltipOpen}
-                        onOpenChange={(open) => {
-                          if (!columnsMenuOpen) setColumnsTooltipOpen(open);
-                        }}
-                      >
-                        <AceTooltipTrigger asChild>
-                          <span className="inline-flex">
-                            <DropdownMenuTrigger asChild>
-                              <button
-                                type="button"
-                                aria-label="Edit Columns"
-                                className={screeningToolbarIconButtonClass}
-                              >
-                                <MaterialSymbol name="view_list" size="md" weight={300} />
-                              </button>
-                            </DropdownMenuTrigger>
-                          </span>
-                        </AceTooltipTrigger>
-                        <AceTooltipContent side="top" variant="screening-toolbar" hideArrow>
-                          Edit Columns
-                        </AceTooltipContent>
-                      </AceTooltip>
-                      <DropdownMenuContent align="start" className="min-w-[15rem]">
-                        <DropdownMenuLabel>Columns</DropdownMenuLabel>
-                        {columnMenuOptions.map((column) => {
-                          const checked = visibleColumns.has(column.key);
-                          const disabled = checked && visibleColumns.size <= 1;
-                          return (
-                            <DropdownMenuItem
-                              key={column.key}
-                              disabled={disabled}
-                              aria-label={column.label}
-                              className={screeningColumnMenuRowClass}
-                              onSelect={(event) => {
-                                event.preventDefault();
-                                if (!disabled) toggleColumnVisibility(column.key, !checked);
-                              }}
-                            >
-                              <Toggle
-                                size="sm"
-                                checked={checked}
-                                disabled={disabled}
-                                tabIndex={-1}
-                                className="pointer-events-none self-center"
-                                aria-hidden
-                              />
-                              <span className="min-w-0 flex-1 truncate self-center text-left">
-                                {column.label}
-                              </span>
-                            </DropdownMenuItem>
-                          );
-                        })}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
                     {showStatusFilter ? (
                       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                         <span className={screeningStatusFilterLabelClass}>Filter by</span>
@@ -2055,6 +2122,67 @@ export function ScreeningResultsTable({
                           </TooltipContent>
                         </Tooltip>
                       ) : null}
+                      <DropdownMenu
+                        onOpenChange={(open) => {
+                          setColumnsMenuOpen(open);
+                          if (open) setColumnsTooltipOpen(false);
+                        }}
+                      >
+                        <AceTooltip
+                          open={columnsTooltipOpen}
+                          onOpenChange={(open) => {
+                            if (!columnsMenuOpen) setColumnsTooltipOpen(open);
+                          }}
+                        >
+                          <AceTooltipTrigger asChild>
+                            <span className="inline-flex">
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  type="button"
+                                  aria-label="Edit Columns"
+                                  className={screeningToolbarIconButtonClass}
+                                >
+                                  <MaterialSymbol name="view_list" size="md" weight={300} />
+                                </button>
+                              </DropdownMenuTrigger>
+                            </span>
+                          </AceTooltipTrigger>
+                          <AceTooltipContent side="top" variant="screening-toolbar" hideArrow>
+                            Edit Columns
+                          </AceTooltipContent>
+                        </AceTooltip>
+                        <DropdownMenuContent align="end" className="min-w-[15rem]">
+                          <DropdownMenuLabel>Columns</DropdownMenuLabel>
+                          {columnMenuOptions.map((column) => {
+                            const checked = visibleColumns.has(column.key);
+                            const disabled = checked && visibleColumns.size <= 1;
+                            return (
+                              <DropdownMenuItem
+                                key={column.key}
+                                disabled={disabled}
+                                aria-label={column.label}
+                                className={screeningColumnMenuRowClass}
+                                onSelect={(event) => {
+                                  event.preventDefault();
+                                  if (!disabled) toggleColumnVisibility(column.key, !checked);
+                                }}
+                              >
+                                <Toggle
+                                  size="sm"
+                                  checked={checked}
+                                  disabled={disabled}
+                                  tabIndex={-1}
+                                  className="pointer-events-none self-center"
+                                  aria-hidden
+                                />
+                                <span className="min-w-0 flex-1 truncate self-center text-left">
+                                  {column.label}
+                                </span>
+                              </DropdownMenuItem>
+                            );
+                          })}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       <AceInputField
                         fieldSize="sm"
                         icon="left"

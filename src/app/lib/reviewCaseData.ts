@@ -71,8 +71,8 @@ export function caseFilterTriggerLabel(selectedFilters: ReadonlySet<CaseFilterVa
 export const CASE_SORT_OPTIONS = [
   { value: "name-asc", label: "A-Z" },
   { value: "name-desc", label: "Z-A" },
-  { value: "results-asc", label: "Matches: Low to High" },
-  { value: "results-desc", label: "Matches: High to Low" },
+  { value: "results-asc", label: "Alerts: Low to High" },
+  { value: "results-desc", label: "Alerts: High to Low" },
 ] as const;
 
 export type CaseSortValue = (typeof CASE_SORT_OPTIONS)[number]["value"];
