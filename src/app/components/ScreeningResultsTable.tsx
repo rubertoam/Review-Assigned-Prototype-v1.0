@@ -29,6 +29,7 @@ import {
   LEVEL1_STATUS_DISPLAY_ORDER,
   LEVEL2_DECISION_STATUSES,
   getLevel1DecisionStatusesForRows,
+  isLevel1AiWorkbenchStatus,
   isLevel1ConfirmedStatus,
   isLevel1DecisionStatus,
   isLevel1Level2QueueStatus,
@@ -136,7 +137,7 @@ export function isDisabledScreeningRow(
   return !isLevel1OpenQueueStatus(row.status);
 }
 
-export type CaseListSectionContext = "todo" | "done" | "documents-required";
+export type CaseListSectionContext = "todo" | "done" | "documents-required" | "ai-workbench";
 
 export type ScreeningResultRow = {
   id: string;
@@ -1128,6 +1129,13 @@ function buildLevel1DocumentsRequiredDisplayRows(
   return rows.filter((r) => r.status === "Documents Required");
 }
 
+/** AI Workbench — AI-Escalate / AI-Suspected Safe alerts. */
+function buildLevel1AiWorkbenchDisplayRows(
+  rows: ScreeningResultRow[],
+): ScreeningTableDisplayRow[] {
+  return rows.filter((r) => isLevel1AiWorkbenchStatus(r.status));
+}
+
 function buildLevel2DisplayRows(
   rows: ScreeningResultRow[],
   showReviewHistory: boolean,
@@ -1419,6 +1427,7 @@ export function ScreeningResultsTable({
   /** Done / complete history is Level 2 only — Level 1 decisions live in the Work Log. */
   const viewingDoneCaseListSection = caseListSection === "done";
   const viewingDocumentsRequiredSection = caseListSection === "documents-required";
+  const viewingAiWorkbenchSection = caseListSection === "ai-workbench";
   const effectiveShowReviewHistory = isLevel2
     ? isCaseComplete || showReviewHistory || viewingDoneCaseListSection
     : false;
@@ -1434,6 +1443,9 @@ export function ScreeningResultsTable({
     }
     if (caseListSection === "documents-required") {
       return buildLevel1DocumentsRequiredDisplayRows(rows);
+    }
+    if (caseListSection === "ai-workbench") {
+      return buildLevel1AiWorkbenchDisplayRows(rows);
     }
     if (caseListSection === "done") {
       return buildLevel1SentToLevel2DisplayRows(rows);
@@ -1493,7 +1505,8 @@ export function ScreeningResultsTable({
     [],
   );
 
-  const showStatusFilter = statusChips.length > 1 || statusFilters.size > 0;
+  const showStatusFilter =
+    !viewingAiWorkbenchSection && (statusChips.length > 1 || statusFilters.size > 0);
 
   const toggleStatusFilter = useCallback(
     (status: string) => {
@@ -1687,11 +1700,12 @@ export function ScreeningResultsTable({
   const selectionMode = selectedIds.size > 0;
 
   const isLevel1RowActionable = useCallback(
-    (status: string) =>
-      viewingDocumentsRequiredSection
-        ? status === "Documents Required"
-        : isLevel1MyWorkStatus(status),
-    [viewingDocumentsRequiredSection],
+    (status: string) => {
+      if (viewingDocumentsRequiredSection) return status === "Documents Required";
+      if (viewingAiWorkbenchSection) return isLevel1AiWorkbenchStatus(status);
+      return isLevel1MyWorkStatus(status);
+    },
+    [viewingDocumentsRequiredSection, viewingAiWorkbenchSection],
   );
 
   const actionableRows = useMemo(

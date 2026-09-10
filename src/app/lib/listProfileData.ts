@@ -106,7 +106,8 @@ const CASE_CLIENT_CONTEXT: readonly CaseClientContext[] = [
 ] as const;
 
 function parseScreeningRowId(id: string): { caseIndex: number; rowIndex: number } {
-  const match = /^c(\d+)-(\d+)$/.exec(id);
+  // Sanction: c0-1 · PEP/AI/escalated: pep-c0-1, ai-c4-2, l2-pep-c1-3
+  const match = /c(\d+)-(\d+)$/.exec(id);
   if (!match) return { caseIndex: 0, rowIndex: 0 };
   return { caseIndex: Number(match[1]), rowIndex: Number(match[2]) - 1 };
 }

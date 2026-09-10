@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
 import { AceButton } from "@ace-ds/components/atoms/AceButton";
@@ -25,6 +25,7 @@ import {
   LEVEL2_DECISION_STATUSES,
   getLevel1DecisionStatusesForRows,
   getReasonsForDecisionStatus,
+  resolveAiReviewPrefill,
 } from "../lib/reviewDecisionConfig";
 import {
   renderFieldValue,
@@ -139,8 +140,8 @@ export function ReviewDrawer({
   }, [selectedStatus, statusOptions]);
 
   const reasonOptions = useMemo(
-    () => getReasonsForDecisionStatus(flowVariant, selectedStatus),
-    [flowVariant, selectedStatus],
+    () => getReasonsForDecisionStatus(flowVariant, selectedStatus, selectedRows),
+    [flowVariant, selectedStatus, selectedRows],
   );
 
   const lastUpdatedFields = useMemo(
@@ -149,6 +150,7 @@ export function ReviewDrawer({
   );
 
   const activeHistoryRow = selectedRows[historyPageIndex] ?? null;
+  const aiPrefillSelectionKeyRef = useRef("");
 
   useEffect(() => {
     if (!isOpen) {
@@ -164,13 +166,50 @@ export function ReviewDrawer({
       setSubmittedComments([]);
       setActivityFilter("all");
       setActivityViewRowId(null);
+      aiPrefillSelectionKeyRef.current = "";
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || flowVariant !== "level-1") return;
+    const selectionKey = selectedRows.map((row) => row.id).join("|");
+    // Only prefill when the match selection changes — keep Comment editable afterward.
+    if (selectionKey === aiPrefillSelectionKeyRef.current) return;
+    aiPrefillSelectionKeyRef.current = selectionKey;
+    if (selectedRows.length === 0) {
+      setSelectedStatus(null);
+      setSelectedReason(null);
+      setDecisionCommentDraft("");
+      return;
+    }
+    if (selectedRows.length > 1) {
+      const prefill = resolveAiReviewPrefill(selectedRows);
+      if (prefill) {
+        setSelectedStatus(prefill.status);
+        setSelectedReason(prefill.reason);
+        setDecisionCommentDraft(prefill.comment);
+      } else {
+        setDecisionCommentDraft("");
+      }
+      return;
+    }
+    const prefill = resolveAiReviewPrefill(selectedRows);
+    if (!prefill) {
+      setDecisionCommentDraft("");
+      return;
+    }
+    setSelectedStatus(prefill.status);
+    setSelectedReason(prefill.reason);
+    setDecisionCommentDraft(prefill.comment);
+  }, [isOpen, flowVariant, selectedRows]);
 
   useEffect(() => {
     if (selectedCount === 0) {
       setSelectedStatus(null);
       setSelectedReason(null);
+      setDecisionCommentDraft("");
+      setCommentDraft("");
+      setSavedComment("");
       setScreeningHistoryOpen(false);
     }
   }, [selectedCount]);
@@ -198,11 +237,11 @@ export function ReviewDrawer({
   useEffect(() => {
     setSelectedReason(null);
     if (!selectedStatus) return;
-    const reasons = getReasonsForDecisionStatus(flowVariant, selectedStatus);
+    const reasons = getReasonsForDecisionStatus(flowVariant, selectedStatus, selectedRows);
     if (reasons.length === 1) {
       setSelectedReason(reasons[0]);
     }
-  }, [selectedStatus, flowVariant]);
+  }, [selectedStatus, flowVariant, selectedRows]);
 
   const canSaveComment =
     selectedCount > 0 && commentDraft.trim().length > 0 && commentDraft.trim() !== savedComment;

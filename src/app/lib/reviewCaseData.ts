@@ -184,8 +184,9 @@ export interface ClientProfileFields {
  * 3 = L2 Escalated Financial Crime
  * 4 = network members
  * 5 = L1 PEP Screening
+ * 6 = L1 AI Workbench
  */
-export type ClientIdSeries = 1 | 2 | 3 | 4 | 5;
+export type ClientIdSeries = 1 | 2 | 3 | 4 | 5 | 6;
 
 /** Invertible mix over 00000000–99999999 so IDs look random but never collide. */
 function feistelEightDigits(n: number): number {

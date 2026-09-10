@@ -9,10 +9,13 @@ const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 export function ReviewPanelInlineInfoMessage({
   children,
   trailing,
+  icon = "info",
 }: {
   children: ReactNode;
   /** Optional control aligned to the right of the message. */
   trailing?: ReactNode;
+  /** Material Symbol name — defaults to DS info iconography (`info`). */
+  icon?: string;
 }) {
   return (
     <div
@@ -23,9 +26,9 @@ export function ReviewPanelInlineInfoMessage({
       role="status"
     >
       <MaterialSymbol
-        name="info"
-        size="sm"
-        className="shrink-0 text-[var(--screening-primary)] dark:text-[#7c6bc4]"
+        name={icon}
+        size="md"
+        className="shrink-0 text-[16px] text-[var(--screening-primary)] dark:text-[#7c6bc4]"
       />
       <span
         className={cn(

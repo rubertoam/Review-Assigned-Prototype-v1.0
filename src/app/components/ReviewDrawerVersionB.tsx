@@ -10,7 +10,9 @@ import {
 import { DecisionPrimaryDropdown } from "./DecisionPrimaryDropdown";
 import { ReviewActivityFeed } from "./ReviewActivityFeed";
 import { ReviewDecisionInlineCommentField } from "./ReviewDecisionInlineCommentField";
+import { ReviewPanelInlineInfoMessage } from "./ReviewPanelInlineInfoMessage";
 import type { ReviewActivityFilter } from "../lib/reviewActivityData";
+import { isLevel1AiWorkbenchStatus } from "../lib/reviewDecisionConfig";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { cn } from "./ui/utils";
 import type { ScreeningResultRow } from "./ScreeningResultsTable";
@@ -114,6 +116,10 @@ export function ReviewDrawerVersionB({
   };
 
   const showActivityBadge = !activityExpanded && !activitySeen && selectedRows.length > 0;
+  const showAiRecommendation =
+    selectedRows.length > 0 &&
+    selectedRows.every((row) => isLevel1AiWorkbenchStatus(row.status));
+  const lockCommentForAiMultiSelect = showAiRecommendation && selectedCount > 1;
 
   return (
     <>
@@ -133,6 +139,12 @@ export function ReviewDrawerVersionB({
           titleClassName={drawerAccordionTitleClass}
         >
           <div className="flex flex-col gap-4">
+            {showAiRecommendation ? (
+              <ReviewPanelInlineInfoMessage icon="info">
+                This decision has been recommended by AI.
+              </ReviewPanelInlineInfoMessage>
+            ) : null}
+
             <DecisionPrimaryDropdown
               label="Select Status"
               placeholder="Status..."
@@ -155,7 +167,12 @@ export function ReviewDrawerVersionB({
             <ReviewDecisionInlineCommentField
               value={decisionCommentDraft}
               onChange={onDecisionCommentDraftChange}
-              disabled={selectedCount === 0}
+              disabled={selectedCount === 0 || lockCommentForAiMultiSelect}
+              placeholder={
+                lockCommentForAiMultiSelect
+                  ? "Multiple alerts selected"
+                  : "Add a comment. Use @ to mention"
+              }
             />
           </div>
         </AceAccordion>

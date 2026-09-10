@@ -69,8 +69,17 @@ export function renderFieldValue(value: string): ReactNode {
 export function matchStatusLabelClass(label: string): string {
   if (label === "New") return "font-bold text-[var(--screening-pill-new-label)]";
   if (label === "Documents Required") return "font-bold text-[#c98900]";
-  if (label === "Confirmed Safe" || label === "Safe") return "font-bold text-[#87b531]";
-  if (label === "Escalate" || label === "Escalate to Team Lead") return "font-bold text-[#92278f]";
+  if (label === "Confirmed Safe" || label === "Safe" || label === "AI-Suspected Safe") {
+    return "font-bold text-[#87b531]";
+  }
+  if (
+    label === "Escalate" ||
+    label === "Escalate to Team Lead" ||
+    label === "AI-Escalate" ||
+    label === "Escalate to Level 1"
+  ) {
+    return "font-bold text-[#92278f]";
+  }
   if (label === "Documents Uploaded") return "font-bold text-[#0672a3]";
   if (label === "False Positive") return "font-bold text-[#9e2a2a]";
   return "font-bold";

@@ -26,22 +26,26 @@ function bumpCaseCount(
 
 /**
  * Persona-visible workflow destinations with open work
- * (Compliance Workbench only for Level 1). Counts are cases in each workflow’s case list.
+ * (Compliance Workbench + AI Workbench for Level 1). Counts are cases in each workflow’s case list.
  */
 export function deriveReviewSidebarWorkflows(
   screeningRowsByCase: Record<number, ScreeningResultRow[]>,
   flowVariant: "level-1" | "level-2",
+  extraQueues: readonly Record<number, ScreeningResultRow[]>[] = [],
 ): ReviewSidebarWorkflowItem[] {
   const counts = new Map<string, { label: string; count: number }>();
 
   if (flowVariant === "level-1") {
-    for (const rows of Object.values(screeningRowsByCase)) {
-      const workflowsForCase = new Set<string>();
-      for (const row of rows) {
-        const workflow = getWorkflowForLevel1Status(row.status);
-        if (!workflow || workflowsForCase.has(workflow.id)) continue;
-        workflowsForCase.add(workflow.id);
-        bumpCaseCount(counts, workflow.id, workflow.label);
+    const queues = [screeningRowsByCase, ...extraQueues];
+    for (const queue of queues) {
+      for (const rows of Object.values(queue)) {
+        const workflowsForCase = new Set<string>();
+        for (const row of rows) {
+          const workflow = getWorkflowForLevel1Status(row.status);
+          if (!workflow || workflowsForCase.has(workflow.id)) continue;
+          workflowsForCase.add(workflow.id);
+          bumpCaseCount(counts, workflow.id, workflow.label);
+        }
       }
     }
 

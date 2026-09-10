@@ -10,6 +10,9 @@ export const SCREENING_STATUS_BADGE_VARIANT: Record<string, AceBadgeVariant> = {
   "Escalate to Team Lead": "orange",
   "Escalated to Team Lead": "orange",
   "Documents Uploaded": "blue",
+  "AI-Escalate": "orange",
+  "AI-Suspected Safe": "green",
+  "Escalate to Level 1": "orange",
   /** Legacy / history display */
   Escalate: "orange",
   "Flag for EDD": "yellow",
