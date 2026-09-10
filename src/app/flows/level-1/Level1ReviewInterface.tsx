@@ -56,6 +56,7 @@ import { CaseListSortSelect } from "../../components/CaseListSortSelect";
 import {
   ScreeningResultsTable,
   getScreeningRowsForCase,
+  getSeedDocumentsRequiredCount,
   getSeedLevel1MyWorkPendingCount,
   isCaseScreeningComplete,
   isLevel2ReviewedRow,
@@ -362,12 +363,15 @@ function CaseList({
   const workflowResultCount = useCallback(
     (index: number) => {
       const rows = screeningRowsByCase[index];
-      if (!rows) return 0;
+      if (!rows) {
+        if (isDocumentsRequiredWorkflow) return getSeedDocumentsRequiredCount(index);
+        return 0;
+      }
       return rows.filter((r) =>
         workflowStatuses.includes(r.status as (typeof workflowStatuses)[number]),
       ).length;
     },
-    [screeningRowsByCase, workflowStatuses],
+    [screeningRowsByCase, workflowStatuses, isDocumentsRequiredWorkflow],
   );
 
   const filteredRows = useMemo(() => {
@@ -1210,7 +1214,10 @@ export function Level1ReviewInterface() {
   );
 
   const isSelectedCaseReadOnly =
-    !isPepWork && !isAiWorkbench && isCaseLockedByAnotherUser(selectedCaseIndex);
+    !isPepWork &&
+    !isAiWorkbench &&
+    !isDocumentsRequiredWorkflow &&
+    isCaseLockedByAnotherUser(selectedCaseIndex);
 
   useEffect(() => {
     if (isSelectedCaseReadOnly) {
@@ -1280,15 +1287,6 @@ export function Level1ReviewInterface() {
     [screeningRowsByCase, aiScreeningRowsByCase],
   );
 
-  useEffect(() => {
-    if (sidebarSelection.kind !== "workflow") return;
-    const stillPresent = sidebarWorkflowItems.some((item) => item.id === sidebarSelection.id);
-    if (!stillPresent) {
-      setSidebarSelection({ kind: "work", id: "sanction" });
-      setSelectedCaseListSection("todo");
-    }
-  }, [sidebarSelection, sidebarWorkflowItems]);
-
   const workflowHasCases = useMemo(() => {
     if (!isWorkflowView) return true;
     if (isAiWorkbench) {
@@ -1301,7 +1299,12 @@ export function Level1ReviewInterface() {
     }
     return casesData.some((_, index) => {
       const rows = screeningRowsByCase[index];
-      if (!rows) return false;
+      if (!rows) {
+        if (isDocumentsRequiredWorkflow) {
+          return getSeedDocumentsRequiredCount(index) > 0;
+        }
+        return false;
+      }
       return rows.some((row) =>
         workflowStatuses.includes(row.status as (typeof workflowStatuses)[number]),
       );
@@ -1309,6 +1312,7 @@ export function Level1ReviewInterface() {
   }, [
     isWorkflowView,
     isAiWorkbench,
+    isDocumentsRequiredWorkflow,
     aiCases,
     aiScreeningRowsByCase,
     screeningRowsByCase,
@@ -1642,7 +1646,9 @@ export function Level1ReviewInterface() {
                   workflowId={selectedWorkflowId}
                   listTitle={selectedWorkflowLabel ?? workListTitle}
                   cases={activeCases}
-                  applyCaseLocks={!isPepWork && !isAiWorkbench}
+                  applyCaseLocks={
+                    !isPepWork && !isAiWorkbench && !isDocumentsRequiredWorkflow
+                  }
                   getRowsForCase={getActiveRowsForCase}
                 />
               </div>
@@ -1667,13 +1673,15 @@ export function Level1ReviewInterface() {
                 }
                 isCaseReadOnly={isSelectedCaseReadOnly}
                 workflowLabel={selectedWorkflowLabel}
-                hideActiveWorkflowBanner={isAiWorkbench}
+                hideActiveWorkflowBanner={
+                  isAiWorkbench || isDocumentsRequiredWorkflow
+                }
                 workflowReadOnly={isWorkflowReadOnlyView}
                 onOpenClientProfileAction={handleOpenClientProfileAction}
                 clientIdSeries={isAiWorkbench ? 6 : isPepWork && !isWorkflowView ? 5 : 1}
               />
             </div>
-            {!allCasesCleared &&
+            {(!isWorkflowView ? !allCasesCleared : workflowHasCases) &&
             !isSelectedCaseReadOnly &&
             (!isWorkflowView || isLevel1ActionableWorkflowId(selectedWorkflowId)) ? (
               <ReviewTaskBar

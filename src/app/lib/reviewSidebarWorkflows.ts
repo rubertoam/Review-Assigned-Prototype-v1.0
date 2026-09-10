@@ -25,8 +25,9 @@ function bumpCaseCount(
 }
 
 /**
- * Persona-visible workflow destinations with open work
- * (Compliance Workbench + AI Workbench for Level 1). Counts are cases in each workflow’s case list.
+ * Persona-visible workflow destinations (Compliance Workbench + AI Workbench for Level 1).
+ * Counts are cases in each workflow’s case list. Level 1 workflows stay listed at count 0
+ * so clearing the last alert does not remove the destination from the sidebar.
  */
 export function deriveReviewSidebarWorkflows(
   screeningRowsByCase: Record<number, ScreeningResultRow[]>,
@@ -43,20 +44,20 @@ export function deriveReviewSidebarWorkflows(
         for (const row of rows) {
           const workflow = getWorkflowForLevel1Status(row.status);
           if (!workflow || workflowsForCase.has(workflow.id)) continue;
+          // Work Log is not a sidebar workflow destination.
+          if (!LEVEL1_WORKFLOW_ORDER.some((item) => item.id === workflow.id)) continue;
           workflowsForCase.add(workflow.id);
           bumpCaseCount(counts, workflow.id, workflow.label);
         }
       }
     }
 
-    return LEVEL1_WORKFLOW_ORDER.filter((workflow) => counts.has(workflow.id)).map(
-      (workflow) => ({
-        id: workflow.id,
-        label: workflow.label,
-        count: counts.get(workflow.id)!.count,
-        badgeLabelClass: WORKFLOW_BADGE,
-      }),
-    );
+    return LEVEL1_WORKFLOW_ORDER.map((workflow) => ({
+      id: workflow.id,
+      label: workflow.label,
+      count: counts.get(workflow.id)?.count ?? 0,
+      badgeLabelClass: WORKFLOW_BADGE,
+    }));
   }
 
   for (const rows of Object.values(screeningRowsByCase)) {
