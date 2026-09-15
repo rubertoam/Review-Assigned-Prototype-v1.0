@@ -355,6 +355,8 @@ const noto = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 interface MatchSimulatorContentProps {
   row: ScreeningResultRow;
   layout?: "modal" | "inline";
+  /** When true, omit the person name (e.g. parent modal already shows it). */
+  hideName?: boolean;
 }
 
 function MatchSummaryHeader({
@@ -390,21 +392,25 @@ function MatchSummaryHeader({
 function MatchSimulatorIdentityHeader({
   row,
   size = "default",
+  hideName = false,
 }: {
   row: ScreeningResultRow;
   size?: "default" | "lg";
+  hideName?: boolean;
 }) {
   return (
     <div className="flex w-full flex-col items-center gap-2 text-center">
-      <h2
-        className={cn(
-          aceTypography(ACE_TYPE.h2SemiBold),
-          "text-[var(--screening-text-primary)]",
-        )}
-        style={noto}
-      >
-        {row.name}
-      </h2>
+      {hideName ? null : (
+        <h2
+          className={cn(
+            aceTypography(ACE_TYPE.h2SemiBold),
+            "text-[var(--screening-text-primary)]",
+          )}
+          style={noto}
+        >
+          {row.name}
+        </h2>
+      )}
       <MatchSummaryHeader row={row} size={size} className="justify-center" />
     </div>
   );
@@ -413,11 +419,13 @@ function MatchSimulatorIdentityHeader({
 export function MatchSimulatorContent({
   row,
   layout = "inline",
+  hideName = false,
 }: MatchSimulatorContentProps) {
   const [phase, setPhase] = useState<SimulatorPhase>("intro");
   const [view, setView] = useState<SimulatorView>("run-results");
   const tabPrefix = useId();
   const isInline = layout === "inline";
+  const centerIntroInModal = isInline && hideName && phase === "intro";
 
   useEffect(() => {
     setPhase("intro");
@@ -429,7 +437,11 @@ export function MatchSimulatorContent({
     <div
       className={cn(
         "flex flex-col",
-        isInline ? "gap-4 overflow-visible" : "h-full min-h-0 flex-1 overflow-hidden",
+        isInline && hideName
+          ? "h-full min-h-0"
+          : isInline
+            ? "gap-4 overflow-visible"
+            : "h-full min-h-0 flex-1 overflow-hidden",
       )}
     >
       {!isInline ? (
@@ -443,21 +455,40 @@ export function MatchSimulatorContent({
       <div
         className={cn(
           "flex flex-col",
-          isInline ? "gap-4 overflow-visible" : "min-h-0 flex-1 gap-6 overflow-hidden p-6",
+          centerIntroInModal
+            ? "min-h-0 flex-1 items-center justify-center gap-6 overflow-hidden"
+            : isInline && hideName
+              ? "min-h-0 flex-1 gap-4 overflow-y-auto"
+              : isInline
+                ? "gap-4 overflow-visible"
+                : "min-h-0 flex-1 gap-6 overflow-hidden p-6",
         )}
       >
         {isInline ? (
-          <MatchSimulatorIdentityHeader row={row} size={phase === "intro" ? "lg" : "default"} />
+          <MatchSimulatorIdentityHeader
+            row={row}
+            size={phase === "intro" ? "lg" : "default"}
+            hideName={hideName}
+          />
         ) : phase !== "intro" ? (
           <MatchSummaryHeader row={row} className="shrink-0 flex-wrap" />
         ) : null}
 
-        <div className={cn("flex flex-col", isInline ? "gap-4" : "min-h-0 flex-1")}>
+        <div
+          className={cn(
+            "flex flex-col",
+            centerIntroInModal ? "w-full" : isInline ? "gap-4" : "min-h-0 flex-1",
+          )}
+        >
         {phase === "intro" ? (
           <section
             className={cn(
               "flex flex-col items-center justify-center gap-6 rounded-[4px]",
-              isInline ? "px-2 py-4" : "min-h-[320px] flex-1 gap-8 px-4 py-6",
+              centerIntroInModal
+                ? "px-2"
+                : isInline
+                  ? "px-2 py-4"
+                  : "min-h-[320px] flex-1 gap-8 px-4 py-6",
             )}
           >
             <div className="flex flex-col items-center gap-4">

@@ -19,13 +19,22 @@ export function MatchSimulatorPanel({
   hideChrome = false,
 }: MatchSimulatorPanelProps) {
   const body = (
-    <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--screening-surface)] px-4 py-4">
-      <MatchSimulatorContent row={row} layout="inline" />
+    <div
+      className={cn(
+        "bg-[var(--screening-surface)] px-4 py-4",
+        hideChrome
+          ? "flex min-h-0 flex-1 flex-col overflow-hidden"
+          : "min-h-0 flex-1 overflow-y-auto",
+      )}
+    >
+      <MatchSimulatorContent row={row} layout="inline" hideName={hideChrome} />
     </div>
   );
 
   if (hideChrome) {
-    return <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{body}</div>;
+    return (
+      <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">{body}</div>
+    );
   }
 
   return (

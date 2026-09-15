@@ -115,7 +115,6 @@ import {
   isDocumentsRequiredWorkflowId,
   isLevel1ActionableWorkflowId,
   isLevel1AiWorkbenchStatus,
-  isLevel1DecisionStatus,
   isLevel1MyWorkStatus,
   type Level1ScreeningStatus,
 } from "../../lib/reviewDecisionConfig";
@@ -424,20 +423,6 @@ function CaseList({
     });
   }, [visibleRows.length, selectedCaseFilters.size, clientIdFilter, onFilterVisibilityChange]);
 
-  const caseReviewProgress = useMemo(
-    () =>
-      cases.map((_, i) => {
-        const rows = screeningRowsByCase[i];
-        if (!rows) {
-          const pending = getSeedLevel1MyWorkPendingCount(i);
-          return { done: 0, total: pending };
-        }
-        const done = rows.filter((r) => isLevel1DecisionStatus(r.status)).length;
-        return { done, total: rows.filter((r) => r.status !== "Documents Required").length };
-      }),
-    [cases, screeningRowsByCase],
-  );
-
   useEffect(() => {
     if (isWorkflowView) return;
     const rows = caseRowsForIndex(selectedCaseIndex);
@@ -516,8 +501,6 @@ function CaseList({
     const isEntity = "isEntity" in caseItem && caseItem.isEntity;
     const profile = clientProfileForCaseIndex(index, clientIdSeries);
     const clientId = profile.clientId;
-    const { done, total } = caseReviewProgress[index] ?? { done: 0, total: 1 };
-    const progressPct = total > 0 ? (done / total) * 100 : 0;
     const pendingCount = pendingResultCount(index);
     const resultsCount = isWorkflowView
       ? workflowResultCount(index)
@@ -598,17 +581,6 @@ function CaseList({
             ) : null}
           </div>
         </div>
-        {!isWorkflowView ? (
-          <div
-            className="pointer-events-none absolute bottom-1 left-4 right-4 z-10 h-1 overflow-hidden rounded-full border border-[#e4e6ea] bg-[#eff0f2] opacity-0 transition-opacity duration-200 group-hover:opacity-100 dark:bg-[#2c333a]"
-            aria-hidden
-          >
-            <div
-              className="h-full rounded-full bg-[#523eb9] transition-[width] duration-300 ease-out"
-              style={{ width: `${progressPct}%` }}
-            />
-          </div>
-        ) : null}
       </div>
     );
   };

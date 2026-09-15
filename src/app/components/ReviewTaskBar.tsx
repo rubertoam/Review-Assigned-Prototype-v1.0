@@ -1,3 +1,4 @@
+import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { aceDropShadowXsClass } from "../lib/aceShadow";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { TaskBarQuickClear } from "./TaskBarQuickClear";
@@ -52,10 +53,34 @@ export function ReviewTaskBar({
     <div
       data-coach-target="task-bar"
       className={cn(
-        "flex shrink-0 items-center justify-end gap-4 rounded-[var(--radius-sm)] border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-4 py-4",
+        "flex shrink-0 items-center justify-between gap-4 rounded-[var(--radius-sm)] border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-4 py-4",
         aceDropShadowXsClass,
       )}
     >
+      <button
+        type="button"
+        className={cn(
+          "inline-flex min-w-0 shrink items-center gap-2 rounded-[var(--radius-sm)] border-0 bg-transparent px-1 py-1 text-left",
+          "text-[var(--ace-button-purple-400)] transition-colors",
+          "hover:bg-[var(--ace-sidebar-item-selected-bg)]",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)]",
+          "focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--screening-primary-ring-offset)]",
+        )}
+      >
+        <MaterialSymbol
+          name="help"
+          size="md"
+          className="shrink-0 text-[var(--ace-button-purple-400)]"
+        />
+        <span
+          className={cn(
+            "[font:var(--ace-type-paragraph-p1-regular)] [letter-spacing:var(--ace-type-paragraph-p1-regular-tracking)]",
+            "truncate text-sm text-[var(--ace-button-purple-400)]",
+          )}
+        >
+          Online Help
+        </span>
+      </button>
       <div className="flex shrink-0 items-center gap-3">
         {screeningSelectionCount > 0 ? (
           <>

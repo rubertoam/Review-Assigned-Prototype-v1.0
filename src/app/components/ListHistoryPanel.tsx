@@ -6,7 +6,6 @@ import {
 } from "@ace-ds/components/molecules/AceDropdownMenu/AceDropdownMenu";
 import { AceButton } from "@ace-ds/components/atoms/AceButton";
 import { AceInlineMessage } from "@ace-ds/components/molecules/AceInlineMessage/AceInlineMessage";
-import { DialogModal } from "@ace-ds/components/molecules/DialogModal/DialogModal";
 import {
   diffListHistoryVersions,
   initialListHistoryVersionsForRow,
@@ -22,11 +21,6 @@ import type { ScreeningResultRow } from "./ScreeningResultsTable";
 
 const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 
-const differencesModalClass = cn(
-  "!flex !h-[min(85vh,calc(100dvh-2rem))] !max-h-[min(85vh,calc(100dvh-2rem))]",
-  "!w-[min(96vw,90rem)] !max-w-[min(96vw,90rem)]",
-);
-
 const pagerIconButtonClass = cn(
   "inline-flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border-0 bg-transparent text-[var(--screening-text-secondary)] transition-colors",
   "hover:bg-[var(--screening-surface-hover)] hover:text-[var(--screening-text-primary)]",
@@ -40,6 +34,11 @@ const diffCellClass = cn(
   "whitespace-nowrap px-[var(--space-3)] py-[var(--space-3)] align-middle",
   aceTypography(ACE_TYPE.p1Regular),
   "text-[var(--screening-text-primary)]",
+);
+
+const backLinkClass = cn(
+  "mb-3 inline-flex cursor-pointer items-center gap-1 rounded-[var(--radius-sm)] border-0 bg-transparent p-0 text-[var(--screening-primary)] transition-colors",
+  "hover:text-[var(--dialog-modal-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2",
 );
 
 function HistoryVersionSelect({
@@ -95,27 +94,25 @@ function HistoryVersionSelect({
   );
 }
 
-export function ListDifferencesModal({
-  open,
-  onClose,
+function ListDifferencesContent({
   versions,
+  active,
 }: {
-  open: boolean;
-  onClose: () => void;
   versions: readonly ListHistoryVersion[];
+  active: boolean;
 }) {
   const [newerId, setNewerId] = useState<string | null>(null);
   const [olderId, setOlderId] = useState<string | null>(null);
   const [changesOnly, setChangesOnly] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!active) return;
     const initialNewer = versions[0]?.id ?? null;
     setNewerId(initialNewer);
     const older = olderListHistoryVersions(versions, initialNewer);
     setOlderId(older[0]?.id ?? null);
     setChangesOnly(false);
-  }, [open, versions]);
+  }, [active, versions]);
 
   const olderOptions = useMemo(
     () => olderListHistoryVersions(versions, newerId),
@@ -142,15 +139,7 @@ export function ListDifferencesModal({
   };
 
   return (
-    <DialogModal
-      open={open}
-      onClose={onClose}
-      title="List Differences"
-      size="lg"
-      primaryAction={{ label: "Close", onClick: onClose }}
-      className={differencesModalClass}
-      bodyClassName="[&>div]:flex [&>div]:min-h-0 [&>div]:flex-1 [&>div]:flex-col"
-    >
+    <div className="flex min-h-0 w-full flex-1 flex-col gap-4 overflow-hidden">
       <div className="flex w-full shrink-0 flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
         <HistoryVersionSelect
           label="Newer Version"
@@ -169,7 +158,7 @@ export function ListDifferencesModal({
         />
       </div>
 
-      <div className="flex min-h-0 w-full flex-1 flex-col">
+      <div className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto">
         {newerVersion && olderVersion ? (
           <div className="flex w-full flex-col gap-4">
             <div className="flex w-full flex-wrap items-center justify-between gap-3">
@@ -281,14 +270,14 @@ export function ListDifferencesModal({
           </div>
         )}
       </div>
-    </DialogModal>
+    </div>
   );
 }
 
 export interface ListHistoryPanelProps {
   row: ScreeningResultRow;
   onBack: () => void;
-  /** When true, open the differences modal on mount / row change. */
+  /** When true, open the differences view on mount / row change. */
   openDifferencesOnShow?: boolean;
   onDifferencesOpenChange?: (open: boolean) => void;
   /** When true, omit Back + title (parent shell provides navigation). */
@@ -321,18 +310,51 @@ export function ListHistoryPanel({
   const activeVersion = versions[safeIndex] ?? null;
   const total = versions.length;
 
+  if (differencesOpen) {
+    return (
+      <div
+        className={cn(
+          "flex min-w-0 flex-col overflow-hidden bg-[var(--screening-surface)] px-4 py-4",
+          hideChrome ? "w-full" : "min-h-0 flex-1",
+        )}
+      >
+        <button
+          type="button"
+          onClick={() => setDifferencesOpenSafe(false)}
+          className={backLinkClass}
+        >
+          <MaterialSymbol name="keyboard_arrow_left" size="md" />
+          <span
+            className={cn(aceTypography(ACE_TYPE.p1Bold), "text-[var(--screening-primary)]")}
+            style={notoVar}
+          >
+            Back to List History
+          </span>
+        </button>
+        <p
+          className={cn(
+            aceTypography(ACE_TYPE.p1SemiBold),
+            "mb-4 shrink-0 text-[var(--screening-text-primary)]",
+          )}
+          style={notoVar}
+        >
+          List Differences
+        </p>
+        <ListDifferencesContent versions={versions} active={differencesOpen} />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+    <div
+      className={cn(
+        "flex min-w-0 flex-col overflow-hidden",
+        hideChrome ? "w-full" : "min-h-0 flex-1",
+      )}
+    >
       {hideChrome ? null : (
         <div className="shrink-0 bg-[var(--screening-surface)] px-4 pb-2 pt-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className={cn(
-              "mb-3 inline-flex cursor-pointer items-center gap-1 rounded-[var(--radius-sm)] border-0 bg-transparent p-0 text-[var(--screening-primary)] transition-colors",
-              "hover:text-[var(--dialog-modal-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2",
-            )}
-          >
+          <button type="button" onClick={onBack} className={backLinkClass}>
             <MaterialSymbol name="keyboard_arrow_left" size="md" />
             <span
               className={cn(aceTypography(ACE_TYPE.p1Bold), "text-[var(--screening-primary)]")}
@@ -351,7 +373,12 @@ export function ListHistoryPanel({
         </div>
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden bg-[var(--screening-surface)] px-4 py-4">
+      <div
+        className={cn(
+          "flex flex-col gap-4 overflow-hidden bg-[var(--screening-surface)] px-4 py-4",
+          hideChrome ? "w-full" : "min-h-0 flex-1",
+        )}
+      >
         <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1">
           <p
             className={cn(
@@ -394,7 +421,7 @@ export function ListHistoryPanel({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className={cn(hideChrome ? "w-full" : "min-h-0 flex-1 overflow-y-auto")}>
           {activeVersion ? (
             <ListProfileAllTabView
               key={activeVersion.id}
@@ -444,12 +471,6 @@ export function ListHistoryPanel({
           )}
         </div>
       </div>
-
-      <ListDifferencesModal
-        open={differencesOpen}
-        onClose={() => setDifferencesOpenSafe(false)}
-        versions={versions}
-      />
     </div>
   );
 }

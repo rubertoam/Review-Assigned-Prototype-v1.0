@@ -141,33 +141,6 @@ export function ReviewAssignedSidebar({
       </div>
     ) : undefined;
 
-  const onlineHelp = (
-    <button
-      type="button"
-      className={cn(
-        "flex w-full items-center gap-3 rounded-[var(--ace-sidebar-item-radius)] border-0 bg-transparent px-3 py-2 text-left",
-        "text-[var(--ace-button-purple-400)] transition-colors",
-        "hover:bg-[var(--ace-sidebar-item-selected-bg)]",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)]",
-        "focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--screening-primary-ring-offset)]",
-      )}
-    >
-      <MaterialSymbol
-        name="help"
-        size="md"
-        className="shrink-0 text-[var(--ace-button-purple-400)]"
-      />
-      <span
-        className={cn(
-          "[font:var(--ace-type-paragraph-p1-regular)] [letter-spacing:var(--ace-type-paragraph-p1-regular-tracking)]",
-          "truncate text-sm text-[var(--ace-button-purple-400)]",
-        )}
-      >
-        Online Help
-      </span>
-    </button>
-  );
-
   return (
     <div className="h-full shrink-0 overflow-hidden" data-coach-target="assignment">
       <AceSidebar
@@ -179,11 +152,7 @@ export function ReviewAssignedSidebar({
         navItems={navItems}
         headerTrailing={trailing}
         className={className ?? "h-full"}
-      >
-        <div className="mt-auto shrink-0 pb-4 pt-2">
-          {onlineHelp}
-        </div>
-      </AceSidebar>
+      />
     </div>
   );
 }

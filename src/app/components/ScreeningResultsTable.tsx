@@ -63,26 +63,13 @@ import {
   screeningRowActionsMenuTriggerClass,
 } from "../lib/caseActionsMenuStyles";
 import { ListProfileInlineContent } from "./ListProfileInlineContent";
-import { MatchSimulatorPanel } from "./MatchSimulatorPanel";
-import { DocumentsPanel } from "./DocumentsPanel";
-import { ListHistoryPanel } from "./ListHistoryPanel";
-import { ScreeningHistoryPanel } from "./ScreeningHistoryPanel";
+import { MatchAlertDrilldownModal } from "./MatchAlertDrilldownModal";
 import {
-  RowDrilldownShell,
   type RowDrilldownViewId,
 } from "./RowDrilldownShell";
 import { casesData } from "../lib/reviewCaseData";
 
 export { easeAccordion, durationAccordion } from "./ExpandableFinScanTable";
-
-/**
- * Table ↔ row-drilldown swipe. Always one panel width (two-pane track),
- * so Screening History and List History feel the same speed.
- */
-const LIST_PROFILE_ANIMATION_MS = 560;
-const durationDrilldownSwipe = "duration-[560ms]";
-/** Balanced ease-in-out — avoids the whip-start of accordion ease-out on long travels. */
-const easeDrilldownSwipe = "[transition-timing-function:cubic-bezier(0.4,0,0.2,1)]";
 
 type RowDrilldownView = RowDrilldownViewId;
 
@@ -1279,10 +1266,6 @@ export function ScreeningResultsTable({
   const [searchQuery, setSearchQuery] = useState("");
   const [drilldownRow, setDrilldownRow] = useState<ScreeningTableDisplayRow | null>(null);
   const [drilldownView, setDrilldownView] = useState<RowDrilldownView | null>(null);
-  const [drilldownVisible, setDrilldownVisible] = useState(false);
-  const drilldownVisibleRef = useRef(false);
-  const drilldownCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const drilldownOpenRafRef = useRef<number | null>(null);
   const [expandedRowIds, setExpandedRowIds] = useState<Set<string>>(() => new Set());
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -1316,70 +1299,18 @@ export function ScreeningResultsTable({
     setPaginationMenuPortal(document.body);
   }, []);
 
-  const clearDrilldownCloseTimer = useCallback(() => {
-    if (drilldownCloseTimerRef.current !== null) {
-      clearTimeout(drilldownCloseTimerRef.current);
-      drilldownCloseTimerRef.current = null;
-    }
-  }, []);
-
-  const clearDrilldownOpenRaf = useCallback(() => {
-    if (drilldownOpenRafRef.current !== null) {
-      cancelAnimationFrame(drilldownOpenRafRef.current);
-      drilldownOpenRafRef.current = null;
-    }
-  }, []);
-
   const openRowDrilldown = useCallback(
     (row: ScreeningTableDisplayRow, view: RowDrilldownView) => {
-      clearDrilldownCloseTimer();
-      clearDrilldownOpenRaf();
       setDrilldownRow(row);
       setDrilldownView(view);
-      // Already open: swap panel content in place (no multi-panel leap).
-      if (drilldownVisibleRef.current) {
-        setDrilldownVisible(true);
-        return;
-      }
-      // Double rAF so the track paints at translate-x-0 before sliding.
-      drilldownOpenRafRef.current = requestAnimationFrame(() => {
-        drilldownOpenRafRef.current = requestAnimationFrame(() => {
-          drilldownOpenRafRef.current = null;
-          drilldownVisibleRef.current = true;
-          setDrilldownVisible(true);
-        });
-      });
     },
-    [clearDrilldownCloseTimer, clearDrilldownOpenRaf],
+    [],
   );
 
   const closeRowDrilldown = useCallback(() => {
-    clearDrilldownCloseTimer();
-    clearDrilldownOpenRaf();
-    drilldownVisibleRef.current = false;
-    setDrilldownVisible(false);
-    drilldownCloseTimerRef.current = setTimeout(() => {
-      drilldownCloseTimerRef.current = null;
-      setDrilldownRow(null);
-      setDrilldownView(null);
-    }, LIST_PROFILE_ANIMATION_MS);
-  }, [clearDrilldownCloseTimer, clearDrilldownOpenRaf]);
-
-  const expandListProfileRow = useCallback((row: ScreeningTableDisplayRow) => {
-    setExpandedRowIds((prev) => {
-      const next = new Set(prev);
-      next.add(row.id);
-      return next;
-    });
+    setDrilldownRow(null);
+    setDrilldownView(null);
   }, []);
-
-  useEffect(
-    () => () => {
-      clearDrilldownCloseTimer();
-      clearDrilldownOpenRaf();
-    },
-    [clearDrilldownCloseTimer, clearDrilldownOpenRaf],
-  );
 
   const isCaseComplete = useMemo(
     () => isCaseReviewComplete(rows, flowVariant),
@@ -1399,14 +1330,10 @@ export function ScreeningResultsTable({
     setStatusFilters(new Set());
     setSearchQuery("");
     setPage(1);
-    clearDrilldownCloseTimer();
-    clearDrilldownOpenRaf();
-    drilldownVisibleRef.current = false;
-    setDrilldownVisible(false);
     setDrilldownRow(null);
     setDrilldownView(null);
     setExpandedRowIds(new Set());
-  }, [caseRowIdsKey, isLevel2, clearDrilldownCloseTimer, clearDrilldownOpenRaf]);
+  }, [caseRowIdsKey, isLevel2]);
 
   useEffect(() => {
     setPage(1);
@@ -2056,20 +1983,7 @@ export function ScreeningResultsTable({
       )}
     >
       <div className="flex min-h-0 max-h-full min-w-0 flex-col" data-coach-target="matches">
-        <div className="relative flex min-h-0 max-h-full flex-col overflow-hidden">
-          <div
-            className={cn(
-              "flex max-h-full min-h-0 w-[200%] transition-transform will-change-transform",
-              durationDrilldownSwipe,
-              easeDrilldownSwipe,
-              drilldownVisible ? "-translate-x-1/2" : "translate-x-0",
-            )}
-          >
-            <div
-              className="flex max-h-full min-h-0 w-1/2 min-w-0 flex-col self-stretch"
-              aria-hidden={drilldownVisible}
-            >
-              <div className="flex max-h-full min-h-0 flex-col">
+        <div className="flex max-h-full min-h-0 flex-col overflow-hidden">
                 <div className="shrink-0 border-b border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-4 py-3">
                   <div className="flex flex-nowrap items-center gap-3">
                     {showStatusFilter ? (
@@ -2286,53 +2200,15 @@ export function ScreeningResultsTable({
                     }}
                   />
                 </div>
-              </div>
-            </div>
-            <div
-              className="flex max-h-full min-h-0 w-1/2 min-w-0 flex-col self-stretch"
-              aria-hidden={!drilldownVisible}
-            >
-              {drilldownRow && drilldownView ? (
-                <RowDrilldownShell
-                  view={drilldownView}
-                  onViewChange={setDrilldownView}
-                  onBack={closeRowDrilldown}
-                  matchName={drilldownRow.name}
-                >
-                  {drilldownView === "screening-history" ? (
-                    <ScreeningHistoryPanel
-                      row={drilldownRow}
-                      onBack={closeRowDrilldown}
-                      hideChrome
-                    />
-                  ) : null}
-                  {drilldownView === "documents" ? (
-                    <DocumentsPanel
-                      row={drilldownRow}
-                      onBack={closeRowDrilldown}
-                      hideChrome
-                    />
-                  ) : null}
-                  {drilldownView === "match-simulator" ? (
-                    <MatchSimulatorPanel
-                      row={drilldownRow}
-                      onBack={closeRowDrilldown}
-                      hideChrome
-                    />
-                  ) : null}
-                  {drilldownView === "list-history" ? (
-                    <ListHistoryPanel
-                      row={drilldownRow}
-                      onBack={closeRowDrilldown}
-                      hideChrome
-                    />
-                  ) : null}
-                </RowDrilldownShell>
-              ) : null}
-            </div>
-          </div>
         </div>
       </div>
+      <MatchAlertDrilldownModal
+        open={drilldownRow != null && drilldownView != null}
+        row={drilldownRow}
+        view={drilldownView}
+        onViewChange={setDrilldownView}
+        onClose={closeRowDrilldown}
+      />
     </div>
   );
 }

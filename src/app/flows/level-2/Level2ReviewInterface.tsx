@@ -399,17 +399,6 @@ function CaseList({
     }
   }, [pendingRows.length, doneRows.length]);
 
-  const caseReviewProgress = useMemo(
-    () =>
-      cases.map((_, i) => {
-        const rows = caseRowsForIndex(i);
-        const done = rows.filter((r) => isLevel2ReviewedRow(r)).length;
-        const inQueue = rows.filter((r) => isLevel1InProcessStatus(r.status)).length;
-        return { done, total: done + inQueue };
-      }),
-    [cases, caseRowsForIndex],
-  );
-
   useEffect(() => {
     if (selectedCaseIndex === null) {
       wasSelectedCaseCompleteRef.current = false;
@@ -490,8 +479,6 @@ function CaseList({
     const inQueueCount = caseRows.filter((r) => isLevel1InProcessStatus(r.status)).length;
     const reviewedCount = caseRows.filter((r) => isLevel2ReviewedRow(r)).length;
     const resultsCount = section === "todo" ? inQueueCount : reviewedCount;
-    const { done, total } = caseReviewProgress[index] ?? { done: 0, total: 1 };
-    const progressPct = total > 0 ? (done / total) * 100 : 0;
     const isSelected =
       selectedCaseIndex === index && selectedCaseListSection === section;
     const hasOverdueRowHighlight = profile.reviewTargetOverdue || profile.reviewTargetPastDue;
@@ -541,15 +528,6 @@ function CaseList({
               </span>
             </span>
           ) : null}
-        </div>
-        <div
-          className="pointer-events-none absolute bottom-1 left-4 right-4 z-10 h-1 overflow-hidden rounded-full border border-[#e4e6ea] bg-[#eff0f2] dark:bg-[#2c333a] opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-          aria-hidden
-        >
-          <div
-            className="h-full rounded-full bg-[#523eb9] transition-[width] duration-300 ease-out"
-            style={{ width: `${progressPct}%` }}
-          />
         </div>
       </div>
     );
