@@ -10,7 +10,6 @@ import {
   type ClientProfileActionId,
 } from "../lib/clientProfileActions";
 import { aceIconButtonHoverClass } from "../lib/aceIconButton";
-import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { ClientDocumentsDrawerContent } from "./ClientDocumentsDrawerContent";
 import { ClientHistoryDrawerContent } from "./ClientHistoryDrawerContent";
 import { ClientNetworksDrawerContent } from "./ClientNetworksDrawerContent";
@@ -19,8 +18,6 @@ import { ClientReportsDrawerContent } from "./ClientReportsDrawerContent";
 import { ClientRiskRatingDrawerContent } from "./ClientRiskRatingDrawerContent";
 import { SideDrawer } from "./SideDrawer";
 import { cn } from "./ui/utils";
-
-const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 
 export interface ClientProfileActionDrawerProps {
   open: boolean;
@@ -61,15 +58,18 @@ export function ClientProfileActionDrawer({
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="relative w-full shrink-0 bg-[var(--screening-surface)]">
           <div className="flex size-full flex-row items-center justify-between gap-3 overflow-clip rounded-[inherit] px-5 py-4">
-            <p
+            <AceDropdownMenu
+              triggerLabel={title}
+              triggerMode="field"
+              size="sm"
+              panelWidth="wide"
+              align="start"
               className={cn(
-                aceTypography(ACE_TYPE.h6SmallBold),
-                "shrink-0 whitespace-nowrap text-[var(--screening-text-primary)]",
+                "min-w-0 shrink font-['Noto_Sans:Regular',sans-serif] font-normal",
+                "!w-fit !max-w-full [&_span:first-of-type]:flex-none",
               )}
-              style={notoVar}
-            >
-              {title}
-            </p>
+              items={items}
+            />
             <button
               type="button"
               onClick={onClose}
@@ -81,19 +81,7 @@ export function ClientProfileActionDrawer({
           </div>
         </div>
 
-        <div className="relative flex min-h-px w-full flex-1 flex-col gap-4 overflow-hidden bg-[var(--screening-surface)] px-5 py-4">
-          <AceDropdownMenu
-            triggerLabel={title}
-            triggerMode="field"
-            size="sm"
-            panelWidth="wide"
-            align="start"
-            className={cn(
-              "shrink-0 font-['Noto_Sans:Regular',sans-serif] font-normal",
-              "!w-fit !max-w-none [&_span:first-of-type]:flex-none",
-            )}
-            items={items}
-          />
+        <div className="relative flex min-h-px w-full flex-1 flex-col overflow-hidden bg-[var(--screening-surface)] px-5 py-4">
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             {action === "documents" ? (
               <ClientDocumentsDrawerContent caseIndex={caseIndex} />
