@@ -337,7 +337,7 @@ function CaseList({
   const [selectedCaseFilters, setSelectedCaseFilters] = useState<ReadonlySet<CaseFilterValue>>(
     () => new Set(),
   );
-  const [caseSort, setCaseSort] = useState<CaseSortValue>("results-desc");
+  const [caseSort, setCaseSort] = useState<CaseSortValue>("name-asc");
   const wasSelectedCaseCompleteRef = useRef(false);
 
   const caseRowsForIndex = useCallback(
