@@ -32,7 +32,7 @@ import { CaseListFilterEmptyState } from "../../components/CaseListFilterEmptySt
 import { CaseListLockReviewerAvatar } from "../../components/CaseListLockReviewerAvatar";
 import { CaseListSection } from "../../components/CaseListSection";
 import { ThemeProvider } from "../../context/ThemeContext";
-import { aceAccordionFixedHeaderClass } from "../../lib/aceAccordion";
+import { aceClientProfileAccordionHeaderClass } from "../../lib/aceAccordion";
 import { aceDropShadowXsClass } from "../../lib/aceShadow";
 import { aceTypography, ACE_TYPE } from "../../lib/aceTypography";
 import { ReviewPanelInlineInfoMessage } from "../../components/ReviewPanelInlineInfoMessage";
@@ -103,24 +103,27 @@ import {
   isCaseLockedByAnotherUser,
   lockedCaseReviewer,
 } from "../../lib/caseLockConfig";
-import { deriveReviewSidebarWorkflows } from "../../lib/reviewSidebarWorkflows";
+import {
+  defaultSidebarStepSelection,
+  deriveReviewSidebarGroups,
+  findSidebarStep,
+  isSidebarStepVisible,
+  LEVEL1_SIDEBAR_GROUP_DEFS,
+  type ReviewSidebarGroupCount,
+} from "../../lib/reviewSidebarGroups";
 import { cn } from "../../components/ui/utils";
 import { ReviewDrawer } from "../../components/ReviewDrawer";
 import { ReviewTaskBar } from "../../components/ReviewTaskBar";
 import {
   getLevel1DecisionStatusesForRows,
-  getLevel1StatusesForWorkflowId,
-  getWorkflowLabelById,
   isAiWorkbenchWorkflowId,
   isDocumentsRequiredWorkflowId,
-  isLevel1ActionableWorkflowId,
   isLevel1AiWorkbenchStatus,
   isLevel1MyWorkStatus,
   type Level1ScreeningStatus,
 } from "../../lib/reviewDecisionConfig";
 import {
   ReviewAssignedSidebar,
-  withWorkCounts,
   type ReviewAssignedSidebarSelection,
 } from "../../components/ReviewAssignedSidebar";
 import { SearchClientIdModal } from "../../components/SearchClientIdModal";
@@ -216,28 +219,25 @@ function PageHeader({
 
 const SIDEBAR_ORGANIZATIONS = [{ id: "level-1-users", label: "Level 1 Users" }] as const;
 
-const MY_WORK_BADGE = "text-[#523eb9]";
+function isLevel1ActionableStep(groupId: string, stepId: string): boolean {
+  if (groupId === "sanction" || groupId === "pep") return stepId === "new";
+  if (groupId === "compliance-workbench") return stepId === "documents-required";
+  if (groupId === "ai-workbench") {
+    return stepId === "ai-escalate" || stepId === "ai-suspected-safe";
+  }
+  return false;
+}
 
-const SIDEBAR_WORK_CATEGORIES = [
-  {
-    id: "sanction",
-    label: "Sanction Matches",
-    selectable: true,
-    badgeLabelClass: MY_WORK_BADGE,
-  },
-  {
-    id: "pep",
-    label: "PEP Screening",
-    selectable: true,
-    badgeLabelClass: MY_WORK_BADGE,
-  },
-] as const;
+function caseListSectionForGroup(groupId: string): CaseListSectionContext {
+  if (groupId === "compliance-workbench") return "documents-required";
+  if (groupId === "ai-workbench") return "ai-workbench";
+  if (groupId === "sanction" || groupId === "pep") return "todo";
+  return "done";
+}
 
 interface ReviewSidebarProps {
   isOpen: boolean;
-  sanctionMatchCount: number;
-  pepMatchCount: number;
-  workflowItems: ReturnType<typeof deriveReviewSidebarWorkflows>;
+  groups: readonly ReviewSidebarGroupCount[];
   selection: ReviewAssignedSidebarSelection;
   onSelectionChange: (selection: ReviewAssignedSidebarSelection) => void;
   onOpenClientIdSearch: () => void;
@@ -246,29 +246,17 @@ interface ReviewSidebarProps {
 
 function ReviewSidebar({
   isOpen,
-  sanctionMatchCount,
-  pepMatchCount,
-  workflowItems,
+  groups,
   selection,
   onSelectionChange,
   onOpenClientIdSearch,
   clientIdSearchActive,
 }: ReviewSidebarProps) {
-  const workCategories = useMemo(
-    () =>
-      withWorkCounts(SIDEBAR_WORK_CATEGORIES, {
-        sanction: sanctionMatchCount,
-        pep: pepMatchCount,
-      }),
-    [sanctionMatchCount, pepMatchCount],
-  );
-
   return (
     <ReviewAssignedSidebar
       open={isOpen}
       organizations={SIDEBAR_ORGANIZATIONS}
-      workCategories={workCategories}
-      workflowItems={workflowItems}
+      groups={groups}
       selection={selection}
       onSelectionChange={onSelectionChange}
       onOpenClientIdSearch={onOpenClientIdSearch}
@@ -287,8 +275,10 @@ interface CaseListProps {
   clientIdFilter?: string | null;
   /** Disjoint ID series so Sanction vs PEP clients never share an ID. */
   clientIdSeries?: ClientIdSeries;
-  /** When set, list shows cases that have matches in this workflow (read-only destination). */
+  /** Group id used for section/queue routing (sanction, pep, compliance-workbench, ai-workbench). */
   workflowId?: string | null;
+  /** When set, case list + counts filter to these match statuses. */
+  statusFilter?: readonly string[] | null;
   listTitle?: string;
   /** Cases shown in this list (Sanction Matches, PEP Screening, or AI Workbench). */
   cases?: readonly PepCaseListItem[] | readonly AiCaseListItem[] | typeof casesData;
@@ -312,6 +302,7 @@ function CaseList({
   clientIdFilter = null,
   clientIdSeries = 1,
   workflowId = null,
+  statusFilter = null,
   listTitle = "Sanction Matches",
   cases = casesData,
   applyCaseLocks = true,
@@ -325,18 +316,20 @@ function CaseList({
   );
   const [caseSort, setCaseSort] = useState<CaseSortValue>("name-asc");
   const wasSelectedCaseCompleteRef = useRef(false);
-  const isWorkflowView = Boolean(workflowId);
   const isDocumentsRequiredWorkflow = isDocumentsRequiredWorkflowId(workflowId);
   const isAiWorkbench = isAiWorkbenchWorkflowId(workflowId);
   const workflowCaseSection: CaseListSectionContext = isDocumentsRequiredWorkflow
     ? "documents-required"
     : isAiWorkbench
       ? "ai-workbench"
-      : "done";
+      : workflowId === "pep" || workflowId === "sanction"
+        ? "todo"
+        : "done";
   const workflowStatuses = useMemo(
-    () => (workflowId ? getLevel1StatusesForWorkflowId(workflowId) : []),
-    [workflowId],
+    () => (statusFilter && statusFilter.length > 0 ? [...statusFilter] : []),
+    [statusFilter],
   );
+  const isWorkflowView = workflowStatuses.length > 0;
 
   /** Prefer cached rows; materialize only for the selected case (never the whole queue). */
   const caseRowsForIndex = useCallback(
@@ -726,10 +719,8 @@ interface DetailPanelProps {
   showFilterEmptyState?: boolean;
   emptyStateMessage?: string;
   isCaseReadOnly?: boolean;
-  /** When set, show the workflow info banner above the client profile. */
+  /** When set, treat as workflow step view (skip all-cleared empty for disposition steps). */
   workflowLabel?: string | null;
-  /** Hide the “active workflow” banner (e.g. AI Workbench). */
-  hideActiveWorkflowBanner?: boolean;
   /** True for workflows that have left Level 1 action (not Documents Required). */
   workflowReadOnly?: boolean;
   onOpenClientProfileAction?: (action: ClientProfileActionId) => void;
@@ -749,7 +740,6 @@ function DetailPanel({
   emptyStateMessage = "No cases match the selected filters.",
   isCaseReadOnly = false,
   workflowLabel = null,
-  hideActiveWorkflowBanner = false,
   workflowReadOnly = false,
   onOpenClientProfileAction,
   clientIdSeries = 1,
@@ -777,11 +767,7 @@ function DetailPanel({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
-      {isWorkflowView && !hideActiveWorkflowBanner ? (
-        <ReviewPanelInlineInfoMessage>
-          The matches in this case are part of an active workflow.
-        </ReviewPanelInlineInfoMessage>
-      ) : isCaseReadOnly ? (
+      {isCaseReadOnly ? (
         <ReviewPanelInlineInfoMessage>
           Read only. This case is locked and in review by another user.
         </ReviewPanelInlineInfoMessage>
@@ -799,7 +785,7 @@ function DetailPanel({
       <AceAccordion
         className={cn(
           "shrink-0 border-[var(--screening-border-strong)]",
-          aceAccordionFixedHeaderClass,
+          aceClientProfileAccordionHeaderClass,
         )}
         surface="white"
         dropShadow
@@ -998,8 +984,9 @@ export function Level1ReviewInterface() {
   const [selectedCaseListSection, setSelectedCaseListSection] =
     useState<CaseListSectionContext>("todo");
   const [sidebarSelection, setSidebarSelection] = useState<ReviewAssignedSidebarSelection>({
-    kind: "work",
-    id: "sanction",
+    kind: "step",
+    groupId: "sanction",
+    stepId: "new",
   });
   const [isReviewDrawerOpen, setIsReviewDrawerOpen] = useState(false);
   const [clientProfileAction, setClientProfileAction] = useState<ClientProfileActionId | null>(
@@ -1077,22 +1064,33 @@ export function Level1ReviewInterface() {
     [],
   );
 
-  const isWorkflowView = sidebarSelection.kind === "workflow";
-  const isPepWork = sidebarSelection.kind === "work" && sidebarSelection.id === "pep";
-  const isAiWorkbench = isWorkflowView && isAiWorkbenchWorkflowId(sidebarSelection.id);
+  const isPepWork = sidebarSelection.groupId === "pep";
+  const isAiWorkbench = sidebarSelection.groupId === "ai-workbench";
+  const isDocumentsRequiredWorkflow = sidebarSelection.groupId === "compliance-workbench";
+  const selectedStep = findSidebarStep(
+    LEVEL1_SIDEBAR_GROUP_DEFS,
+    sidebarSelection.groupId,
+    sidebarSelection.stepId,
+  );
+  const stepStatuses = selectedStep?.statuses ?? [];
+  const isActionableStep = isLevel1ActionableStep(
+    sidebarSelection.groupId,
+    sidebarSelection.stepId,
+  );
+  const isWorkflowReadOnlyView = !isActionableStep;
   const activeCases = isAiWorkbench
     ? aiCases
-    : isPepWork && !isWorkflowView
+    : isPepWork
       ? pepCases
       : casesData;
   const activeScreeningRowsByCase = isAiWorkbench
     ? aiScreeningRowsByCase
-    : isPepWork && !isWorkflowView
+    : isPepWork
       ? pepScreeningRowsByCase
       : screeningRowsByCase;
   const setActiveScreeningRowsByCase = isAiWorkbench
     ? setAiScreeningRowsByCase
-    : isPepWork && !isWorkflowView
+    : isPepWork
       ? setPepScreeningRowsByCase
       : setScreeningRowsByCase;
   const getActiveRowsForCase = useCallback(
@@ -1100,7 +1098,7 @@ export function Level1ReviewInterface() {
       if (isAiWorkbench) {
         return aiScreeningRowsByCase[index] ?? [];
       }
-      if (isPepWork && !isWorkflowView) {
+      if (isPepWork) {
         return pepScreeningRowsByCase[index] ?? [];
       }
       return screeningRowsByCase[index] ?? getScreeningRowsForCase(index);
@@ -1108,7 +1106,6 @@ export function Level1ReviewInterface() {
     [
       isAiWorkbench,
       isPepWork,
-      isWorkflowView,
       aiScreeningRowsByCase,
       pepScreeningRowsByCase,
       screeningRowsByCase,
@@ -1132,35 +1129,24 @@ export function Level1ReviewInterface() {
     [isAiWorkbench, isPepWork, aiCases, pepCases],
   );
 
-  const workListTitle = isPepWork ? "PEP Screening" : "Sanction Matches";
-  const screeningRuleLabel = isPepWork ? "PEP Screening" : "Sanctioned Matches";
-
-  const selectedWorkflowId = isWorkflowView ? sidebarSelection.id : null;
-  const selectedWorkflowLabel = selectedWorkflowId
-    ? getWorkflowLabelById(selectedWorkflowId)
-    : null;
-  /** Work Log Origin — workflow name or My Work screening rule. */
-  const workLogOrigin = isWorkflowView
-    ? (selectedWorkflowLabel ?? "Workflow")
-    : workListTitle;
-  const isDocumentsRequiredWorkflow = isDocumentsRequiredWorkflowId(selectedWorkflowId);
-  const isWorkflowReadOnlyView =
-    isWorkflowView && !isLevel1ActionableWorkflowId(selectedWorkflowId);
-  const workflowStatuses = useMemo(
-    () => (selectedWorkflowId ? getLevel1StatusesForWorkflowId(selectedWorkflowId) : []),
-    [selectedWorkflowId],
+  const selectedGroupDef = LEVEL1_SIDEBAR_GROUP_DEFS.find(
+    (group) => group.id === sidebarSelection.groupId,
   );
+  const workListTitle = selectedGroupDef?.label ?? "Sanction Matches";
+  const screeningRuleLabel = isPepWork ? "PEP Screening" : "Sanctioned Matches";
+  const selectedWorkflowId = sidebarSelection.groupId;
+  const selectedWorkflowLabel = selectedStep
+    ? `${workListTitle} · ${selectedStep.label}`
+    : workListTitle;
+  /** Work Log Origin — workflow group name. */
+  const workLogOrigin = workListTitle;
+  const workflowStatuses = stepStatuses;
 
   const screeningRows = useMemo(() => {
     const rows = getActiveRowsForCase(selectedCaseIndex);
-    if (isWorkflowView) {
-      return rows.filter((row) =>
-        workflowStatuses.includes(row.status as (typeof workflowStatuses)[number]),
-      );
-    }
-    // My Work — only New. Submitted decisions are recorded in the Work Log.
-    return rows.filter((row) => isLevel1MyWorkStatus(row.status));
-  }, [getActiveRowsForCase, selectedCaseIndex, isWorkflowView, workflowStatuses]);
+    if (workflowStatuses.length === 0) return rows;
+    return rows.filter((row) => workflowStatuses.includes(row.status));
+  }, [getActiveRowsForCase, selectedCaseIndex, workflowStatuses]);
 
   const handleSidebarSelectionChange = useCallback(
     (selection: ReviewAssignedSidebarSelection) => {
@@ -1170,17 +1156,7 @@ export function Level1ReviewInterface() {
       setIsReviewDrawerOpen(false);
       setClientIdFilter(null);
       setSelectedCaseIndex(0);
-      if (selection.kind === "workflow") {
-        if (isDocumentsRequiredWorkflowId(selection.id)) {
-          setSelectedCaseListSection("documents-required");
-        } else if (isAiWorkbenchWorkflowId(selection.id)) {
-          setSelectedCaseListSection("ai-workbench");
-        } else {
-          setSelectedCaseListSection("done");
-        }
-      } else {
-        setSelectedCaseListSection("todo");
-      }
+      setSelectedCaseListSection(caseListSectionForGroup(selection.groupId));
     },
     [],
   );
@@ -1214,7 +1190,7 @@ export function Level1ReviewInterface() {
             rows.every((row) => !isLevel1AiWorkbenchStatus(row.status))
           );
         }
-        if (isPepWork && !isWorkflowView) {
+        if (isPepWork) {
           return isCaseScreeningComplete(pepScreeningRowsByCase[index] ?? []);
         }
         const rows = screeningRowsByCase[index];
@@ -1225,77 +1201,81 @@ export function Level1ReviewInterface() {
       activeCases,
       isAiWorkbench,
       isPepWork,
-      isWorkflowView,
       aiScreeningRowsByCase,
       pepScreeningRowsByCase,
       screeningRowsByCase,
     ],
   );
 
-  const pendingSanctionCount = useMemo(
+  const sidebarGroups = useMemo(
     () =>
-      casesData.reduce((count, _, index) => {
-        const rows = screeningRowsByCase[index];
-        if (!rows) {
-          return count + (getSeedLevel1MyWorkPendingCount(index) > 0 ? 1 : 0);
-        }
-        return isCaseScreeningComplete(rows) ? count : count + 1;
-      }, 0),
-    [screeningRowsByCase],
+      deriveReviewSidebarGroups(
+        LEVEL1_SIDEBAR_GROUP_DEFS,
+        {
+          sanction: screeningRowsByCase,
+          pep: pepScreeningRowsByCase,
+          compliance: screeningRowsByCase,
+          ai: aiScreeningRowsByCase,
+        },
+        {
+          caseIndexesByGroup: {
+            sanction: casesData.map((_, index) => index),
+            compliance: casesData.map((_, index) => index),
+            pep: pepCases.map((_, index) => index),
+            "ai-workbench": aiCases.map((_, index) => index),
+          },
+          seedCaseMatches: (caseIndex, statuses) => {
+            if (statuses.includes("New") && getSeedLevel1MyWorkPendingCount(caseIndex) > 0) {
+              return true;
+            }
+            if (
+              statuses.includes("Documents Required") &&
+              getSeedDocumentsRequiredCount(caseIndex) > 0
+            ) {
+              return true;
+            }
+            return false;
+          },
+        },
+      ),
+    [screeningRowsByCase, pepScreeningRowsByCase, aiScreeningRowsByCase, pepCases, aiCases],
   );
 
-  const pendingPepCount = useMemo(
-    () =>
-      pepCases.reduce((count, _, index) => {
-        const rows = pepScreeningRowsByCase[index] ?? [];
-        return isCaseScreeningComplete(rows) ? count : count + 1;
-      }, 0),
-    [pepCases, pepScreeningRowsByCase],
-  );
-
-  const sidebarWorkflowItems = useMemo(
-    () =>
-      deriveReviewSidebarWorkflows(screeningRowsByCase, "level-1", [aiScreeningRowsByCase]),
-    [screeningRowsByCase, aiScreeningRowsByCase],
-  );
+  useEffect(() => {
+    if (
+      isSidebarStepVisible(
+        sidebarGroups,
+        sidebarSelection.groupId,
+        sidebarSelection.stepId,
+      )
+    ) {
+      return;
+    }
+    const next = defaultSidebarStepSelection(sidebarGroups);
+    setSidebarSelection({ kind: "step", groupId: next.groupId, stepId: next.stepId });
+    setSelectedCaseListSection(caseListSectionForGroup(next.groupId));
+  }, [sidebarGroups, sidebarSelection.groupId, sidebarSelection.stepId]);
 
   const workflowHasCases = useMemo(() => {
-    if (!isWorkflowView) return true;
-    if (isAiWorkbench) {
-      return aiCases.some((_, index) => {
-        const rows = aiScreeningRowsByCase[index] ?? [];
-        return rows.some((row) =>
-          workflowStatuses.includes(row.status as (typeof workflowStatuses)[number]),
-        );
-      });
-    }
-    return casesData.some((_, index) => {
-      const rows = screeningRowsByCase[index];
-      if (!rows) {
-        if (isDocumentsRequiredWorkflow) {
-          return getSeedDocumentsRequiredCount(index) > 0;
-        }
-        return false;
+    return activeCases.some((_, index) => {
+      const rows = getActiveRowsForCase(index);
+      if (rows.length === 0 && isDocumentsRequiredWorkflow) {
+        return getSeedDocumentsRequiredCount(index) > 0;
       }
-      return rows.some((row) =>
-        workflowStatuses.includes(row.status as (typeof workflowStatuses)[number]),
-      );
+      if (workflowStatuses.length === 0) return rows.length > 0;
+      return rows.some((row) => workflowStatuses.includes(row.status));
     });
   }, [
-    isWorkflowView,
-    isAiWorkbench,
+    activeCases,
+    getActiveRowsForCase,
     isDocumentsRequiredWorkflow,
-    aiCases,
-    aiScreeningRowsByCase,
-    screeningRowsByCase,
     workflowStatuses,
   ]);
 
   useEffect(() => {
-    if (isAiWorkbench) return;
-    if (isPepWork && !isWorkflowView) return;
+    if (isAiWorkbench || isPepWork) return;
     setScreeningRowsByCase((prev) => ensureScreeningRowsForCase(prev, selectedCaseIndex));
-  }, [selectedCaseIndex, isAiWorkbench, isPepWork, isWorkflowView, setScreeningRowsByCase]);
+  }, [selectedCaseIndex, isAiWorkbench, isPepWork, setScreeningRowsByCase]);
 
   /** Only one inline drawer at a time — opening either replaces the other. */
   const handleOpenClientProfileAction = useCallback((action: ClientProfileActionId) => {
@@ -1595,9 +1575,7 @@ export function Level1ReviewInterface() {
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <ReviewSidebar
           isOpen={sidebarPinned}
-          sanctionMatchCount={pendingSanctionCount}
-          pepMatchCount={pendingPepCount}
-          workflowItems={sidebarWorkflowItems}
+          groups={sidebarGroups}
           selection={sidebarSelection}
           onSelectionChange={handleSidebarSelectionChange}
           onOpenClientIdSearch={() => setClientIdSearchOpen(true)}
@@ -1614,9 +1592,10 @@ export function Level1ReviewInterface() {
                   screeningRowsByCase={activeScreeningRowsByCase}
                   onFilterVisibilityChange={setCaseFilterVisibility}
                   clientIdFilter={clientIdFilter}
-                  clientIdSeries={isAiWorkbench ? 6 : isPepWork && !isWorkflowView ? 5 : 1}
+                  clientIdSeries={isAiWorkbench ? 6 : isPepWork ? 5 : 1}
                   workflowId={selectedWorkflowId}
-                  listTitle={selectedWorkflowLabel ?? workListTitle}
+                  statusFilter={workflowStatuses}
+                  listTitle={selectedWorkflowLabel}
                   cases={activeCases}
                   applyCaseLocks={
                     !isPepWork && !isAiWorkbench && !isDocumentsRequiredWorkflow
@@ -1631,31 +1610,26 @@ export function Level1ReviewInterface() {
                 screeningRows={screeningRows}
                 screeningSelectedIds={screeningSelectedIds}
                 onScreeningSelectedIdsChange={setScreeningSelectedIds}
-                allCasesCleared={allCasesCleared && !isWorkflowView}
+                allCasesCleared={allCasesCleared && isActionableStep}
                 onQuickClearRow={handleQuickClearRow}
                 showFilterEmptyState={
                   (caseFilterVisibility.filtersActive &&
                     caseFilterVisibility.filteredCount === 0) ||
-                  (isWorkflowView && !workflowHasCases)
+                  !workflowHasCases
                 }
                 emptyStateMessage={
-                  isWorkflowView && !workflowHasCases
-                    ? "No cases in this workflow yet."
+                  !workflowHasCases
+                    ? "No cases in this workflow step yet."
                     : "No cases match the selected filters."
                 }
                 isCaseReadOnly={isSelectedCaseReadOnly}
                 workflowLabel={selectedWorkflowLabel}
-                hideActiveWorkflowBanner={
-                  isAiWorkbench || isDocumentsRequiredWorkflow
-                }
                 workflowReadOnly={isWorkflowReadOnlyView}
                 onOpenClientProfileAction={handleOpenClientProfileAction}
-                clientIdSeries={isAiWorkbench ? 6 : isPepWork && !isWorkflowView ? 5 : 1}
+                clientIdSeries={isAiWorkbench ? 6 : isPepWork ? 5 : 1}
               />
             </div>
-            {(!isWorkflowView ? !allCasesCleared : workflowHasCases) &&
-            !isSelectedCaseReadOnly &&
-            (!isWorkflowView || isLevel1ActionableWorkflowId(selectedWorkflowId)) ? (
+            {workflowHasCases && !isSelectedCaseReadOnly && isActionableStep ? (
               <ReviewTaskBar
                 flowVariant="level-1"
                 onShowReview={handleShowReview}

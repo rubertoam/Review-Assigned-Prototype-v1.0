@@ -1,6 +1,7 @@
 export const APP_VIEWS = [
   "landing",
   "review",
+  "dashboards",
   "reporting-dashboard",
   "reporting-report-library",
   "reporting-data-manager",

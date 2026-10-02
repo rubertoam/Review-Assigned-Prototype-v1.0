@@ -53,7 +53,7 @@ export function ReviewTaskBar({
     <div
       data-coach-target="task-bar"
       className={cn(
-        "flex shrink-0 items-center justify-between gap-4 rounded-[var(--radius-sm)] border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-4 py-4",
+        "box-border flex h-[60px] shrink-0 items-center justify-between gap-4 rounded-[var(--radius-sm)] border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-4 py-0",
         aceDropShadowXsClass,
       )}
     >

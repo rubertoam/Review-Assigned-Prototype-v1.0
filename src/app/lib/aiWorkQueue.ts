@@ -4,6 +4,7 @@ import {
   LEVEL1_AI_SUSPECTED_SAFE_STATUS,
   type Level1AiWorkbenchStatus,
 } from "./reviewDecisionConfig";
+import { expandStatusCaseAssignments, sidebarDemoCount } from "./reviewSidebarGroups";
 
 export type AiCaseListItem = {
   name: string;
@@ -138,10 +139,37 @@ export function buildAiWorkQueue(): AiWorkQueue {
 }
 
 /** Bump when AI seed logic changes so Level 1 state can refresh after HMR. */
-export const AI_QUEUE_REVISION = 4;
+export const AI_QUEUE_REVISION = 6;
 
 /** Shared across Level 1 until refresh rebuilds the app. */
-export const INITIAL_AI_WORK_QUEUE: AiWorkQueue = buildAiWorkQueue();
+export const INITIAL_AI_WORK_QUEUE: AiWorkQueue = (() => {
+  const queue = buildAiWorkQueue();
+  const screeningRowsByCase = { ...queue.screeningRowsByCase };
+  const caseCount = queue.cases.length;
+  // Leave most cases on AI statuses; reassign a varied subset to other steps.
+  const trueHitCount = Math.min(caseCount, sidebarDemoCount(81, 2, 4));
+  const escalateLeadCount = Math.min(
+    Math.max(0, caseCount - trueHitCount),
+    sidebarDemoCount(82, 2, 3),
+  );
+  const assignments = expandStatusCaseAssignments(
+    [
+      { status: "Safe", count: trueHitCount },
+      { status: "Escalate to Team Lead", count: escalateLeadCount },
+    ],
+    Math.max(0, caseCount - trueHitCount - escalateLeadCount),
+  );
+
+  for (const { caseIndex, status } of assignments) {
+    const rows = screeningRowsByCase[caseIndex];
+    if (!rows?.length) continue;
+    screeningRowsByCase[caseIndex] = rows.map((row) => ({
+      ...row,
+      status: status as ScreeningResultRow["status"],
+    }));
+  }
+  return { ...queue, screeningRowsByCase };
+})();
 
 export function getInitialAiCaseCount(): number {
   return INITIAL_AI_WORK_QUEUE.cases.length;

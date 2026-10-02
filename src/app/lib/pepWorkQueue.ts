@@ -1,4 +1,5 @@
 import type { ScreeningResultRow } from "../components/ScreeningResultsTable";
+import { expandStatusCaseAssignments, sidebarDemoCount } from "./reviewSidebarGroups";
 
 export type PepCaseListItem = {
   name: string;
@@ -190,7 +191,38 @@ export function buildRandomPepWorkQueue(): PepWorkQueue {
 }
 
 /** Shared across landing badge + Level 1 until refresh rebuilds the app. */
-export const INITIAL_PEP_WORK_QUEUE: PepWorkQueue = buildRandomPepWorkQueue();
+export const INITIAL_PEP_WORK_QUEUE: PepWorkQueue = (() => {
+  const queue = buildRandomPepWorkQueue();
+  const usedNames = new Set(queue.cases.map((item) => item.name));
+  const cases = [...queue.cases];
+  const screeningRowsByCase = { ...queue.screeningRowsByCase };
+
+  const dispositionSpecs = [
+    { status: "Escalate to Team Lead", count: sidebarDemoCount(71, 2, 5) },
+    { status: "Safe", count: sidebarDemoCount(72, 2, 6) },
+    { status: "False Positive", count: sidebarDemoCount(73, 3, 7) },
+  ];
+  const startIndex = cases.length;
+  const assignments = expandStatusCaseAssignments(dispositionSpecs, startIndex);
+
+  for (const { caseIndex, status } of assignments) {
+    const isEntity = Math.random() < 0.2;
+    const name = isEntity ? uniqueEntityName(usedNames) : uniqueIndividualName(usedNames);
+    const matchCount = randInt(2, 8);
+    cases.push({
+      name,
+      results: matchCount,
+      selected: false,
+      ...(isEntity ? { isEntity: true as const } : {}),
+    });
+    screeningRowsByCase[caseIndex] = buildPepRows(caseIndex, name, matchCount).map((row) => ({
+      ...row,
+      status: status as ScreeningResultRow["status"],
+    }));
+  }
+
+  return { cases, screeningRowsByCase };
+})();
 
 export function getInitialPepCaseCount(): number {
   return INITIAL_PEP_WORK_QUEUE.cases.length;

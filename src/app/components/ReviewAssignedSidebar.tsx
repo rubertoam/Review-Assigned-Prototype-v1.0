@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import {
   AceSidebar,
-  type AceSidebarNavItem,
+  type AceSidebarGroup,
 } from "@ace-ds/components/organisms/AceSidebar/AceSidebar";
 import {
   AceTooltip,
@@ -11,30 +11,33 @@ import {
 import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { sidebarIconButtonClass } from "@ace-ds/components/organisms/AceSidebar/sidebarRowActions";
 import { SidebarNavCountBadge } from "./SidebarNavCountBadge";
-import type { ReviewSidebarWorkflowItem } from "../lib/reviewSidebarWorkflows";
+import {
+  REVIEW_SIDEBAR_BADGE_CLASS,
+  type ReviewSidebarGroupCount,
+} from "../lib/reviewSidebarGroups";
 import { cn } from "./ui/utils";
 
-export type ReviewAssignedWorkCategory = {
-  id: string;
-  label: string;
-  count: number;
-  selectable: boolean;
-  badgeLabelClass: string;
+export type ReviewAssignedSidebarSelection = {
+  kind: "step";
+  groupId: string;
+  stepId: string;
 };
 
-export type ReviewAssignedSidebarSelection =
-  | { kind: "work"; id: string }
-  | { kind: "workflow"; id: string };
+/** Application ID options for the sidebar header icon dropdown. */
+export const REVIEW_SIDEBAR_APPLICATIONS = [
+  { id: "isi", label: "ISI" },
+  { id: "isi-focus", label: "ISI Focus" },
+  { id: "watchlist-api", label: "Watchlist API" },
+  { id: "edd", label: "EDD" },
+] as const;
 
 export type ReviewAssignedSidebarProps = {
   open: boolean;
   organizations: readonly { id: string; label: string }[];
-  workCategories: readonly ReviewAssignedWorkCategory[];
-  /** Cleared-work destinations — appended as flat nav items when present. */
-  workflowItems: readonly ReviewSidebarWorkflowItem[];
+  groups: readonly ReviewSidebarGroupCount[];
   selection: ReviewAssignedSidebarSelection;
   onSelectionChange: (selection: ReviewAssignedSidebarSelection) => void;
-  /** Opens the Search Client ID modal (icon to the right of the org switcher). */
+  /** Opens the Search Client ID modal (icon to the right of the header icons). */
   onOpenClientIdSearch?: () => void;
   /** When true, search icon uses the selected/active treatment. */
   clientIdSearchActive?: boolean;
@@ -43,52 +46,16 @@ export type ReviewAssignedSidebarProps = {
   className?: string;
 };
 
-function categoryToNavItem(
-  item: ReviewAssignedWorkCategory,
-  selection: ReviewAssignedSidebarSelection,
-  onSelect: (selection: ReviewAssignedSidebarSelection) => void,
-): AceSidebarNavItem {
-  const selected = item.selectable && selection.kind === "work" && selection.id === item.id;
-  return {
-    id: item.id,
-    label: item.label,
-    selected,
-    disabled: !item.selectable,
-    onSelect: item.selectable
-      ? () => onSelect({ kind: "work", id: item.id })
-      : undefined,
-    trailing: (
-      <SidebarNavCountBadge count={item.count} badgeLabelClass={item.badgeLabelClass} />
-    ),
-  };
-}
-
-function workflowToNavItem(
-  item: ReviewSidebarWorkflowItem,
-  selection: ReviewAssignedSidebarSelection,
-  onSelect: (selection: ReviewAssignedSidebarSelection) => void,
-): AceSidebarNavItem {
-  const selected = selection.kind === "workflow" && selection.id === item.id;
-  return {
-    id: item.id,
-    label: item.label,
-    selected,
-    onSelect: () => onSelect({ kind: "workflow", id: item.id }),
-    trailing: (
-      <SidebarNavCountBadge count={item.count} badgeLabelClass={item.badgeLabelClass} />
-    ),
-  };
-}
-
 /**
- * Workbench sidebar — AceSidebar `variant="navigation"`.
- * Flat list of work queues (and workflow destinations when present).
+ * Workbench sidebar — AceSidebar `variant="groups"`.
+ * Each workflow is a group; nested items are workflow steps with counts.
+ * Group badge = sum of step counts.
+ * Header: Group + Application ID icon dropdowns (non-bordered), search trailing.
  */
 export function ReviewAssignedSidebar({
   open,
   organizations,
-  workCategories,
-  workflowItems,
+  groups,
   selection,
   onSelectionChange,
   onOpenClientIdSearch,
@@ -97,17 +64,48 @@ export function ReviewAssignedSidebar({
   className,
 }: ReviewAssignedSidebarProps) {
   const [selectedOrgId, setSelectedOrgId] = useState(organizations[0]?.id ?? "");
+  const [selectedApplicationId, setSelectedApplicationId] = useState<string>(
+    REVIEW_SIDEBAR_APPLICATIONS[0]?.id ?? "",
+  );
+  const [expandedById, setExpandedById] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    for (const group of groups) {
+      initial[group.id] = group.id === selection.groupId;
+    }
+    return initial;
+  });
 
-  const navItems = useMemo((): AceSidebarNavItem[] => {
-    return [
-      ...workCategories.map((item) =>
-        categoryToNavItem(item, selection, onSelectionChange),
+  const aceGroups = useMemo((): AceSidebarGroup[] => {
+    return groups.map((group) => ({
+      id: group.id,
+      label: group.label,
+      expanded: expandedById[group.id] ?? group.id === selection.groupId,
+      onToggle: () =>
+        setExpandedById((prev) => ({
+          ...prev,
+          [group.id]: !(prev[group.id] ?? group.id === selection.groupId),
+        })),
+      trailing: (
+        <SidebarNavCountBadge
+          count={group.count}
+          badgeLabelClass={REVIEW_SIDEBAR_BADGE_CLASS}
+        />
       ),
-      ...workflowItems.map((item) =>
-        workflowToNavItem(item, selection, onSelectionChange),
-      ),
-    ];
-  }, [workCategories, workflowItems, selection, onSelectionChange]);
+      items: group.steps.map((step) => ({
+        id: `${group.id}:${step.id}`,
+        label: step.label,
+        selected: selection.groupId === group.id && selection.stepId === step.id,
+        onSelect: () =>
+          onSelectionChange({ kind: "step", groupId: group.id, stepId: step.id }),
+        trailing: (
+          <SidebarNavCountBadge
+            count={step.count}
+            badgeLabelClass={REVIEW_SIDEBAR_BADGE_CLASS}
+          />
+        ),
+      })),
+    }));
+  }, [groups, expandedById, selection, onSelectionChange]);
 
   const searchButton =
     onOpenClientIdSearch != null ? (
@@ -145,38 +143,20 @@ export function ReviewAssignedSidebar({
     <div className="h-full shrink-0 overflow-hidden" data-coach-target="assignment">
       <AceSidebar
         open={open}
-        variant="navigation"
+        variant="groups"
+        showGroupAdd={false}
         organizations={[...organizations]}
         selectedOrganizationId={selectedOrgId}
         onOrganizationChange={setSelectedOrgId}
-        navItems={navItems}
+        organizationDisplay="icon"
+        applications={[...REVIEW_SIDEBAR_APPLICATIONS]}
+        selectedApplicationId={selectedApplicationId}
+        onApplicationChange={setSelectedApplicationId}
+        groups={aceGroups}
+        emptyGroupMessage="No workflow steps in this group."
         headerTrailing={trailing}
         className={className ?? "h-full"}
       />
     </div>
   );
-}
-
-/** Convenience for building category rows with live / static counts by id. */
-export function withWorkCounts(
-  categories: readonly Omit<ReviewAssignedWorkCategory, "count">[],
-  countsById: Record<string, number>,
-): ReviewAssignedWorkCategory[] {
-  return categories.map((item) => ({
-    ...item,
-    count: countsById[item.id] ?? 0,
-  }));
-}
-
-/** @deprecated Prefer `withWorkCounts`. */
-export function withSanctionCount(
-  categories: readonly Omit<ReviewAssignedWorkCategory, "count">[],
-  staticCounts: Record<string, number>,
-  sanctionMatchCount: number,
-  sanctionId = "sanction",
-): ReviewAssignedWorkCategory[] {
-  return withWorkCounts(categories, {
-    ...staticCounts,
-    [sanctionId]: sanctionMatchCount,
-  });
 }

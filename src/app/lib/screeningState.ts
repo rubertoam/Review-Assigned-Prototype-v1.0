@@ -5,6 +5,27 @@ import {
   type ScreeningResultRow,
 } from "../components/ScreeningResultsTable";
 import { casesData } from "./reviewCaseData";
+import {
+  applyCaseStatusAssignments,
+  expandStatusCaseAssignments,
+  sidebarDemoCount,
+} from "./reviewSidebarGroups";
+
+/**
+ * Varied demo case counts per disposition step (not all 1s).
+ * Starts at case index 4 so early My Work / scroll-test cases stay New.
+ */
+const LEVEL1_DEMO_DISPOSITION_ASSIGNMENTS = expandStatusCaseAssignments(
+  [
+    { status: "Escalate to Team Lead", count: sidebarDemoCount(11, 3, 7) },
+    { status: "Safe", count: sidebarDemoCount(22, 2, 6) },
+    { status: "False Positive", count: sidebarDemoCount(33, 3, 8) },
+    { status: "Flag for EDD", count: sidebarDemoCount(44, 2, 5) },
+    { status: "Documents Uploaded", count: sidebarDemoCount(55, 2, 4) },
+    { status: "Remediate", count: sidebarDemoCount(66, 2, 4) },
+  ],
+  4,
+);
 
 /**
  * Seed only open My Work / Compliance cases eagerly. Other cases resolve via
@@ -21,7 +42,13 @@ export function buildInitialScreeningRowsByCase(): Record<number, ScreeningResul
       initial[index] = getScreeningRowsForCase(index);
     }
   }
-  return initial;
+  for (const { caseIndex } of LEVEL1_DEMO_DISPOSITION_ASSIGNMENTS) {
+    if (caseIndex < 0 || caseIndex >= casesData.length) continue;
+    if (!initial[caseIndex]) {
+      initial[caseIndex] = getScreeningRowsForCase(caseIndex);
+    }
+  }
+  return applyCaseStatusAssignments(initial, LEVEL1_DEMO_DISPOSITION_ASSIGNMENTS);
 }
 
 /** Always starts from seed data — refresh resets the prototype. */

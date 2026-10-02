@@ -2,6 +2,10 @@
 export const aceAccordionFixedHeaderClass =
   "[&>button]:h-[var(--screening-header-min-height)] [&>button]:min-h-[var(--screening-header-min-height)] [&>button]:items-center [&>button]:py-0";
 
+/** Client Profile accordion header — exactly 46px tall. */
+export const aceClientProfileAccordionHeaderClass =
+  "[&>button]:h-[46px] [&>button]:min-h-[46px] [&>button]:max-h-[46px] [&>button]:items-center [&>button]:box-border [&>button]:py-0";
+
 /**
  * Fill + scroll chain for a flex-sized `AceAccordion` body without switching the
  * panel region off `display: grid` (grid is required for ACE expand/collapse motion).

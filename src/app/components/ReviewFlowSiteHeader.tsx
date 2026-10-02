@@ -75,7 +75,7 @@ const SECTION_ITEMS = ["Reports", "Dashboards"] as const;
 
 const navTriggerClass = cn(
   p1,
-  "relative inline-flex h-full min-h-[2.5rem] items-center gap-2 rounded-[var(--radius-sm)] px-3 py-3 text-sm text-[var(--screening-text-primary)]",
+  "relative inline-flex h-full min-h-[2rem] items-center gap-2 rounded-[var(--radius-sm)] px-3 py-1.5 text-sm text-[var(--screening-text-primary)]",
   "transition-colors duration-[var(--ace-motion-duration-fast)]",
   motionEase,
   "hover:bg-[var(--ace-site-header-nav-hover)]",
@@ -229,6 +229,7 @@ function ProfileMenuDropdown({ profile }: { profile: FinScanProfileAvatar }) {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={4} className="min-w-[12rem]">
+        {/* Dashboards — temporarily hidden; restore menu item + openDashboards when ready */}
         <DropdownMenuLabel>Appearance</DropdownMenuLabel>
         <DropdownMenuToggleItem
           checked={isDark}

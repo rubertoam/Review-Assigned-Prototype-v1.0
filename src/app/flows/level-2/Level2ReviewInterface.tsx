@@ -34,7 +34,7 @@ import { Level2AwaitingLevel1State } from "../../components/Level2AwaitingLevel1
 import { CaseListFilterEmptyState } from "../../components/CaseListFilterEmptyState";
 import { CaseListSection } from "../../components/CaseListSection";
 import { ThemeProvider } from "../../context/ThemeContext";
-import { aceAccordionFixedHeaderClass } from "../../lib/aceAccordion";
+import { aceClientProfileAccordionHeaderClass } from "../../lib/aceAccordion";
 import { aceDropShadowXsClass } from "../../lib/aceShadow";
 import { aceTypography, ACE_TYPE } from "../../lib/aceTypography";
 import { ReviewPanelEmptyState } from "../../components/ReviewPanelEmptyState";
@@ -99,15 +99,20 @@ import { ReviewDrawer } from "../../components/ReviewDrawer";
 import { ReviewTaskBar } from "../../components/ReviewTaskBar";
 import {
   ReviewAssignedSidebar,
-  withWorkCounts,
   type ReviewAssignedSidebarSelection,
 } from "../../components/ReviewAssignedSidebar";
 import { SearchClientIdModal } from "../../components/SearchClientIdModal";
 import { sidebarIconButtonClass } from "@ace-ds/components/organisms/AceSidebar/sidebarRowActions";
 import { screeningToolbarIconButtonClass } from "@ace-ds/components/organisms/ScreeningResultsTable/screeningTableToolbar";
-import { deriveReviewSidebarWorkflows } from "../../lib/reviewSidebarWorkflows";
 import {
-  countEscalatedQueuePendingCases,
+  defaultSidebarStepSelection,
+  deriveReviewSidebarGroups,
+  findSidebarStep,
+  isSidebarStepVisible,
+  LEVEL2_SIDEBAR_GROUP_DEFS,
+  type ReviewSidebarGroupCount,
+} from "../../lib/reviewSidebarGroups";
+import {
   INITIAL_ESCALATED_FINANCIAL_QUEUE,
   INITIAL_ESCALATED_PEP_QUEUE,
 } from "../../lib/escalatedWorkQueues";
@@ -229,35 +234,32 @@ function PageHeader({
 
 const SIDEBAR_ORGANIZATIONS = [{ id: "level-2-users", label: "Level 2 Users" }] as const;
 
-const MY_WORK_BADGE = "text-[#523eb9]";
+/** Escalate-to-lead (and open AI/compliance queue) steps are actionable Level 2 work. */
+function isLevel2ActionableStep(groupId: string, stepId: string): boolean {
+  if (stepId === "escalate-to-lead") return true;
+  if (groupId === "compliance-workbench") {
+    return stepId === "documents-required" || stepId === "documents-uploaded";
+  }
+  if (groupId === "ai-workbench") {
+    return stepId === "ai-escalate" || stepId === "ai-suspected-safe";
+  }
+  return false;
+}
 
-const SIDEBAR_WORK_CATEGORIES = [
-  {
-    id: "pep",
-    label: "Escalated PEPs",
-    selectable: true,
-    badgeLabelClass: MY_WORK_BADGE,
-  },
-  {
-    id: "sanction",
-    label: "Escalated Sanctions",
-    selectable: true,
-    badgeLabelClass: MY_WORK_BADGE,
-  },
-  {
-    id: "financial",
-    label: "Escalated Financial Crime",
-    selectable: true,
-    badgeLabelClass: MY_WORK_BADGE,
-  },
-] as const;
+function caseListSectionForGroup(groupId: string, stepId: string): CaseListSectionContext {
+  if (isLevel2ActionableStep(groupId, stepId)) return "todo";
+  return "done";
+}
+
+function workQueueIdForGroup(groupId: string): Level2WorkQueueId {
+  if (groupId === "pep") return "pep";
+  if (groupId === "compliance-workbench") return "financial";
+  return "sanction";
+}
 
 interface ReviewSidebarProps {
   isOpen: boolean;
-  sanctionMatchCount: number;
-  pepMatchCount: number;
-  financialMatchCount: number;
-  workflowItems: ReturnType<typeof deriveReviewSidebarWorkflows>;
+  groups: readonly ReviewSidebarGroupCount[];
   selection: ReviewAssignedSidebarSelection;
   onSelectionChange: (selection: ReviewAssignedSidebarSelection) => void;
   onOpenClientIdSearch: () => void;
@@ -266,31 +268,17 @@ interface ReviewSidebarProps {
 
 function ReviewSidebar({
   isOpen,
-  sanctionMatchCount,
-  pepMatchCount,
-  financialMatchCount,
-  workflowItems,
+  groups,
   selection,
   onSelectionChange,
   onOpenClientIdSearch,
   clientIdSearchActive,
 }: ReviewSidebarProps) {
-  const workCategories = useMemo(
-    () =>
-      withWorkCounts(SIDEBAR_WORK_CATEGORIES, {
-        sanction: sanctionMatchCount,
-        pep: pepMatchCount,
-        financial: financialMatchCount,
-      }),
-    [sanctionMatchCount, pepMatchCount, financialMatchCount],
-  );
-
   return (
     <ReviewAssignedSidebar
       open={isOpen}
       organizations={SIDEBAR_ORGANIZATIONS}
-      workCategories={workCategories}
-      workflowItems={workflowItems}
+      groups={groups}
       selection={selection}
       onSelectionChange={onSelectionChange}
       onOpenClientIdSearch={onOpenClientIdSearch}
@@ -309,6 +297,8 @@ interface CaseListProps {
   clientIdFilter?: string | null;
   listTitle?: string;
   workQueueId: Level2WorkQueueId;
+  /** When set, case list + counts filter to these match statuses. */
+  statusFilter?: readonly string[] | null;
   cases?: readonly PepCaseListItem[] | typeof casesData;
   getRowsForCase?: (index: number) => ScreeningResultRow[];
 }
@@ -327,6 +317,7 @@ function CaseList({
   clientIdFilter = null,
   listTitle = "Escalated Sanctions",
   workQueueId,
+  statusFilter = null,
   cases = casesData,
   getRowsForCase,
 }: CaseListProps) {
@@ -340,6 +331,21 @@ function CaseList({
   const [caseSort, setCaseSort] = useState<CaseSortValue>("name-asc");
   const wasSelectedCaseCompleteRef = useRef(false);
 
+  const workflowStatuses = useMemo(
+    () => (statusFilter && statusFilter.length > 0 ? [...statusFilter] : []),
+    [statusFilter],
+  );
+  const isStepView = workflowStatuses.length > 0;
+  /** Open-queue statuses land in Todo; disposition statuses land in Done. */
+  const isOpenQueueStep = workflowStatuses.some(
+    (status) =>
+      status === "Escalate to Team Lead" ||
+      status === "Documents Required" ||
+      status === "Documents Uploaded" ||
+      status === "AI-Escalate" ||
+      status === "AI-Suspected Safe",
+  );
+
   const caseRowsForIndex = useCallback(
     (index: number) =>
       screeningRowsByCase[index] ?? getRowsForCase?.(index) ?? [],
@@ -350,11 +356,14 @@ function CaseList({
   const level2ResultCount = useCallback(
     (index: number) => {
       const rows = caseRowsForIndex(index);
+      if (isStepView) {
+        return rows.filter((r) => workflowStatuses.includes(r.status)).length;
+      }
       const inQueue = rows.filter((r) => isLevel1InProcessStatus(r.status)).length;
       if (inQueue > 0) return inQueue;
       return rows.filter((r) => isLevel2ReviewedRow(r)).length;
     },
-    [caseRowsForIndex],
+    [caseRowsForIndex, isStepView, workflowStatuses],
   );
 
   const filteredRows = useMemo(() => {
@@ -384,6 +393,15 @@ function CaseList({
     const done: CaseListRow[] = [];
     filteredRows.forEach((row) => {
       const caseRows = caseRowsForIndex(row.index);
+      if (isStepView) {
+        if (level2ResultCount(row.index) === 0) return;
+        if (isOpenQueueStep) {
+          pending.push(row);
+        } else {
+          done.push(row);
+        }
+        return;
+      }
       if (caseIsLevel2Done(caseRows)) {
         done.push(row);
       } else if (caseHasLevel2QueueWork(caseRows)) {
@@ -391,7 +409,7 @@ function CaseList({
       }
     });
     return { pendingRows: pending, doneRows: done };
-  }, [filteredRows, caseRowsForIndex]);
+  }, [filteredRows, caseRowsForIndex, isStepView, isOpenQueueStep, level2ResultCount]);
 
   useEffect(() => {
     if (pendingRows.length === 0 && doneRows.length > 0) {
@@ -476,8 +494,12 @@ function CaseList({
     const profile = clientProfileForLevel2Case(workQueueId, index);
     const clientId = profile.clientId;
     const caseRows = caseRowsForIndex(index);
-    const inQueueCount = caseRows.filter((r) => isLevel1InProcessStatus(r.status)).length;
-    const reviewedCount = caseRows.filter((r) => isLevel2ReviewedRow(r)).length;
+    const inQueueCount = isStepView
+      ? caseRows.filter((r) => workflowStatuses.includes(r.status)).length
+      : caseRows.filter((r) => isLevel1InProcessStatus(r.status)).length;
+    const reviewedCount = isStepView
+      ? caseRows.filter((r) => workflowStatuses.includes(r.status)).length
+      : caseRows.filter((r) => isLevel2ReviewedRow(r)).length;
     const resultsCount = section === "todo" ? inQueueCount : reviewedCount;
     const isSelected =
       selectedCaseIndex === index && selectedCaseListSection === section;
@@ -752,7 +774,7 @@ function DetailPanel({
       <AceAccordion
         className={cn(
           "shrink-0 border-[var(--screening-border-strong)]",
-          aceAccordionFixedHeaderClass,
+          aceClientProfileAccordionHeaderClass,
         )}
         surface="white"
         dropShadow
@@ -964,8 +986,9 @@ export function Level2ReviewInterface() {
   }, []);
   const [screeningRowsByCase, setScreeningRowsByCase] = useScreeningRowsByCase();
   const [sidebarSelection, setSidebarSelection] = useState<ReviewAssignedSidebarSelection>({
-    kind: "work",
-    id: "pep",
+    kind: "step",
+    groupId: "pep",
+    stepId: "escalate-to-lead",
   });
   const [pepCases] = useState(() => INITIAL_ESCALATED_PEP_QUEUE.cases);
   const [pepScreeningRowsByCase, setPepScreeningRowsByCase] = useState(
@@ -978,15 +1001,27 @@ export function Level2ReviewInterface() {
   const [clientIdSearchOpen, setClientIdSearchOpen] = useState(false);
   const [clientIdFilter, setClientIdFilter] = useState<string | null>(null);
 
-  const isWorkflowView = sidebarSelection.kind === "workflow";
-  const workQueueId: Level2WorkQueueId = isWorkflowView
-    ? "sanction"
-    : sidebarSelection.id === "pep" || sidebarSelection.id === "financial"
-      ? sidebarSelection.id
-      : "sanction";
-  const isPepWork = workQueueId === "pep" && !isWorkflowView;
-  const isFinancialWork = workQueueId === "financial" && !isWorkflowView;
-  const activeCases = isPepWork ? pepCases : isFinancialWork ? financialCases : casesData;
+  const selectedStep = findSidebarStep(
+    LEVEL2_SIDEBAR_GROUP_DEFS,
+    sidebarSelection.groupId,
+    sidebarSelection.stepId,
+  );
+  const stepStatuses = selectedStep?.statuses ?? [];
+  const isActionableStep = isLevel2ActionableStep(
+    sidebarSelection.groupId,
+    sidebarSelection.stepId,
+  );
+  const workQueueId = workQueueIdForGroup(sidebarSelection.groupId);
+  const isPepWork = sidebarSelection.groupId === "pep";
+  const isFinancialWork = sidebarSelection.groupId === "compliance-workbench";
+  const isAiWorkbench = sidebarSelection.groupId === "ai-workbench";
+  const activeCases = isPepWork
+    ? pepCases
+    : isFinancialWork
+      ? financialCases
+      : isAiWorkbench
+        ? []
+        : casesData;
   const activeScreeningRowsByCase = isPepWork
     ? pepScreeningRowsByCase
     : isFinancialWork
@@ -1022,7 +1057,9 @@ export function Level2ReviewInterface() {
       setInsightsOpen(false);
       setClientIdFilter(null);
       setSelectedCaseIndex(0);
-      setSelectedCaseListSection(selection.kind === "workflow" ? "done" : "todo");
+      setSelectedCaseListSection(
+        caseListSectionForGroup(selection.groupId, selection.stepId),
+      );
     },
     [],
   );
@@ -1060,10 +1097,11 @@ export function Level2ReviewInterface() {
     onEnsureDetailVisible: ensureDetailVisible,
   });
 
-  const screeningRows = useMemo(
-    () => (selectedCaseIndex === null ? [] : getActiveRowsForCase(selectedCaseIndex)),
-    [getActiveRowsForCase, selectedCaseIndex],
-  );
+  const screeningRows = useMemo(() => {
+    const rows = selectedCaseIndex === null ? [] : getActiveRowsForCase(selectedCaseIndex);
+    if (stepStatuses.length === 0) return rows;
+    return rows.filter((row) => stepStatuses.includes(row.status));
+  }, [getActiveRowsForCase, selectedCaseIndex, stepStatuses]);
 
   const selectedScreeningRows = useMemo(
     () => screeningRows.filter((row) => screeningSelectedIds.has(row.id)),
@@ -1071,70 +1109,81 @@ export function Level2ReviewInterface() {
   );
 
   const awaitingLevel1Work = useMemo(() => {
-    if (isPepWork || isFinancialWork) return false;
+    if (isPepWork || isFinancialWork || isAiWorkbench) return false;
     return !casesData.some((_, index) => {
       const rows = screeningRowsByCase[index];
       return rows ? caseHasLevel2Activity(rows) : false;
     });
-  }, [isPepWork, isFinancialWork, screeningRowsByCase]);
+  }, [isPepWork, isFinancialWork, isAiWorkbench, screeningRowsByCase]);
 
   const allCasesCleared = useMemo(() => {
     if (awaitingLevel1Work) return false;
+    if (activeCases.length === 0) return true;
     return activeCases.every((_, index) => !caseHasLevel2QueueWork(getActiveRowsForCase(index)));
   }, [awaitingLevel1Work, activeCases, getActiveRowsForCase]);
 
-  const pendingSanctionCount = useMemo(
-    () =>
-      casesData.reduce((count, _, index) => {
-        const rows = screeningRowsByCase[index];
-        return rows && caseHasLevel2QueueWork(rows) ? count + 1 : count;
-      }, 0),
-    [screeningRowsByCase],
-  );
-
-  const pendingPepCount = useMemo(
-    () =>
-      countEscalatedQueuePendingCases({
-        cases: pepCases,
-        screeningRowsByCase: pepScreeningRowsByCase,
-      }),
-    [pepCases, pepScreeningRowsByCase],
-  );
-
-  const pendingFinancialCount = useMemo(
-    () =>
-      countEscalatedQueuePendingCases({
-        cases: financialCases,
-        screeningRowsByCase: financialScreeningRowsByCase,
-      }),
-    [financialCases, financialScreeningRowsByCase],
-  );
-
   useEffect(() => {
-    if (selectedCaseIndex === null || isPepWork || isFinancialWork) return;
+    if (selectedCaseIndex === null || isPepWork || isFinancialWork || isAiWorkbench) return;
     setScreeningRowsByCase((prev) => ensureScreeningRowsForCase(prev, selectedCaseIndex));
-  }, [selectedCaseIndex, isPepWork, isFinancialWork, setScreeningRowsByCase]);
+  }, [selectedCaseIndex, isPepWork, isFinancialWork, isAiWorkbench, setScreeningRowsByCase]);
 
-  const sidebarWorkflowItems = useMemo(
-    () => deriveReviewSidebarWorkflows(screeningRowsByCase, "level-2"),
-    [screeningRowsByCase],
+  const sidebarGroups = useMemo(
+    () =>
+      deriveReviewSidebarGroups(
+        LEVEL2_SIDEBAR_GROUP_DEFS,
+        {
+          sanction: screeningRowsByCase,
+          pep: pepScreeningRowsByCase,
+          compliance: financialScreeningRowsByCase,
+          ai: {},
+        },
+        {
+          caseIndexesByGroup: {
+            pep: pepCases.map((_, index) => index),
+            "compliance-workbench": financialCases.map((_, index) => index),
+            sanction: casesData.map((_, index) => index),
+          },
+        },
+      ),
+    [
+      screeningRowsByCase,
+      pepScreeningRowsByCase,
+      financialScreeningRowsByCase,
+      pepCases,
+      financialCases,
+    ],
   );
 
-  const workListTitle = isWorkflowView
-    ? sidebarWorkflowItems.find((item) => item.id === sidebarSelection.id)?.label ?? "Workflow"
-    : isPepWork
-      ? "Escalated PEPs"
-      : isFinancialWork
-        ? "Escalated Financial Crime"
-        : "Escalated Sanctions";
-
   useEffect(() => {
-    if (sidebarSelection.kind !== "workflow") return;
-    const stillPresent = sidebarWorkflowItems.some((item) => item.id === sidebarSelection.id);
-    if (!stillPresent) {
-      setSidebarSelection({ kind: "work", id: "pep" });
+    if (
+      isSidebarStepVisible(
+        sidebarGroups,
+        sidebarSelection.groupId,
+        sidebarSelection.stepId,
+      )
+    ) {
+      return;
     }
-  }, [sidebarSelection, sidebarWorkflowItems]);
+    const next = defaultSidebarStepSelection(sidebarGroups);
+    setSidebarSelection({ kind: "step", groupId: next.groupId, stepId: next.stepId });
+    setSelectedCaseListSection(caseListSectionForGroup(next.groupId, next.stepId));
+  }, [sidebarGroups, sidebarSelection.groupId, sidebarSelection.stepId]);
+
+  const selectedGroupDef = LEVEL2_SIDEBAR_GROUP_DEFS.find(
+    (group) => group.id === sidebarSelection.groupId,
+  );
+  const workListTitle = selectedStep
+    ? `${selectedGroupDef?.label ?? "Sanction Matches"} · ${selectedStep.label}`
+    : selectedGroupDef?.label ?? "Sanction Matches";
+
+  const workflowHasCases = useMemo(() => {
+    if (activeCases.length === 0) return false;
+    return activeCases.some((_, index) => {
+      const rows = getActiveRowsForCase(index);
+      if (stepStatuses.length === 0) return rows.length > 0;
+      return rows.some((row) => stepStatuses.includes(row.status));
+    });
+  }, [activeCases, getActiveRowsForCase, stepStatuses]);
 
   /** Only one inline drawer at a time — opening either replaces the other. */
   const handleOpenClientProfileAction = useCallback((action: ClientProfileActionId) => {
@@ -1344,10 +1393,7 @@ export function Level2ReviewInterface() {
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <ReviewSidebar
           isOpen={sidebarPinned}
-          sanctionMatchCount={pendingSanctionCount}
-          pepMatchCount={pendingPepCount}
-          financialMatchCount={pendingFinancialCount}
-          workflowItems={sidebarWorkflowItems}
+          groups={sidebarGroups}
           selection={sidebarSelection}
           onSelectionChange={handleSidebarSelectionChange}
           onOpenClientIdSearch={() => setClientIdSearchOpen(true)}
@@ -1366,9 +1412,12 @@ export function Level2ReviewInterface() {
                   clientIdFilter={clientIdFilter}
                   listTitle={workListTitle}
                   workQueueId={workQueueId}
+                  statusFilter={stepStatuses}
                   cases={activeCases}
                   getRowsForCase={
-                    isPepWork || isFinancialWork ? undefined : getScreeningRowsForCase
+                    isPepWork || isFinancialWork || isAiWorkbench
+                      ? undefined
+                      : getScreeningRowsForCase
                   }
                 />
               </div>
@@ -1381,17 +1430,21 @@ export function Level2ReviewInterface() {
                 screeningRows={screeningRows}
                 screeningSelectedIds={screeningSelectedIds}
                 onScreeningSelectedIdsChange={setScreeningSelectedIds}
-                allCasesCleared={allCasesCleared}
-                awaitingLevel1Work={awaitingLevel1Work && !isPepWork && !isFinancialWork}
+                allCasesCleared={allCasesCleared && isActionableStep}
+                awaitingLevel1Work={
+                  awaitingLevel1Work && !isPepWork && !isFinancialWork && !isAiWorkbench
+                }
                 onQuickClearRow={handleQuickClearRow}
                 showFilterEmptyState={
-                  caseFilterVisibility.filtersActive && caseFilterVisibility.filteredCount === 0
+                  (caseFilterVisibility.filtersActive &&
+                    caseFilterVisibility.filteredCount === 0) ||
+                  !workflowHasCases
                 }
                 workQueueId={workQueueId}
                 onOpenClientProfileAction={handleOpenClientProfileAction}
               />
             </div>
-            {!allCasesCleared && !awaitingLevel1Work ? (
+            {workflowHasCases && isActionableStep && !allCasesCleared && !awaitingLevel1Work ? (
               <ReviewTaskBar
                 flowVariant="level-2"
                 onShowReview={handleShowReview}

@@ -1,5 +1,6 @@
 import type { ScreeningResultRow } from "../components/ScreeningResultsTable";
 import type { PepCaseListItem, PepWorkQueue } from "./pepWorkQueue";
+import { expandStatusCaseAssignments, sidebarDemoCount } from "./reviewSidebarGroups";
 
 export type EscalatedWorkQueue = PepWorkQueue;
 
@@ -85,6 +86,7 @@ function buildEscalatedRows(
 function buildEscalatedQueue(
   idPrefix: string,
   seeds: readonly { name: string; matchCount: number; isEntity?: boolean }[],
+  dispositionAssignments: readonly { caseIndex: number; status: string }[] = [],
 ): EscalatedWorkQueue {
   const cases: PepCaseListItem[] = seeds.map((seed, index) => ({
     name: seed.name,
@@ -101,19 +103,48 @@ function buildEscalatedQueue(
       seed.matchCount,
     );
   });
+  for (const { caseIndex, status } of dispositionAssignments) {
+    const rows = screeningRowsByCase[caseIndex];
+    if (!rows?.length) continue;
+    screeningRowsByCase[caseIndex] = rows.map((row) => ({
+      ...row,
+      status: status as ScreeningResultRow["status"],
+      ...(status === "Escalate to Team Lead"
+        ? {}
+        : { decisionReviewer: "Morgan", decisionReason: status }),
+    }));
+  }
   return { cases, screeningRowsByCase };
 }
 
 /** Level 2 — Escalated PEPs My Work queue. */
+const L2_PEP_SAFE_COUNT = sidebarDemoCount(91, 2, 4);
+const L2_PEP_FP_COUNT = sidebarDemoCount(92, 2, 3);
 export const INITIAL_ESCALATED_PEP_QUEUE: EscalatedWorkQueue = buildEscalatedQueue(
   "l2-pep",
   PEP_CASES,
+  expandStatusCaseAssignments(
+    [
+      { status: "Safe", count: L2_PEP_SAFE_COUNT },
+      { status: "False Positive", count: L2_PEP_FP_COUNT },
+    ],
+    Math.max(0, PEP_CASES.length - L2_PEP_SAFE_COUNT - L2_PEP_FP_COUNT),
+  ),
 );
 
 /** Level 2 — Escalated Financial Crime My Work queue. */
+const L2_FIN_SAFE_COUNT = sidebarDemoCount(93, 2, 3);
+const L2_FIN_DOCS_COUNT = sidebarDemoCount(94, 1, 3);
 export const INITIAL_ESCALATED_FINANCIAL_QUEUE: EscalatedWorkQueue = buildEscalatedQueue(
   "l2-fin",
   FINANCIAL_CASES,
+  expandStatusCaseAssignments(
+    [
+      { status: "Safe", count: L2_FIN_SAFE_COUNT },
+      { status: "Documents Uploaded", count: L2_FIN_DOCS_COUNT },
+    ],
+    Math.max(0, FINANCIAL_CASES.length - L2_FIN_SAFE_COUNT - L2_FIN_DOCS_COUNT),
+  ),
 );
 
 export function countEscalatedQueuePendingCases(queue: EscalatedWorkQueue): number {

@@ -32,6 +32,7 @@ type FlowContextValue = {
   startPageProduct: LandingProduct | null;
   setStartPageProduct: (product: LandingProduct | null) => void;
   openReviewAssigned: () => void;
+  openDashboards: () => void;
   openWatchlistLanding: () => void;
   openPaymentsLanding: () => void;
   openKycLanding: () => void;
@@ -67,6 +68,11 @@ export function FlowProvider({ children }: { children: ReactNode }) {
   const openReviewAssigned = useCallback(() => {
     setLandingProduct("watchlist");
     setAppView("review");
+  }, []);
+
+  const openDashboards = useCallback(() => {
+    setLandingProduct("watchlist");
+    setAppView("dashboards");
   }, []);
 
   const openWatchlistLanding = useCallback(() => {
@@ -140,6 +146,7 @@ export function FlowProvider({ children }: { children: ReactNode }) {
       startPageProduct,
       setStartPageProduct,
       openReviewAssigned,
+      openDashboards,
       openWatchlistLanding,
       openPaymentsLanding,
       openKycLanding,
@@ -161,6 +168,7 @@ export function FlowProvider({ children }: { children: ReactNode }) {
       landingProduct,
       startPageProduct,
       openReviewAssigned,
+      openDashboards,
       openWatchlistLanding,
       openPaymentsLanding,
       openKycLanding,

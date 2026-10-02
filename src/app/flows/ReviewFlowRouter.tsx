@@ -8,6 +8,7 @@ import { ReportingLandingPage } from "../components/ReportingLandingPage";
 import { ReportingDashboardPage } from "../components/ReportingDashboardPage";
 import { ReportingReportLibraryPage } from "../components/ReportingReportLibraryPage";
 import { ReportingDataManagerPage } from "../components/ReportingDataManagerPage";
+import { DashboardsIdeationPage } from "../components/DashboardsIdeationPage";
 import { AllSettingsPage } from "../components/AllSettingsPage";
 import { OrganizationSettingsPage } from "../components/OrganizationSettingsPage";
 import { PaymentsManagementPage } from "../components/PaymentsManagementPage";
@@ -15,6 +16,10 @@ import { AdministrationSettingsPage } from "../components/AdministrationSettings
 
 export function ReviewFlowRouter() {
   const { flowId, appView, landingProduct } = useUserFlow();
+
+  if (appView === "dashboards") {
+    return <DashboardsIdeationPage />;
+  }
 
   if (appView === "all-settings") {
     return <AllSettingsPage />;
