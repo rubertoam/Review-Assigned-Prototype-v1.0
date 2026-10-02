@@ -31,23 +31,6 @@ export const CASE_FILTER_GROUPS = [
       },
     ],
   },
-  {
-    label: "Application IDs",
-    items: [
-      { value: "application-isi", label: "ISI", selectedLabel: "Application - ISI" },
-      {
-        value: "application-isi-focus",
-        label: "ISI Focus",
-        selectedLabel: "Application - ISI Focus",
-      },
-      {
-        value: "application-watchlist-api",
-        label: "Watchlist API",
-        selectedLabel: "Application - Watchlist API",
-      },
-      { value: "application-edd", label: "EDD", selectedLabel: "Application - EDD" },
-    ],
-  },
 ] as const;
 
 export type CaseFilterValue = (typeof CASE_FILTER_GROUPS)[number]["items"][number]["value"];
@@ -351,14 +334,6 @@ export function caseMatchesSingleFilter(caseIndex: number, filter: CaseFilterVal
       return recordTypeForCase(caseIndex) === "organization";
     case "unknown-record-type":
       return recordTypeForCase(caseIndex) === "unknown";
-    case "application-isi":
-      return profile.applicationLabel === "ISI";
-    case "application-isi-focus":
-      return profile.applicationLabel === "ISI Focus";
-    case "application-watchlist-api":
-      return profile.applicationLabel === "Watchlist API";
-    case "application-edd":
-      return profile.applicationLabel === "EDD";
     default:
       return false;
   }
