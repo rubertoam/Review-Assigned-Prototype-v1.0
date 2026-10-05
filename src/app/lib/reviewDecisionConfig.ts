@@ -141,6 +141,41 @@ export function isLevel1OpenQueueStatus(status: string): status is Level1OpenQue
   return (LEVEL1_OPEN_QUEUE_STATUSES as readonly string[]).includes(status);
 }
 
+/**
+ * Statuses that appear as Level 1 workbench sidebar steps.
+ * These stay enabled in the match table (not grayed-out history).
+ */
+export const LEVEL1_WORKBENCH_QUEUE_STATUSES = [
+  "New",
+  "Escalate to Team Lead",
+  "Safe",
+  "False Positive",
+  "Flag for EDD",
+  "Research (Internal)",
+  "Research (External)",
+  "Documents Required",
+  "Documents Uploaded",
+  ...LEVEL1_AI_WORKBENCH_STATUSES,
+] as const;
+
+export type Level1WorkbenchQueueStatus = (typeof LEVEL1_WORKBENCH_QUEUE_STATUSES)[number];
+
+export function isLevel1WorkbenchQueueStatus(
+  status: string,
+): status is Level1WorkbenchQueueStatus {
+  return (LEVEL1_WORKBENCH_QUEUE_STATUSES as readonly string[]).includes(status);
+}
+
+/** Workflow-step labels when the stored status string differs (e.g. Safe → Suspected Hit). */
+export const LEVEL1_STATUS_WORKFLOW_LABEL: Readonly<Record<string, string>> = {
+  Safe: "Suspected Hit",
+  "Escalate to Team Lead": "Escalate to Lead",
+};
+
+export function level1StatusWorkflowLabel(status: string): string {
+  return LEVEL1_STATUS_WORKFLOW_LABEL[status] ?? status;
+}
+
 export function isLevel1AiDecisionStatus(status: string): status is Level1AiDecisionStatus {
   return (LEVEL1_AI_DECISION_STATUSES as readonly string[]).includes(status);
 }

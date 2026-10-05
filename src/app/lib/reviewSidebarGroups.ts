@@ -39,7 +39,7 @@ export const LEVEL1_SIDEBAR_GROUP_DEFS: readonly ReviewSidebarGroupDef[] = [
     steps: [
       { id: "new", label: "New", statuses: ["New"] },
       { id: "escalate-to-lead", label: "Escalate to Lead", statuses: ["Escalate to Team Lead"] },
-      { id: "true-hit", label: "True Hit", statuses: ["Safe"] },
+      { id: "suspected-hit", label: "Suspected Hit", statuses: ["Safe"] },
       { id: "false-positive", label: "False Positive", statuses: ["False Positive"] },
       { id: "edd", label: "EDD", statuses: ["Flag for EDD", "Research (Internal)", "Research (External)"] },
     ],
@@ -50,7 +50,7 @@ export const LEVEL1_SIDEBAR_GROUP_DEFS: readonly ReviewSidebarGroupDef[] = [
     steps: [
       { id: "new", label: "New", statuses: ["New"] },
       { id: "escalate-to-lead", label: "Escalate to Lead", statuses: ["Escalate to Team Lead"] },
-      { id: "true-hit", label: "True Hit", statuses: ["Safe"] },
+      { id: "suspected-hit", label: "Suspected Hit", statuses: ["Safe"] },
       { id: "false-positive", label: "False Positive", statuses: ["False Positive"] },
     ],
   },
@@ -70,7 +70,7 @@ export const LEVEL1_SIDEBAR_GROUP_DEFS: readonly ReviewSidebarGroupDef[] = [
       { id: "ai-escalate", label: "AI-Escalate", statuses: ["AI-Escalate"] },
       { id: "ai-suspected-safe", label: "AI-Suspected Safe", statuses: ["AI-Suspected Safe"] },
       { id: "escalate-to-lead", label: "Escalate to Lead", statuses: ["Escalate to Team Lead"] },
-      { id: "true-hit", label: "True Hit", statuses: ["Safe"] },
+      { id: "suspected-hit", label: "Suspected Hit", statuses: ["Safe"] },
     ],
   },
 ] as const;
@@ -82,7 +82,7 @@ export const LEVEL2_SIDEBAR_GROUP_DEFS: readonly ReviewSidebarGroupDef[] = [
     label: "Sanction Matches",
     steps: [
       { id: "escalate-to-lead", label: "Escalate to Lead", statuses: ["Escalate to Team Lead"] },
-      { id: "true-hit", label: "True Hit", statuses: ["Safe"] },
+      { id: "suspected-hit", label: "Suspected Hit", statuses: ["Safe"] },
       { id: "false-positive", label: "False Positive", statuses: ["False Positive"] },
       { id: "remediate", label: "Remediate", statuses: ["Remediate"] },
     ],
@@ -92,7 +92,7 @@ export const LEVEL2_SIDEBAR_GROUP_DEFS: readonly ReviewSidebarGroupDef[] = [
     label: "PEP Screening",
     steps: [
       { id: "escalate-to-lead", label: "Escalate to Lead", statuses: ["Escalate to Team Lead"] },
-      { id: "true-hit", label: "True Hit", statuses: ["Safe"] },
+      { id: "suspected-hit", label: "Suspected Hit", statuses: ["Safe"] },
       { id: "false-positive", label: "False Positive", statuses: ["False Positive"] },
     ],
   },
@@ -103,7 +103,7 @@ export const LEVEL2_SIDEBAR_GROUP_DEFS: readonly ReviewSidebarGroupDef[] = [
       { id: "escalate-to-lead", label: "Escalate to Lead", statuses: ["Escalate to Team Lead"] },
       { id: "documents-required", label: "Documents Required", statuses: ["Documents Required"] },
       { id: "documents-uploaded", label: "Documents Uploaded", statuses: ["Documents Uploaded"] },
-      { id: "true-hit", label: "True Hit", statuses: ["Safe"] },
+      { id: "suspected-hit", label: "Suspected Hit", statuses: ["Safe"] },
     ],
   },
   {
@@ -113,7 +113,7 @@ export const LEVEL2_SIDEBAR_GROUP_DEFS: readonly ReviewSidebarGroupDef[] = [
       { id: "ai-escalate", label: "AI-Escalate", statuses: ["AI-Escalate"] },
       { id: "ai-suspected-safe", label: "AI-Suspected Safe", statuses: ["AI-Suspected Safe"] },
       { id: "escalate-to-lead", label: "Escalate to Lead", statuses: ["Escalate to Team Lead"] },
-      { id: "true-hit", label: "True Hit", statuses: ["Safe"] },
+      { id: "suspected-hit", label: "Suspected Hit", statuses: ["Safe"] },
     ],
   },
 ] as const;

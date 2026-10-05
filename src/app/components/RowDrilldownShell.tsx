@@ -2,6 +2,7 @@ import { AceTabs } from "@ace-ds/components/atoms/AceTabs/AceTabs";
 import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import type { ReactNode } from "react";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
+import { ScreeningStatusBadge } from "./ScreeningStatusBadge";
 import { cn } from "./ui/utils";
 
 const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
@@ -19,7 +20,10 @@ export interface RowDrilldownShellProps {
   view: RowDrilldownViewId;
   onViewChange: (view: RowDrilldownViewId) => void;
   onBack: () => void;
+  /** List Record name shown in the drill-down header. */
   matchName: string;
+  /** Match status shown beside the List Record name. */
+  status: string;
   children: ReactNode;
 }
 
@@ -28,6 +32,7 @@ export function RowDrilldownShell({
   onViewChange,
   onBack,
   matchName,
+  status,
   children,
 }: RowDrilldownShellProps) {
   return (
@@ -49,6 +54,19 @@ export function RowDrilldownShell({
             Back to List
           </span>
         </button>
+        <div className="mb-3 flex min-w-0 flex-wrap items-center gap-2">
+          <h2
+            className={cn(
+              aceTypography(ACE_TYPE.h6Bold),
+              "m-0 min-w-0 truncate text-[var(--screening-text-primary)]",
+            )}
+            style={notoVar}
+            title={matchName}
+          >
+            {matchName}
+          </h2>
+          <ScreeningStatusBadge status={status} className="shrink-0" />
+        </div>
         <AceTabs
           aria-label="Match detail views"
           className="gap-4"
@@ -56,7 +74,6 @@ export function RowDrilldownShell({
           value={view}
           onValueChange={(next) => onViewChange(next as RowDrilldownViewId)}
         />
-        <p className="sr-only">Selected match: {matchName}</p>
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
     </div>

@@ -220,11 +220,10 @@ function PageHeader({
 const SIDEBAR_ORGANIZATIONS = [{ id: "level-1-users", label: "Level 1 Users" }] as const;
 
 function isLevel1ActionableStep(groupId: string, stepId: string): boolean {
-  if (groupId === "sanction" || groupId === "pep") return stepId === "new";
-  if (groupId === "compliance-workbench") return stepId === "documents-required";
-  if (groupId === "ai-workbench") {
-    return stepId === "ai-escalate" || stepId === "ai-suspected-safe";
-  }
+  // Every listed sidebar step is a live workbench queue (including Suspected Hit / FP / EDD).
+  if (groupId === "sanction" || groupId === "pep") return Boolean(stepId);
+  if (groupId === "compliance-workbench") return Boolean(stepId);
+  if (groupId === "ai-workbench") return Boolean(stepId);
   return false;
 }
 
@@ -497,9 +496,7 @@ function CaseList({
     const pendingCount = pendingResultCount(index);
     const resultsCount = isWorkflowView
       ? workflowResultCount(index)
-      : pendingCount > 0
-        ? pendingCount
-        : caseItem.results;
+      : pendingCount;
     const isSelected = selectedCaseIndex === index && selectedCaseListSection === section;
     const hasOverdueRowHighlight = profile.reviewTargetOverdue || profile.reviewTargetPastDue;
     const lockReviewer = applyCaseLocks ? lockedCaseReviewer(index) : null;

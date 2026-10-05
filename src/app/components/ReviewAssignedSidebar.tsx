@@ -50,7 +50,8 @@ export type ReviewAssignedSidebarProps = {
  * Workbench sidebar — AceSidebar `variant="groups"`.
  * Each workflow is a group; nested items are workflow steps with counts.
  * Group badge = sum of step counts.
- * Header: Group + Application ID icon dropdowns (non-bordered), search trailing.
+ * Header: Group + Application ID icon dropdowns (non-bordered), search trailing,
+ * and a label under the icons showing the selected group · application ID.
  */
 export function ReviewAssignedSidebar({
   open,
@@ -74,6 +75,24 @@ export function ReviewAssignedSidebar({
     }
     return initial;
   });
+
+  const selectedOrgLabel =
+    organizations.find((org) => org.id === selectedOrgId)?.label ??
+    organizations[0]?.label ??
+    "";
+  const selectedApplicationLabel =
+    REVIEW_SIDEBAR_APPLICATIONS.find((app) => app.id === selectedApplicationId)
+      ?.label ??
+    REVIEW_SIDEBAR_APPLICATIONS[0]?.label ??
+    "";
+  const selectionSummary =
+    selectedOrgLabel && selectedApplicationLabel
+      ? `Group: ${selectedOrgLabel} · Application: ${selectedApplicationLabel}`
+      : selectedOrgLabel
+        ? `Group: ${selectedOrgLabel}`
+        : selectedApplicationLabel
+          ? `Application: ${selectedApplicationLabel}`
+          : "";
 
   const aceGroups = useMemo((): AceSidebarGroup[] => {
     return groups.map((group) => ({
@@ -155,6 +174,40 @@ export function ReviewAssignedSidebar({
         groups={aceGroups}
         emptyGroupMessage="No workflow steps in this group."
         headerTrailing={trailing}
+        headerBelow={
+          selectionSummary ? (
+            <p
+              className={cn(
+                "m-0 truncate text-sm",
+                "[font:var(--ace-type-paragraph-p1-regular)]",
+                "[letter-spacing:var(--ace-type-paragraph-p1-regular-tracking)]",
+              )}
+              title={selectionSummary}
+            >
+              {selectedOrgLabel ? (
+                <>
+                  <span className="text-[var(--screening-text-muted)]">Group: </span>
+                  <span className="text-[var(--screening-text-primary)]">
+                    {selectedOrgLabel}
+                  </span>
+                </>
+              ) : null}
+              {selectedOrgLabel && selectedApplicationLabel ? (
+                <span className="text-[var(--screening-text-muted)]"> · </span>
+              ) : null}
+              {selectedApplicationLabel ? (
+                <>
+                  <span className="text-[var(--screening-text-muted)]">
+                    Application:{" "}
+                  </span>
+                  <span className="text-[var(--screening-text-primary)]">
+                    {selectedApplicationLabel}
+                  </span>
+                </>
+              ) : null}
+            </p>
+          ) : undefined
+        }
         className={className ?? "h-full"}
       />
     </div>
