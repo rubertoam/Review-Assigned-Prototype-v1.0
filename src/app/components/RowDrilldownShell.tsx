@@ -9,12 +9,20 @@ const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 
 export const ROW_DRILLDOWN_TAB_ITEMS = [
   { id: "screening-history", label: "Match History" },
-  { id: "documents", label: "Documents" },
-  { id: "match-simulator", label: "Match Simulator" },
+  { id: "match-simulator", label: "Match Summary" },
   { id: "list-history", label: "List History" },
+  { id: "documents", label: "Documents" },
 ] as const;
 
 export type RowDrilldownViewId = (typeof ROW_DRILLDOWN_TAB_ITEMS)[number]["id"];
+
+export function rowDrilldownTabItems(documentsCount: number) {
+  return ROW_DRILLDOWN_TAB_ITEMS.map((item) =>
+    item.id === "documents"
+      ? { id: item.id, label: `Documents (${documentsCount})` }
+      : { id: item.id, label: item.label },
+  );
+}
 
 export interface RowDrilldownShellProps {
   view: RowDrilldownViewId;
@@ -24,6 +32,8 @@ export interface RowDrilldownShellProps {
   matchName: string;
   /** Match status shown beside the List Record name. */
   status: string;
+  /** Current match document count for the Documents tab label. */
+  documentsCount?: number;
   children: ReactNode;
 }
 
@@ -33,6 +43,7 @@ export function RowDrilldownShell({
   onBack,
   matchName,
   status,
+  documentsCount = 0,
   children,
 }: RowDrilldownShellProps) {
   return (
@@ -70,7 +81,7 @@ export function RowDrilldownShell({
         <AceTabs
           aria-label="Match detail views"
           className="gap-4"
-          items={[...ROW_DRILLDOWN_TAB_ITEMS]}
+          items={rowDrilldownTabItems(documentsCount)}
           value={view}
           onValueChange={(next) => onViewChange(next as RowDrilldownViewId)}
         />

@@ -70,7 +70,7 @@ const COACH_STEPS: readonly CoachStep[] = [
     id: "matches",
     title: "Matches",
     description:
-      "Review Match Alerts in the table. Use the three dot menu to review the List Profile, Match History, Match Simulator and more.",
+      "Review Match Alerts in the table. Use the three dot menu to review the List Profile, Match History, Match Summary and more.",
     side: "bottom",
     align: "center",
     requiresDetail: true,

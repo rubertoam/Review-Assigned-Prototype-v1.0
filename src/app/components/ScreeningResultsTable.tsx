@@ -75,6 +75,7 @@ import {
 } from "./RowDrilldownShell";
 import { ScreeningHistoryPanel } from "./ScreeningHistoryPanel";
 import { casesData } from "../lib/reviewCaseData";
+import { initialDocumentsForMatch } from "../lib/matchDocumentsData";
 
 export { easeAccordion, durationAccordion } from "./ExpandableFinScanTable";
 
@@ -961,6 +962,8 @@ interface ScreeningResultsTableProps {
   onQuickClearRow?: (rowId: string, status: ScreeningRowStatus) => void;
   /** Case is locked by another analyst — view-only, no selection or actions. */
   readOnly?: boolean;
+  /** Fired when a row drilldown opens or closes (three-dot menu detail views). */
+  onDrilldownRowChange?: (row: ScreeningResultRow | null) => void;
 }
 
 /** Per-row Quick Clear dropdown — resolves a single match to a decision status from the table. */
@@ -1231,21 +1234,21 @@ function ScreeningRowActionsMenu({
         </DropdownMenuItem>
         <DropdownMenuItem
           className={screeningRowActionsMenuItemClass}
-          onSelect={() => onOpenDrilldown(row, "documents")}
-        >
-          Documents
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          className={screeningRowActionsMenuItemClass}
           onSelect={() => onOpenDrilldown(row, "match-simulator")}
         >
-          Match Simulator
+          Match Summary
         </DropdownMenuItem>
         <DropdownMenuItem
           className={screeningRowActionsMenuItemClass}
           onSelect={() => onOpenDrilldown(row, "list-history")}
         >
           List History
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className={screeningRowActionsMenuItemClass}
+          onSelect={() => onOpenDrilldown(row, "documents")}
+        >
+          Documents
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -1278,6 +1281,7 @@ export function ScreeningResultsTable({
   onSelectedIdsChange,
   onQuickClearRow,
   readOnly = false,
+  onDrilldownRowChange,
 }: ScreeningResultsTableProps) {
   const isLevel2 = flowVariant === "level-2";
   /** Empty set = no filter (show all). Otherwise rows must match one of the selected status labels. */
@@ -1286,6 +1290,7 @@ export function ScreeningResultsTable({
   const [searchQuery, setSearchQuery] = useState("");
   const [drilldownRow, setDrilldownRow] = useState<ScreeningTableDisplayRow | null>(null);
   const [drilldownView, setDrilldownView] = useState<RowDrilldownView | null>(null);
+  const [drilldownDocumentsCount, setDrilldownDocumentsCount] = useState(0);
   const [expandedRowIds, setExpandedRowIds] = useState<Set<string>>(() => new Set());
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -1323,14 +1328,19 @@ export function ScreeningResultsTable({
     (row: ScreeningTableDisplayRow, view: RowDrilldownView) => {
       setDrilldownRow(row);
       setDrilldownView(view);
+      setDrilldownDocumentsCount(initialDocumentsForMatch(row.id).length);
+      // Enable Show Review for this alert without auto-opening the review panel.
+      onDrilldownRowChange?.(readOnly ? null : row);
     },
-    [],
+    [onDrilldownRowChange, readOnly],
   );
 
   const closeRowDrilldown = useCallback(() => {
     setDrilldownRow(null);
     setDrilldownView(null);
-  }, []);
+    setDrilldownDocumentsCount(0);
+    onDrilldownRowChange?.(null);
+  }, [onDrilldownRowChange]);
 
   const isCaseComplete = useMemo(
     () => isCaseReviewComplete(rows, flowVariant),
@@ -1352,8 +1362,10 @@ export function ScreeningResultsTable({
     setPage(1);
     setDrilldownRow(null);
     setDrilldownView(null);
+    setDrilldownDocumentsCount(0);
+    onDrilldownRowChange?.(null);
     setExpandedRowIds(new Set());
-  }, [caseRowIdsKey, isLevel2]);
+  }, [caseRowIdsKey, isLevel2, onDrilldownRowChange]);
 
   useEffect(() => {
     setPage(1);
@@ -1997,6 +2009,7 @@ export function ScreeningResultsTable({
             onBack={closeRowDrilldown}
             matchName={listRecordNameForRow(drilldownRow)}
             status={drilldownRow.status}
+            documentsCount={drilldownDocumentsCount}
           >
             {drilldownView === "screening-history" ? (
               <ScreeningHistoryPanel
@@ -2010,6 +2023,7 @@ export function ScreeningResultsTable({
                 row={drilldownRow}
                 onBack={closeRowDrilldown}
                 hideChrome
+                onDocumentsCountChange={setDrilldownDocumentsCount}
               />
             ) : null}
             {drilldownView === "match-simulator" ? (

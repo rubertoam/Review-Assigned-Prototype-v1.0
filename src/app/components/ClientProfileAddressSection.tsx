@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
+import { clientProfileIconSlotClass } from "./ClientProfileHeaderBadges";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { cn } from "./ui/utils";
 
@@ -21,7 +22,7 @@ const clientBodyNotoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as c
 function ClientProfileLocationPinIcon() {
   return (
     <svg
-      className="block size-full"
+      className="block h-[23px] w-4"
       fill="none"
       preserveAspectRatio="none"
       viewBox="0 0 16 23"
@@ -61,9 +62,9 @@ export function ClientProfileAddressSection({
             )}
             aria-label={`View map for ${fullAddress}`}
           >
-            <div className="h-[23px] w-[16px] shrink-0">
+            <span className={cn(clientProfileIconSlotClass, "mt-0.5 self-start")}>
               <ClientProfileLocationPinIcon />
-            </div>
+            </span>
             <div
               className={cn(
                 clientBodyLineTextClass,

@@ -6,10 +6,13 @@ const clientMetaLineClass =
 
 const clientMetaNotoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 
-export function MetaDot() {
+export function MetaDot({ className }: { className?: string }) {
   return (
     <span
-      className="inline-block size-1 shrink-0 rounded-full bg-[#523eb9] dark:bg-[#8696a7]"
+      className={cn(
+        "inline-block size-1 shrink-0 rounded-full bg-[#523eb9] dark:bg-[#8696a7]",
+        className,
+      )}
       aria-hidden
     />
   );

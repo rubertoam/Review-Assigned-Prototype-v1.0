@@ -357,6 +357,8 @@ interface MatchSimulatorContentProps {
   layout?: "modal" | "inline";
   /** When true, omit the person name (e.g. parent modal already shows it). */
   hideName?: boolean;
+  /** Start on results instead of the intro “Simulate Match” screen. */
+  initialPhase?: SimulatorPhase;
 }
 
 function MatchSummaryHeader({
@@ -420,17 +422,18 @@ export function MatchSimulatorContent({
   row,
   layout = "inline",
   hideName = false,
+  initialPhase = "intro",
 }: MatchSimulatorContentProps) {
-  const [phase, setPhase] = useState<SimulatorPhase>("intro");
+  const [phase, setPhase] = useState<SimulatorPhase>(initialPhase);
   const [view, setView] = useState<SimulatorView>("run-results");
   const tabPrefix = useId();
   const isInline = layout === "inline";
   const centerIntroInModal = isInline && hideName && phase === "intro";
 
   useEffect(() => {
-    setPhase("intro");
+    setPhase(initialPhase);
     setView("run-results");
-  }, [row.id]);
+  }, [row.id, initialPhase]);
   const runRows = useMemo(() => buildSimulatorRunRows(row), [row]);
 
   return (
@@ -447,7 +450,7 @@ export function MatchSimulatorContent({
       {!isInline ? (
         <div className="flex shrink-0 items-center justify-between gap-3 bg-white px-5 py-4 dark:bg-[#22272b]">
           <p className={headerTitleClass} style={noto}>
-            Match Simulator
+            Match Summary
           </p>
         </div>
       ) : null}

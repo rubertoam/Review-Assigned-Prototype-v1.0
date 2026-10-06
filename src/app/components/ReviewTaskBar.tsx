@@ -14,6 +14,8 @@ interface ReviewTaskBarProps {
   selectedRows: readonly ScreeningResultRow[];
   onDeselectAllScreening: () => void;
   onBulkQuickClear: (status: ScreeningRowStatus) => void;
+  /** Three-dot drilldown is open — enable Show Review without requiring a checkbox selection. */
+  hasDrilldownContext?: boolean;
 }
 
 export function ReviewTaskBar({
@@ -24,9 +26,10 @@ export function ReviewTaskBar({
   selectedRows,
   onDeselectAllScreening,
   onBulkQuickClear,
+  hasDrilldownContext = false,
 }: ReviewTaskBarProps) {
   const isSelectionEmpty = screeningSelectionCount === 0;
-  const isShowReviewDisabled = !isReviewOpen && isSelectionEmpty;
+  const isShowReviewDisabled = !isReviewOpen && isSelectionEmpty && !hasDrilldownContext;
 
   const showReviewButton = (
     <button

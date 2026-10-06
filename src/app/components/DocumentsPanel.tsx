@@ -144,6 +144,8 @@ export interface DocumentsPanelProps {
   modifyUser?: string;
   /** When true, omit Back + title (parent shell provides navigation). */
   hideChrome?: boolean;
+  /** Notifies parent when the document list length changes (for tab labels). */
+  onDocumentsCountChange?: (count: number) => void;
 }
 
 export function DocumentsPanel({
@@ -151,6 +153,7 @@ export function DocumentsPanel({
   onBack,
   modifyUser = "antonio",
   hideChrome = false,
+  onDocumentsCountChange,
 }: DocumentsPanelProps) {
   const [documents, setDocuments] = useState(() => initialDocumentsForMatch(row.id));
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(() => new Set());
@@ -171,6 +174,10 @@ export function DocumentsPanel({
     setDeleteTarget(null);
     setDeleteConfirmText("");
   }, [row.id]);
+
+  useEffect(() => {
+    onDocumentsCountChange?.(documents.length);
+  }, [documents.length, onDocumentsCountChange]);
 
   const hasDocuments = documents.length > 0;
   const allExpanded =

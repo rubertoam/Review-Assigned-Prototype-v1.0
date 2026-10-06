@@ -6,13 +6,14 @@ import { DocumentsPanel } from "./DocumentsPanel";
 import { ListHistoryPanel } from "./ListHistoryPanel";
 import { MatchSimulatorPanel } from "./MatchSimulatorPanel";
 import {
-  ROW_DRILLDOWN_TAB_ITEMS,
+  rowDrilldownTabItems,
   type RowDrilldownViewId,
 } from "./RowDrilldownShell";
 import { ScreeningHistoryPanel } from "./ScreeningHistoryPanel";
 import { ScreeningStatusBadge } from "./ScreeningStatusBadge";
 import type { ScreeningResultRow } from "./ScreeningResultsTable";
 import { cn } from "./ui/utils";
+import { initialDocumentsForMatch } from "../lib/matchDocumentsData";
 
 const matchAlertDrilldownModalShellClass = cn(
   "!flex !h-fit !max-h-[min(85vh,calc(100dvh-2rem))] !w-full !max-w-[min(56rem,calc(100vw-2rem))] !flex-col !overflow-hidden",
@@ -58,10 +59,16 @@ export function MatchAlertDrilldownModal({
   const titleName = row ? listProfileNameForRow(row) : "Match details";
   const activeView = view ?? "screening-history";
   const [mountedView, setMountedView] = useState(activeView);
+  const [documentsCount, setDocumentsCount] = useState(0);
 
   useEffect(() => {
     if (open && view) setMountedView(view);
   }, [open, view]);
+
+  useEffect(() => {
+    if (row) setDocumentsCount(initialDocumentsForMatch(row.id).length);
+    else setDocumentsCount(0);
+  }, [row]);
 
   return (
     <DialogModal
@@ -91,7 +98,7 @@ export function MatchAlertDrilldownModal({
         <div className="flex flex-col">
           <div className="shrink-0">
             <AceTabs
-              items={[...ROW_DRILLDOWN_TAB_ITEMS]}
+              items={rowDrilldownTabItems(documentsCount)}
               value={mountedView}
               onValueChange={(next) => onViewChange(next as RowDrilldownViewId)}
               idPrefix={tabPrefix}
@@ -121,7 +128,12 @@ export function MatchAlertDrilldownModal({
                   <ScreeningHistoryPanel row={row} onBack={onClose} hideChrome />
                 ) : null}
                 {mountedView === "documents" ? (
-                  <DocumentsPanel row={row} onBack={onClose} hideChrome />
+                  <DocumentsPanel
+                    row={row}
+                    onBack={onClose}
+                    hideChrome
+                    onDocumentsCountChange={setDocumentsCount}
+                  />
                 ) : null}
                 {mountedView === "match-simulator" ? (
                   <MatchSimulatorPanel row={row} onBack={onClose} hideChrome />

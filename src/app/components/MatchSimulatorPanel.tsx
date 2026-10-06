@@ -1,8 +1,16 @@
+import { useEffect, useState } from "react";
 import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
+import { AceButton } from "@ace-ds/components/atoms/AceButton";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
+import {
+  MATCH_SUMMARY_RANK_TYPE,
+  nameTypeMatchedForRow,
+} from "../lib/matchAttributesData";
+import { ClientProfileMetaLine } from "./ClientProfileMetaLine";
+import { MatchAttributesTable } from "./MatchAttributesTable";
+import { MatchSimulatorContent } from "./MatchSimulatorDrawerContent";
 import { cn } from "./ui/utils";
 import type { ScreeningResultRow } from "./ScreeningResultsTable";
-import { MatchSimulatorContent } from "./MatchSimulatorDrawerContent";
 
 const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 
@@ -13,21 +21,74 @@ export interface MatchSimulatorPanelProps {
   hideChrome?: boolean;
 }
 
+function MatchSummaryHeaderBar({
+  row,
+  onSimulateMatch,
+}: {
+  row: ScreeningResultRow;
+  onSimulateMatch: () => void;
+}) {
+  const nameTypeMatched = nameTypeMatchedForRow(row);
+
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div className="flex min-w-0 flex-col gap-1">
+        <ClientProfileMetaLine label="Name Type Matched">
+          {nameTypeMatched}
+        </ClientProfileMetaLine>
+        <ClientProfileMetaLine label="Rank Type">
+          {MATCH_SUMMARY_RANK_TYPE}
+        </ClientProfileMetaLine>
+        <ClientProfileMetaLine label="FinScan Category">N/A</ClientProfileMetaLine>
+      </div>
+      <AceButton
+        type="button"
+        variant="primary"
+        palette="purple"
+        size="md"
+        className="shrink-0"
+        onClick={onSimulateMatch}
+      >
+        Simulate Match
+      </AceButton>
+    </div>
+  );
+}
+
 export function MatchSimulatorPanel({
   row,
   onBack,
   hideChrome = false,
 }: MatchSimulatorPanelProps) {
+  const [showSimulator, setShowSimulator] = useState(false);
+
+  useEffect(() => {
+    setShowSimulator(false);
+  }, [row.id]);
+
   const body = (
     <div
       className={cn(
         "bg-[var(--screening-surface)] px-4 py-4",
-        hideChrome
-          ? "flex min-h-0 flex-1 flex-col overflow-hidden"
-          : "min-h-0 flex-1 overflow-y-auto",
+        "flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto",
       )}
     >
-      <MatchSimulatorContent row={row} layout="inline" hideName={hideChrome} />
+      {showSimulator ? (
+        <MatchSimulatorContent
+          row={row}
+          layout="inline"
+          hideName={hideChrome}
+          initialPhase="results"
+        />
+      ) : (
+        <>
+          <MatchSummaryHeaderBar
+            row={row}
+            onSimulateMatch={() => setShowSimulator(true)}
+          />
+          <MatchAttributesTable row={row} />
+        </>
+      )}
     </div>
   );
 
@@ -60,7 +121,7 @@ export function MatchSimulatorPanel({
           className={cn(aceTypography(ACE_TYPE.p1SemiBold), "text-[var(--screening-text-primary)]")}
           style={notoVar}
         >
-          Match Simulator
+          Match Summary
         </p>
       </div>
       {body}

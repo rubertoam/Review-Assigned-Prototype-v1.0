@@ -42,10 +42,18 @@ import { ReviewFlowSiteHeader } from "../../components/ReviewFlowSiteHeader";
 import {
   ClientProfileAccordionHeaderTags,
   ClientProfileClientIdRow,
+  ClientProfileNameRow,
+  ClientProfileStatusRow,
   OverdueWarningIcon,
 } from "../../components/ClientProfileHeaderBadges";
 import { ClientProfileAddressSection } from "../../components/ClientProfileAddressSection";
+import { ClientProfileCopyablePanel } from "../../components/ClientProfileCopyablePanel";
 import { ClientProfileMetaLine } from "../../components/ClientProfileMetaLine";
+import { ClientProfileTruncatedField } from "../../components/ClientProfileTruncatedField";
+import {
+  CLIENT_PROFILE_PASSTHROUGH_PLACEHOLDER,
+  clientProfileCommentForCase,
+} from "../../lib/clientProfileCommentData";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -99,6 +107,7 @@ import { ReviewDrawer } from "../../components/ReviewDrawer";
 import { ReviewTaskBar } from "../../components/ReviewTaskBar";
 import {
   ReviewAssignedSidebar,
+  formatReviewApplicationLabel,
   type ReviewAssignedSidebarSelection,
 } from "../../components/ReviewAssignedSidebar";
 import { SearchClientIdModal } from "../../components/SearchClientIdModal";
@@ -704,6 +713,9 @@ interface DetailPanelProps {
   showFilterEmptyState?: boolean;
   workQueueId: Level2WorkQueueId;
   onOpenClientProfileAction?: (action: ClientProfileActionId) => void;
+  onDrilldownRowChange?: (row: ScreeningResultRow | null) => void;
+  /** Sidebar Application ID — drives the Application field in the client profile. */
+  applicationId?: string;
 }
 
 function DetailPanel({
@@ -719,6 +731,8 @@ function DetailPanel({
   showFilterEmptyState = false,
   workQueueId,
   onOpenClientProfileAction,
+  onDrilldownRowChange,
+  applicationId,
 }: DetailPanelProps) {
   const [clientExpanded, setClientExpanded] = useState(false);
 
@@ -755,9 +769,12 @@ function DetailPanel({
   }
 
   const profile = clientProfileForLevel2Case(workQueueId, selectedCaseIndex);
+  const applicationLabel = formatReviewApplicationLabel(applicationId);
   const riskPresentation = riskBandPresentation(profile.riskBand);
   const isCaseComplete = isCaseReviewComplete(screeningRows, "level-2");
   const showOverdueWarning = profile.reviewTargetOverdue && !isCaseComplete;
+  const profileComment = clientProfileCommentForCase(selectedCaseIndex);
+  const profilePassthrough = CLIENT_PROFILE_PASSTHROUGH_PLACEHOLDER;
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
@@ -837,44 +854,48 @@ function DetailPanel({
         }
       >
             <div className="flex min-h-[260px] gap-4 items-stretch">
-              <div className="flex min-h-0 flex-1 flex-col gap-2 self-stretch rounded border border-[#cfd2d9] dark:border-[#38414a] bg-white dark:bg-[#22272b] p-6">
+              <ClientProfileCopyablePanel
+                copyLabel="Copy identity details"
+                getCopyText={() => {
+                  const lines = [
+                    ...profile.addressLines,
+                    `Client Name · ${selectedCase.name}`,
+                    `Client ID · ${profile.clientId}`,
+                    "Client Active",
+                    "Address Validated",
+                  ];
+                  if (profile.showIdVerified) lines.push("ID Verified");
+                  return lines.join("\n");
+                }}
+              >
                 <ClientProfileAddressSection addressLines={profile.addressLines} />
+                <ClientProfileNameRow name={selectedCase.name} />
                 <ClientProfileClientIdRow clientId={profile.clientId} />
-                <div className="flex gap-2.5 items-center">
-                  <div className="size-[16px] shrink-0">
-                    <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 16 16">
-                      <path d="M6.88 9.44L5.14 7.7C4.99333 7.55333 4.81333 7.48 4.6 7.48C4.38667 7.48 4.2 7.56 4.04 7.72C3.89333 7.86667 3.82 8.05333 3.82 8.28C3.82 8.50667 3.89333 8.69333 4.04 8.84L6.32 11.12C6.46667 11.2667 6.65333 11.34 6.88 11.34C7.10667 11.34 7.29333 11.2667 7.44 11.12L11.98 6.58C12.1267 6.43333 12.2 6.25333 12.2 6.04C12.2 5.82667 12.12 5.64 11.96 5.48C11.8133 5.33333 11.6267 5.26 11.4 5.26C11.1733 5.26 10.9867 5.33333 10.84 5.48L6.88 9.44ZM8 16C6.89333 16 5.85333 15.7899 4.88 15.3696C3.90667 14.9499 3.06 14.38 2.34 13.66C1.62 12.94 1.05013 12.0933 0.6304 11.12C0.210133 10.1467 0 9.10667 0 8C0 6.89333 0.210133 5.85333 0.6304 4.88C1.05013 3.90667 1.62 3.06 2.34 2.34C3.06 1.62 3.90667 1.04987 4.88 0.6296C5.85333 0.209867 6.89333 0 8 0C9.10667 0 10.1467 0.209867 11.12 0.6296C12.0933 1.04987 12.94 1.62 13.66 2.34C14.38 3.06 14.9499 3.90667 15.3696 4.88C15.7899 5.85333 16 6.89333 16 8C16 9.10667 15.7899 10.1467 15.3696 11.12C14.9499 12.0933 14.38 12.94 13.66 13.66C12.94 14.38 12.0933 14.9499 11.12 15.3696C10.1467 15.7899 9.10667 16 8 16Z" fill="#87B531" />
-                    </svg>
-                  </div>
-                  <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[14px] text-[#23262c] dark:text-[#b6c2cf]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                    Client Active
-                  </p>
-                </div>
-                <div className="flex gap-2.5 items-center">
-                  <div className="size-[16px] shrink-0">
-                    <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 16 16">
-                      <path d="M6.88 9.44L5.14 7.7C4.99333 7.55333 4.81333 7.48 4.6 7.48C4.38667 7.48 4.2 7.56 4.04 7.72C3.89333 7.86667 3.82 8.05333 3.82 8.28C3.82 8.50667 3.89333 8.69333 4.04 8.84L6.32 11.12C6.46667 11.2667 6.65333 11.34 6.88 11.34C7.10667 11.34 7.29333 11.2667 7.44 11.12L11.98 6.58C12.1267 6.43333 12.2 6.25333 12.2 6.04C12.2 5.82667 12.12 5.64 11.96 5.48C11.8133 5.33333 11.6267 5.26 11.4 5.26C11.1733 5.26 10.9867 5.33333 10.84 5.48L6.88 9.44ZM8 16C6.89333 16 5.85333 15.7899 4.88 15.3696C3.90667 14.9499 3.06 14.38 2.34 13.66C1.62 12.94 1.05013 12.0933 0.6304 11.12C0.210133 10.1467 0 9.10667 0 8C0 6.89333 0.210133 5.85333 0.6304 4.88C1.05013 3.90667 1.62 3.06 2.34 2.34C3.06 1.62 3.90667 1.04987 4.88 0.6296C5.85333 0.209867 6.89333 0 8 0C9.10667 0 10.1467 0.209867 11.12 0.6296C12.0933 1.04987 12.94 1.62 13.66 2.34C14.38 3.06 14.9499 3.90667 15.3696 4.88C15.7899 5.85333 16 6.89333 16 8C16 9.10667 15.7899 10.1467 15.3696 11.12C14.9499 12.0933 14.38 12.94 13.66 13.66C12.94 14.38 12.0933 14.9499 11.12 15.3696C10.1467 15.7899 9.10667 16 8 16Z" fill="#87B531" />
-                    </svg>
-                  </div>
-                  <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[14px] text-[#23262c] dark:text-[#b6c2cf]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                    Address Validated
-                  </p>
-                </div>
+                <ClientProfileStatusRow label="Client Active" />
+                <ClientProfileStatusRow label="Address Validated" />
                 {profile.showIdVerified ? (
-                  <div className="flex gap-2.5 items-center">
-                    <div className="size-[16px] shrink-0">
-                      <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 16 16">
-                        <path d="M6.88 9.44L5.14 7.7C4.99333 7.55333 4.81333 7.48 4.6 7.48C4.38667 7.48 4.2 7.56 4.04 7.72C3.89333 7.86667 3.82 8.05333 3.82 8.28C3.82 8.50667 3.89333 8.69333 4.04 8.84L6.32 11.12C6.46667 11.2667 6.65333 11.34 6.88 11.34C7.10667 11.34 7.29333 11.2667 7.44 11.12L11.98 6.58C12.1267 6.43333 12.2 6.25333 12.2 6.04C12.2 5.82667 12.12 5.64 11.96 5.48C11.8133 5.33333 11.6267 5.26 11.4 5.26C11.1733 5.26 10.9867 5.33333 10.84 5.48L6.88 9.44ZM8 16C6.89333 16 5.85333 15.7899 4.88 15.3696C3.90667 14.9499 3.06 14.38 2.34 13.66C1.62 12.94 1.05013 12.0933 0.6304 11.12C0.210133 10.1467 0 9.10667 0 8C0 6.89333 0.210133 5.85333 0.6304 4.88C1.05013 3.90667 1.62 3.06 2.34 2.34C3.06 1.62 3.90667 1.04987 4.88 0.6296C5.85333 0.209867 6.89333 0 8 0C9.10667 0 10.1467 0.209867 11.12 0.6296C12.0933 1.04987 12.94 1.62 13.66 2.34C14.38 3.06 14.9499 3.90667 15.3696 4.88C15.7899 5.85333 16 6.89333 16 8C16 9.10667 15.7899 10.1467 15.3696 11.12C14.9499 12.0933 14.38 12.94 13.66 13.66C12.94 14.38 12.0933 14.9499 11.12 15.3696C10.1467 15.7899 9.10667 16 8 16Z" fill="#87B531" />
-                      </svg>
-                    </div>
-                    <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[14px] text-[#23262c] dark:text-[#b6c2cf]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                      ID Verified
-                    </p>
-                  </div>
+                  <ClientProfileStatusRow label="ID Verified" />
                 ) : null}
-              </div>
+              </ClientProfileCopyablePanel>
 
-              <div className="flex min-h-0 flex-1 flex-col gap-2 self-stretch rounded border border-[#cfd2d9] dark:border-[#38414a] bg-white dark:bg-[#22272b] p-6">
+              <ClientProfileCopyablePanel
+                copyLabel="Copy profile details"
+                getCopyText={() => {
+                  const lines: string[] = [];
+                  if (profile.gender != null) lines.push(`Gender · ${profile.gender}`);
+                  if (profile.dob != null) lines.push(`Date of Birth · ${profile.dob}`);
+                  lines.push(`Application · ${applicationLabel}`);
+                  lines.push(
+                    `Review Target · ${profile.reviewTargetSummary}${
+                      showOverdueWarning ? " Overdue Warning" : ""
+                    }`,
+                  );
+                  lines.push(`Last Modified · ${profile.lastModified}`);
+                  lines.push(`Comments · ${profileComment}`);
+                  lines.push(`Passthrough · ${profilePassthrough}`);
+                  return lines.join("\n");
+                }}
+              >
                 {profile.gender != null ? (
                   <ClientProfileMetaLine label="Gender">{profile.gender}</ClientProfileMetaLine>
                 ) : null}
@@ -882,7 +903,7 @@ function DetailPanel({
                   <ClientProfileMetaLine label="Date of Birth">{profile.dob}</ClientProfileMetaLine>
                 ) : null}
                 <ClientProfileMetaLine label="Application">
-                  {profile.applicationLabel}
+                  {applicationLabel}
                 </ClientProfileMetaLine>
                 <ClientProfileMetaLine label="Review Target">
                   {profile.reviewTargetSummary}
@@ -893,7 +914,9 @@ function DetailPanel({
                 <ClientProfileMetaLine label="Last Modified">
                   {profile.lastModified}
                 </ClientProfileMetaLine>
-              </div>
+                <ClientProfileTruncatedField label="Comments" value={profileComment} />
+                <ClientProfileTruncatedField label="Passthrough" value={profilePassthrough} />
+              </ClientProfileCopyablePanel>
 
               <AceTooltip>
                 <AceTooltipTrigger asChild>
@@ -943,6 +966,7 @@ function DetailPanel({
             selectedIds={screeningSelectedIds}
             onSelectedIdsChange={onScreeningSelectedIdsChange}
             onQuickClearRow={onQuickClearRow}
+            onDrilldownRowChange={onDrilldownRowChange}
           />
         </div>
       </div>
@@ -974,6 +998,7 @@ export function Level2ReviewInterface() {
     null,
   );
   const [screeningSelectedIds, setScreeningSelectedIds] = useState<Set<string>>(() => new Set());
+  const [drilldownReviewRow, setDrilldownReviewRow] = useState<ScreeningResultRow | null>(null);
   const [caseFilterVisibility, setCaseFilterVisibility] = useState({
     filtersActive: false,
     filteredCount: casesData.length,
@@ -982,11 +1007,13 @@ export function Level2ReviewInterface() {
     setSelectedCaseIndex(index);
     setSelectedCaseListSection(section);
     setScreeningSelectedIds(new Set());
+    setDrilldownReviewRow(null);
     setClientProfileAction(null);
   }, []);
   const [screeningRowsByCase, setScreeningRowsByCase] = useScreeningRowsByCase();
   const [sidebarSelection, setSidebarSelection] = useState<ReviewAssignedSidebarSelection>({
     kind: "step",
+    applicationId: "isi",
     groupId: "pep",
     stepId: "escalate-to-lead",
   });
@@ -1052,6 +1079,7 @@ export function Level2ReviewInterface() {
     (selection: ReviewAssignedSidebarSelection) => {
       setSidebarSelection(selection);
       setScreeningSelectedIds(new Set());
+      setDrilldownReviewRow(null);
       setClientProfileAction(null);
       setIsReviewDrawerOpen(false);
       setInsightsOpen(false);
@@ -1198,10 +1226,13 @@ export function Level2ReviewInterface() {
       if (next) {
         setClientProfileAction(null);
         setInsightsOpen(false);
+        if (screeningSelectedIds.size === 0 && drilldownReviewRow != null) {
+          setScreeningSelectedIds(new Set([drilldownReviewRow.id]));
+        }
       }
       return next;
     });
-  }, []);
+  }, [screeningSelectedIds.size, drilldownReviewRow]);
 
   const handleOpenInsights = useCallback(() => {
     setInsightsOpen((open) => {
@@ -1442,6 +1473,8 @@ export function Level2ReviewInterface() {
                 }
                 workQueueId={workQueueId}
                 onOpenClientProfileAction={handleOpenClientProfileAction}
+                onDrilldownRowChange={setDrilldownReviewRow}
+                applicationId={sidebarSelection.applicationId}
               />
             </div>
             {workflowHasCases && isActionableStep && !allCasesCleared && !awaitingLevel1Work ? (
@@ -1453,6 +1486,7 @@ export function Level2ReviewInterface() {
                 selectedRows={selectedScreeningRows}
                 onDeselectAllScreening={() => setScreeningSelectedIds(new Set())}
                 onBulkQuickClear={handleBulkQuickClear}
+                hasDrilldownContext={drilldownReviewRow != null}
               />
             ) : null}
           </div>
