@@ -30,12 +30,13 @@ function figmaAssetResolver() {
 
 /** @ace-ds lives outside this repo; resolve its npm imports from our node_modules (CI has no DS install). */
 function aceDsDependencyResolver() {
-  const dsMarker = `${path.sep}Design System${path.sep}`
   return {
     name: 'ace-ds-dependency-resolver',
     enforce: 'pre' as const,
     resolveId(source: string, importer?: string) {
-      if (!importer?.includes(dsMarker)) return null
+      // Vite normalizes importers to `/` even on Windows; don't rely on path.sep alone.
+      const fromDesignSystem = importer?.replace(/\\/g, '/').includes('/Design System/')
+      if (!fromDesignSystem) return null
       if (source.startsWith('.') || source.startsWith('\0') || path.isAbsolute(source)) {
         return null
       }
