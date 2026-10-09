@@ -40,6 +40,7 @@ import { ReviewPanelEmptyState } from "../../components/ReviewPanelEmptyState";
 import { ReviewFlowSiteHeader } from "../../components/ReviewFlowSiteHeader";
 import {
   ClientProfileAccordionHeaderTags,
+  ClientProfileActiveIndicator,
   ClientProfileClientIdRow,
   ClientProfileNameRow,
   ClientProfileStatusRow,
@@ -102,7 +103,6 @@ import {
   clientProfileForCaseIndex,
   compareCasesBySort,
   normalizeClientIdSearchQuery,
-  riskBandPresentation,
   type CaseFilterValue,
   type CaseSortValue,
   type ClientIdSeries,
@@ -500,7 +500,10 @@ function CaseList({
   const renderCaseRow = (caseItem: PepCaseListItem | (typeof casesData)[number], index: number) => {
     const section: CaseListSectionContext = isWorkflowView ? workflowCaseSection : "todo";
     const isEntity = "isEntity" in caseItem && caseItem.isEntity;
-    const profile = clientProfileForCaseIndex(index, clientIdSeries);
+    const profile = clientProfileForCaseIndex(index, clientIdSeries, {
+      name: caseItem.name,
+      isEntity: Boolean(isEntity),
+    });
     const clientId = profile.clientId;
     const pendingCount = pendingResultCount(index);
     const resultsCount = isWorkflowView
@@ -756,9 +759,11 @@ function DetailPanel({
   applicationId,
 }: DetailPanelProps) {
   const [clientExpanded, setClientExpanded] = useState(false);
-  const profile = clientProfileForCaseIndex(selectedCaseIndex, clientIdSeries);
+  const profile = clientProfileForCaseIndex(selectedCaseIndex, clientIdSeries, {
+    name: selectedCase.name,
+    isEntity: "isEntity" in selectedCase && selectedCase.isEntity,
+  });
   const applicationLabel = formatReviewApplicationLabel(applicationId);
-  const riskPresentation = riskBandPresentation(profile.riskBand);
   const isWorkflowView = Boolean(workflowLabel);
   const profileComment = clientProfileCommentForCase(selectedCaseIndex);
   const profilePassthrough = CLIENT_PROFILE_PASSTHROUGH_PLACEHOLDER;
@@ -815,12 +820,17 @@ function DetailPanel({
             className="flex min-w-0 flex-nowrap items-center gap-2 overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
+            <ClientProfileActiveIndicator />
             <span className="truncate">{selectedCase.name}</span>
             <ClientProfileAccordionHeaderTags
               clientId={profile.clientId}
-              countryLabel={profile.countryLabel}
-              dob={profile.dob}
+              riskBand={profile.riskBand}
               showOverdueWarning={profile.reviewTargetOverdue}
+              onRiskClick={
+                isCaseReadOnly || workflowReadOnly
+                  ? undefined
+                  : () => onOpenClientProfileAction?.("risk-rating")
+              }
             />
           </div>
         }
@@ -871,7 +881,6 @@ function DetailPanel({
                     ...profile.addressLines,
                     `Client Name · ${selectedCase.name}`,
                     `Client ID · ${profile.clientId}`,
-                    "Client Active",
                     "Address Validated",
                   ];
                   if (profile.showIdVerified) lines.push("ID Verified");
@@ -881,7 +890,6 @@ function DetailPanel({
                 <ClientProfileAddressSection addressLines={profile.addressLines} />
                 <ClientProfileNameRow name={selectedCase.name} />
                 <ClientProfileClientIdRow clientId={profile.clientId} />
-                <ClientProfileStatusRow label="Client Active" />
                 <ClientProfileStatusRow label="Address Validated" />
                 {profile.showIdVerified ? (
                   <ClientProfileStatusRow label="ID Verified" />
@@ -927,35 +935,6 @@ function DetailPanel({
                 <ClientProfileTruncatedField label="Comments" value={profileComment} />
                 <ClientProfileTruncatedField label="Passthrough" value={profilePassthrough} />
               </ClientProfileCopyablePanel>
-
-              <AceTooltip>
-                <AceTooltipTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label="View Risk Rating"
-                    onClick={() => onOpenClientProfileAction?.("risk-rating")}
-                    className={cn(
-                      "flex min-h-0 min-w-[140px] flex-1 flex-col items-center justify-center self-stretch rounded p-6",
-                      "cursor-pointer border-0 transition-opacity hover:opacity-90",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2",
-                      riskPresentation.box,
-                    )}
-                  >
-                    <p
-                      className={cn(
-                        "font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[20px]",
-                        riskPresentation.text,
-                      )}
-                      style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-                    >
-                      {riskPresentation.label}
-                    </p>
-                  </button>
-                </AceTooltipTrigger>
-                <AceTooltipContent side="top" variant="screening-toolbar">
-                  View Risk Rating
-                </AceTooltipContent>
-              </AceTooltip>
             </div>
       </AceAccordion>
       </div>

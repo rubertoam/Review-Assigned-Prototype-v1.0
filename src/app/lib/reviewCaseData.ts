@@ -31,7 +31,17 @@ export const CASE_FILTER_GROUPS = [
       },
     ],
   },
+  {
+    label: "Lock Status",
+    items: [
+      { value: "locked", label: "Locked", selectedLabel: "Locked" },
+      { value: "unlocked", label: "Unlocked", selectedLabel: "Unlocked" },
+    ],
+  },
 ] as const;
+
+/** Prototype lock — Bank of Iran is locked by another analyst (`caseLockConfig`). */
+export const LOCKED_CASE_CLIENT_NAME = "Bank of Iran";
 
 export type CaseFilterValue = (typeof CASE_FILTER_GROUPS)[number]["items"][number]["value"];
 
@@ -56,6 +66,10 @@ export const CASE_SORT_OPTIONS = [
   { value: "name-desc", label: "Z-A" },
   { value: "results-asc", label: "Alerts: Low to High" },
   { value: "results-desc", label: "Alerts: High to Low" },
+  {
+    value: "review-target-expiration",
+    label: "Review Target Expiration",
+  },
 ] as const;
 
 export type CaseSortValue = (typeof CASE_SORT_OPTIONS)[number]["value"];
@@ -334,6 +348,10 @@ export function caseMatchesSingleFilter(caseIndex: number, filter: CaseFilterVal
       return recordTypeForCase(caseIndex) === "organization";
     case "unknown-record-type":
       return recordTypeForCase(caseIndex) === "unknown";
+    case "locked":
+      return casesData[caseIndex]?.name === LOCKED_CASE_CLIENT_NAME;
+    case "unlocked":
+      return casesData[caseIndex]?.name !== LOCKED_CASE_CLIENT_NAME;
     default:
       return false;
   }
@@ -348,6 +366,19 @@ export function caseMatchesFilters(
     if (caseMatchesSingleFilter(caseIndex, filter)) return true;
   }
   return false;
+}
+
+/**
+ * Lower rank = more urgent review-target expiration (always sorted ascending).
+ * 0 Past Due · 1 Overdue Warning · 2 Has target (met) · 3 No review target
+ */
+export function reviewTargetExpirationRank(caseIndex: number): number {
+  const profile = clientProfileForCaseIndex(caseIndex);
+  const hasReviewTarget = Boolean(profile.reviewTargetSummary?.trim());
+  if (!hasReviewTarget) return 3;
+  if (profile.reviewTargetPastDue) return 0;
+  if (profile.reviewTargetOverdue) return 1;
+  return 2;
 }
 
 export function compareCasesBySort(
@@ -365,6 +396,11 @@ export function compareCasesBySort(
     return ordered !== 0 ? ordered : aIndex - bIndex;
   }
 
+  if (sort === "review-target-expiration") {
+    const diff = reviewTargetExpirationRank(aIndex) - reviewTargetExpirationRank(bIndex);
+    return diff !== 0 ? diff : aIndex - bIndex;
+  }
+
   const nameCompare = nameForIndex(aIndex).localeCompare(nameForIndex(bIndex), undefined, {
     sensitivity: "base",
   });
@@ -377,18 +413,106 @@ const EXTRA_OVERDUE_WARNING_NAMES = new Set([
   "Viktor Sokolov",
 ]);
 
+/** Given-name → gender for prototype client records (entities stay null). */
+const GIVEN_NAME_GENDER: Readonly<Record<string, "Male" | "Female">> = {
+  john: "Male",
+  jose: "Male",
+  muammar: "Male",
+  jane: "Female",
+  elena: "Female",
+  marcus: "Male",
+  sofia: "Female",
+  david: "Male",
+  priya: "Female",
+  hassan: "Male",
+  claire: "Female",
+  andrei: "Male",
+  mei: "Female",
+  carlos: "Male",
+  amara: "Female",
+  noah: "Male",
+  yuki: "Female",
+  fatima: "Female",
+  lucas: "Male",
+  ingrid: "Female",
+  omar: "Male",
+  grace: "Female",
+  kenji: "Male",
+  isabella: "Female",
+  samuel: "Male",
+  nadia: "Female",
+  theo: "Male",
+  aisha: "Female",
+  diego: "Male",
+  hannah: "Female",
+  ravi: "Male",
+  lena: "Female",
+  peter: "Male",
+  camille: "Female",
+  jin: "Male",
+  maya: "Female",
+  viktor: "Male",
+  leila: "Female",
+  owen: "Male",
+  sara: "Female",
+  mohammed: "Male",
+  chloe: "Female",
+  antonio: "Male",
+  yara: "Female",
+  amira: "Female",
+  bennett: "Male",
+  catalina: "Female",
+  darius: "Male",
+  evelyn: "Female",
+  farid: "Male",
+  greta: "Female",
+  imani: "Female",
+  daniel: "Male",
+  leo: "Male",
+};
+
+const NAME_TITLE_PREFIX = /^(mr|mrs|ms|miss|dr|prof)\.?\s+/i;
+
+/** Infer Male/Female from a person display name; null when unknown / not a person. */
+export function genderForClientName(name: string): "Male" | "Female" | null {
+  const cleaned = name.replace(NAME_TITLE_PREFIX, "").trim();
+  if (!cleaned) return null;
+  const given = cleaned.split(/\s+/)[0]?.toLowerCase();
+  if (!given) return null;
+  return GIVEN_NAME_GENDER[given] ?? null;
+}
+
+export type ClientProfileLookupOptions = {
+  /** Display name when the active queue is not `casesData` (PEP / AI / escalated). */
+  name?: string;
+  isEntity?: boolean;
+};
+
 export function clientProfileForCaseIndex(
   caseIndex: number,
   clientIdSeries: ClientIdSeries = 1,
+  options?: ClientProfileLookupOptions,
 ): ClientProfileFields {
+  const caseItem = casesData[caseIndex];
+  const name = options?.name ?? caseItem?.name ?? "";
+  const isEntity =
+    options?.isEntity ??
+    Boolean(caseItem && "isEntity" in caseItem && caseItem.isEntity);
+  const nameGender = isEntity ? null : genderForClientName(name);
+
   if (caseIndex < CLIENT_PROFILES.length) {
     const base = CLIENT_PROFILES[caseIndex]!;
-    return { ...base, clientId: eightDigitClientId(clientIdSeries, caseIndex) };
+    return {
+      ...base,
+      clientId: eightDigitClientId(clientIdSeries, caseIndex),
+      gender: isEntity ? null : nameGender ?? base.gender,
+      dob: isEntity ? null : base.dob,
+      showIdVerified: isEntity ? false : base.showIdVerified,
+      recordType: isEntity ? "organization" : base.recordType ?? "individual",
+    };
   }
   const base = CLIENT_PROFILES[caseIndex % CLIENT_PROFILES.length]!;
-  const caseItem = casesData[caseIndex];
-  const isEntity = Boolean(caseItem && "isEntity" in caseItem && caseItem.isEntity);
-  const namedOverdueWarning = EXTRA_OVERDUE_WARNING_NAMES.has(caseItem?.name ?? "");
+  const namedOverdueWarning = EXTRA_OVERDUE_WARNING_NAMES.has(name);
   const reviewTargetOverdue = caseIndex % 11 === 0 || namedOverdueWarning;
   // Past-due is mutually exclusive with overdue-warning so filters and row chrome stay clear.
   const reviewTargetPastDue = caseIndex % 19 === 0 && !reviewTargetOverdue;
@@ -400,7 +524,7 @@ export function clientProfileForCaseIndex(
     riskBand: (["low", "medium", "high"] as const)[caseIndex % 3],
     recordType: isEntity ? "organization" : base.recordType ?? "individual",
     dob: isEntity ? null : base.dob,
-    gender: isEntity ? null : base.gender,
+    gender: isEntity ? null : nameGender ?? base.gender,
     showIdVerified: !isEntity,
   };
 }
@@ -415,8 +539,9 @@ export type Level2WorkQueueId = "sanction" | "pep" | "financial";
 export function clientProfileForLevel2Case(
   workQueueId: Level2WorkQueueId,
   caseIndex: number,
+  options?: ClientProfileLookupOptions,
 ): ClientProfileFields {
-  const base = clientProfileForCaseIndex(caseIndex);
+  const base = clientProfileForCaseIndex(caseIndex, 1, options);
   if (workQueueId === "sanction") return base;
   const series = workQueueId === "pep" ? 2 : 3;
   return {

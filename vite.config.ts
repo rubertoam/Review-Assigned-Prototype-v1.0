@@ -1,11 +1,8 @@
 import { defineConfig } from 'vite'
 import path from 'path'
-import { createRequire } from 'node:module'
 import { fileURLToPath } from 'url'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-
-const require = createRequire(import.meta.url)
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -28,23 +25,24 @@ function figmaAssetResolver() {
   }
 }
 
-/** @ace-ds lives outside this repo; resolve its npm imports from our node_modules (CI has no DS install). */
+/**
+ * @ace-ds lives outside this repo (no local node_modules). Re-resolve bare
+ * package imports as if they came from this app so Vite prebundles them
+ * (`/node_modules/.vite/deps/...`) instead of serving CJS over `/@fs/`.
+ */
 function aceDsDependencyResolver() {
+  const appImporter = path.resolve(__dirname, 'src/main.tsx')
   return {
     name: 'ace-ds-dependency-resolver',
     enforce: 'pre' as const,
-    resolveId(source: string, importer?: string) {
+    async resolveId(this: { resolve: (...args: unknown[]) => Promise<unknown> }, source: string, importer?: string) {
       // Vite normalizes importers to `/` even on Windows; don't rely on path.sep alone.
       const fromDesignSystem = importer?.replace(/\\/g, '/').includes('/Design System/')
       if (!fromDesignSystem) return null
       if (source.startsWith('.') || source.startsWith('\0') || path.isAbsolute(source)) {
         return null
       }
-      try {
-        return require.resolve(source, { paths: [__dirname] })
-      } catch {
-        return null
-      }
+      return this.resolve(source, appImporter, { skipSelf: true })
     },
   }
 }
