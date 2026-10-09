@@ -681,8 +681,14 @@ function CaseList({
         data-coach-target="case-list"
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
-        className="flex w-full shrink-0 flex-col outline-none"
+        className="flex w-full shrink-0 flex-col gap-2 outline-none"
       >
+        <p
+          className="m-0 shrink-0 font-['Noto_Sans:Bold',sans-serif] text-[14px] font-bold leading-[1.65] text-[var(--screening-text-primary)]"
+          style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+        >
+          Clients
+        </p>
         <AceAccordion
           className={cn(
             "w-full shrink-0 border-[var(--screening-border-strong)]",
@@ -970,6 +976,8 @@ interface DetailPanelProps {
   applicationId?: string;
   /** Side-by-side: profile lives in the left rail; omit the top Client Profile block. */
   hideClientProfile?: boolean;
+  /** Side-by-side: Match Alerts title is rendered in the shared labels row. */
+  hideMatchAlertsLabel?: boolean;
 }
 
 function DetailPanel({
@@ -991,6 +999,7 @@ function DetailPanel({
   onDrilldownRowChange,
   applicationId,
   hideClientProfile = false,
+  hideMatchAlertsLabel = false,
 }: DetailPanelProps) {
   const [clientExpanded, setClientExpanded] = useState(false);
   const profile = clientProfileForCaseIndex(selectedCaseIndex, clientIdSeries, {
@@ -1176,12 +1185,14 @@ function DetailPanel({
       )}
 
       <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-        <p
-          className="m-0 shrink-0 font-['Noto_Sans:Bold',sans-serif] text-[14px] font-bold leading-[1.65] text-[var(--screening-text-primary)]"
-          style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-        >
-          Match Alerts
-        </p>
+        {hideMatchAlertsLabel ? null : (
+          <p
+            className="m-0 shrink-0 font-['Noto_Sans:Bold',sans-serif] text-[14px] font-bold leading-[1.65] text-[var(--screening-text-primary)]"
+            style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+          >
+            Match Alerts
+          </p>
+        )}
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <ScreeningResultsTable
             rows={screeningRows}
@@ -1199,8 +1210,12 @@ function DetailPanel({
   );
 }
 
+const sideBySideSectionLabelClass =
+  "m-0 shrink-0 font-['Noto_Sans:Bold',sans-serif] text-[14px] font-bold leading-[1.65] text-[var(--screening-text-primary)]";
+
 function Level1ReviewWorkspace() {
   const { isSideBySide } = useReviewLayout();
+  const [profileRailMinimized, setProfileRailMinimized] = useState(false);
   const [sidebarPinned, setSidebarPinned] = useState(true);
   const ensureSidebarOpen = useCallback(() => {
     setSidebarPinned(true);
@@ -1894,23 +1909,52 @@ function Level1ReviewWorkspace() {
               {isSideBySide ? (
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
                   <CaseList {...caseListSharedProps} presentation="carousel" />
-                  <div className="flex min-h-0 flex-1 gap-4 overflow-hidden">
-                    <div className="flex h-full min-h-0 shrink-0 self-stretch flex-col">
-                      <SideBySideClientProfileRail
-                        caseName={selectedCaseItem.name}
-                        caseIndex={selectedCaseIndex}
-                        isEntity={
-                          "isEntity" in selectedCaseItem && Boolean(selectedCaseItem.isEntity)
-                        }
-                        clientIdSeries={clientIdSeriesValue}
-                        applicationLabel={formatReviewApplicationLabel(
-                          sidebarSelection.applicationId,
+                  <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+                    <div className="flex shrink-0 items-center gap-4">
+                      <p
+                        className={cn(
+                          sideBySideSectionLabelClass,
+                          "transition-[width] duration-200 ease-out",
+                          profileRailMinimized
+                            ? "w-10 overflow-hidden opacity-0"
+                            : "w-[21.6rem] lg:w-96",
                         )}
-                        readOnly={isSelectedCaseReadOnly || isWorkflowReadOnlyView}
-                        onOpenClientProfileAction={handleOpenClientProfileAction}
+                        style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+                        aria-hidden={profileRailMinimized}
+                      >
+                        Client Profile
+                      </p>
+                      <p
+                        className={cn(sideBySideSectionLabelClass, "min-w-0 flex-1")}
+                        style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+                      >
+                        Match Alerts
+                      </p>
+                    </div>
+                    <div className="flex min-h-0 flex-1 gap-4 overflow-hidden">
+                      <div className="flex h-full min-h-0 shrink-0 self-stretch flex-col">
+                        <SideBySideClientProfileRail
+                          caseName={selectedCaseItem.name}
+                          caseIndex={selectedCaseIndex}
+                          isEntity={
+                            "isEntity" in selectedCaseItem && Boolean(selectedCaseItem.isEntity)
+                          }
+                          clientIdSeries={clientIdSeriesValue}
+                          applicationLabel={formatReviewApplicationLabel(
+                            sidebarSelection.applicationId,
+                          )}
+                          readOnly={isSelectedCaseReadOnly || isWorkflowReadOnlyView}
+                          onOpenClientProfileAction={handleOpenClientProfileAction}
+                          showSectionLabel={false}
+                          onMinimizedChange={setProfileRailMinimized}
+                        />
+                      </div>
+                      <DetailPanel
+                        {...detailPanelSharedProps}
+                        hideClientProfile
+                        hideMatchAlertsLabel
                       />
                     </div>
-                    <DetailPanel {...detailPanelSharedProps} hideClientProfile />
                   </div>
                 </div>
               ) : (
