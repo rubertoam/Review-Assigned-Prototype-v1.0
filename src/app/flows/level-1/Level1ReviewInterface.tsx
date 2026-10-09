@@ -213,7 +213,7 @@ function PageHeader({
                 className={cn(screeningToolbarIconButtonClass, "leading-none")}
                 onClick={onOpenWorkLog}
               >
-                <MaterialSymbol name="history" size="md" weight={300} className="text-current" />
+                <MaterialSymbol name="tab_recent" size="md" weight={300} className="text-current" />
               </button>
             </AceTooltipTrigger>
             <AceTooltipContent side="top" variant="screening-toolbar" hideArrow>

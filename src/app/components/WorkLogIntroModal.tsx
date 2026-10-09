@@ -6,7 +6,7 @@ import { cn } from "./ui/utils";
 
 const notoVar = { fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 
-/** Looping how-to demo — cursor hovers the page-header Work History (history) icon. */
+/** Looping how-to demo — cursor hovers the page-header Work History (tab_recent) icon. */
 function WorkLogOpenDemo() {
   return (
     <div
@@ -68,7 +68,7 @@ function WorkLogOpenDemo() {
                 "work-log-intro-icon relative z-[1] leading-none",
               )}
             >
-              <MaterialSymbol name="history" size="md" weight={300} className="text-current" />
+              <MaterialSymbol name="tab_recent" size="md" weight={300} className="text-current" />
             </button>
             <div
               className={cn(

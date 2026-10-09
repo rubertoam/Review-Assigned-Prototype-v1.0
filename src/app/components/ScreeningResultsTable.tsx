@@ -53,7 +53,6 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import {
-  getClientRecordForRow,
   getGeneralProfileViewForRow,
   getListProfileSummaryForRow,
   isOrganizationRow,
@@ -475,11 +474,8 @@ type SortDir = "asc" | "desc";
 type ScreeningColumnKey =
   | "status"
   | "name"
-  | "clientName"
   | "country"
-  | "clientCountry"
   | "dob"
-  | "clientDob"
   | "matchAge"
   | "matchScore"
   | "listId"
@@ -499,11 +495,8 @@ const SCREENING_COLUMN_DEFINITIONS: ReadonlyArray<{
 }> = [
   { key: "status", label: "Status", defaultVisible: true },
   { key: "name", label: "Name", defaultVisible: true },
-  { key: "clientName", label: "Client Name", defaultVisible: false },
   { key: "country", label: "Country", defaultVisible: true },
-  { key: "clientCountry", label: "Client Country", defaultVisible: false },
   { key: "dob", label: "Date of Birth", defaultVisible: true },
-  { key: "clientDob", label: "Client DOB", defaultVisible: false },
   { key: "matchAge", label: "Match Age", defaultVisible: true },
   { key: "matchScore", label: "Match Score", defaultVisible: true },
   { key: "matchString", label: "Match String", defaultVisible: true },
@@ -1733,13 +1726,6 @@ export function ScreeningResultsTable({
         cellClassName: "text-[#23262c] dark:text-[#b6c2cf] whitespace-nowrap",
         render: (row) => row.name,
       },
-      clientName: {
-        key: "clientName",
-        label: "Client Name",
-        headerClassName: "whitespace-nowrap",
-        cellClassName: secondaryTextClass,
-        render: (row) => getClientRecordForRow(row).name,
-      },
       country: {
         key: "country",
         label: "Country",
@@ -1748,13 +1734,6 @@ export function ScreeningResultsTable({
         cellClassName: secondaryTextClass,
         render: (row) => getListProfileSummaryForRow(row).country,
       },
-      clientCountry: {
-        key: "clientCountry",
-        label: "Client Country",
-        headerClassName: "whitespace-nowrap",
-        cellClassName: secondaryTextClass,
-        render: (row) => getClientRecordForRow(row).countryLabel,
-      },
       dob: {
         key: "dob",
         label: "Date of Birth",
@@ -1762,14 +1741,6 @@ export function ScreeningResultsTable({
         headerClassName: "whitespace-nowrap",
         cellClassName: secondaryTextClass,
         render: (row) => (isOrganizationRow(row) ? emptySecondary : row.dob),
-      },
-      clientDob: {
-        key: "clientDob",
-        label: "Client DOB",
-        headerClassName: "whitespace-nowrap",
-        cellClassName: secondaryTextClass,
-        render: (row) =>
-          isOrganizationRow(row) ? emptySecondary : getClientRecordForRow(row).dob ?? emptySecondary,
       },
       matchAge: {
         key: "matchAge",
