@@ -32,12 +32,25 @@ import { CaseListFilterEmptyState } from "../../components/CaseListFilterEmptySt
 import { CaseListLockReviewerAvatar } from "../../components/CaseListLockReviewerAvatar";
 import { CaseListSection } from "../../components/CaseListSection";
 import { ThemeProvider } from "../../context/ThemeContext";
+import {
+  ReviewLayoutProvider,
+  useReviewLayout,
+} from "../../context/ReviewLayoutContext";
 import { aceClientProfileAccordionHeaderClass } from "../../lib/aceAccordion";
 import { aceDropShadowXsClass } from "../../lib/aceShadow";
 import { aceTypography, ACE_TYPE } from "../../lib/aceTypography";
 import { ReviewPanelInlineInfoMessage } from "../../components/ReviewPanelInlineInfoMessage";
 import { ReviewPanelEmptyState } from "../../components/ReviewPanelEmptyState";
 import { ReviewFlowSiteHeader } from "../../components/ReviewFlowSiteHeader";
+import { SideBySideClientProfileRail } from "../../components/SideBySideClientProfileRail";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+  type CarouselApi,
+} from "../../components/ui/carousel";
 import {
   ClientProfileAccordionHeaderTags,
   ClientProfileActiveIndicator,
@@ -294,6 +307,11 @@ interface CaseListProps {
   applyCaseLocks?: boolean;
   /** Fallback row factory when a case has no stored screening rows. */
   getRowsForCase?: (index: number) => ScreeningResultRow[];
+  /**
+   * `list` — default left rail rows.
+   * `carousel` — side-by-side accordion + horizontal case cards (profile slot).
+   */
+  presentation?: "list" | "carousel";
 }
 
 type CaseListRow = {
@@ -315,10 +333,14 @@ function CaseList({
   cases = casesData,
   applyCaseLocks = true,
   getRowsForCase = getScreeningRowsForCase,
+  presentation = "list",
 }: CaseListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
   const [caseListMinimized, setCaseListMinimized] = useState(false);
+  const [casesAccordionOpen, setCasesAccordionOpen] = useState(true);
+  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
+  const isCarousel = presentation === "carousel";
   const [selectedCaseFilters, setSelectedCaseFilters] = useState<ReadonlySet<CaseFilterValue>>(
     () => new Set(),
   );
@@ -364,7 +386,13 @@ function CaseList({
     (index: number) => {
       const rows = screeningRowsByCase[index];
       if (!rows) {
-        if (isDocumentsRequiredWorkflow) return getSeedDocumentsRequiredCount(index);
+        // Match sidebar seedCaseMatches so unmaterialized cases still appear.
+        if (isDocumentsRequiredWorkflow || workflowStatuses.includes("Documents Required")) {
+          return getSeedDocumentsRequiredCount(index);
+        }
+        if (workflowStatuses.includes("New")) {
+          return getSeedLevel1MyWorkPendingCount(index);
+        }
         return 0;
       }
       return rows.filter((r) =>
@@ -497,6 +525,231 @@ function CaseList({
     }
   }, [selectedCaseIndex, onSelectCase, isFocused, visibleRows, isWorkflowView, workflowCaseSection]);
 
+  /** Keep carousel in sync when selection changes — never force-scroll after a user drag. */
+  useEffect(() => {
+    if (!isCarousel || !carouselApi) return;
+    const pos = visibleRows.findIndex((r) => r.index === selectedCaseIndex);
+    if (pos < 0) return;
+    if (carouselApi.selectedScrollSnap() === pos) return;
+    carouselApi.scrollTo(pos);
+    // Intentionally omit visibleRows — recalcs must not yank scroll back to selection.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync on selection only
+  }, [isCarousel, carouselApi, selectedCaseIndex]);
+
+  const renderCaseCard = (
+    caseItem: PepCaseListItem | AiCaseListItem | (typeof casesData)[number],
+    index: number,
+  ) => {
+    const section: CaseListSectionContext = isWorkflowView ? workflowCaseSection : "todo";
+    const isEntity = "isEntity" in caseItem && caseItem.isEntity;
+    const profile = clientProfileForCaseIndex(index, clientIdSeries, {
+      name: caseItem.name,
+      isEntity: Boolean(isEntity),
+    });
+    const pendingCount = pendingResultCount(index);
+    const resultsCount = isWorkflowView ? workflowResultCount(index) : pendingCount;
+    const isSelected = selectedCaseIndex === index && selectedCaseListSection === section;
+    const hasOverdue = profile.reviewTargetOverdue || profile.reviewTargetPastDue;
+    const lockReviewer = applyCaseLocks ? lockedCaseReviewer(index) : null;
+
+    // Use a div (not <button>) so Embla can own pointer drag without the control snapping back.
+    return (
+      <div
+        key={`${section}-card-${index}`}
+        role="button"
+        tabIndex={0}
+        onClick={() => onSelectCase(index, section)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onSelectCase(index, section);
+          }
+        }}
+        className={cn(
+          "flex h-full w-full cursor-pointer flex-col gap-2 rounded-[var(--radius-sm)] border border-solid px-3 py-3 text-left transition-colors",
+          isSelected
+            ? "border-[var(--screening-primary)] bg-[#e4e6ea] dark:bg-[#333a42]"
+            : hasOverdue
+              ? "border-[var(--ace-warning-200)] bg-[var(--ace-warning-50)] hover:bg-[var(--ace-warning-100)]"
+              : "border-[var(--screening-border-strong)] bg-[var(--screening-surface)] hover:bg-[#e4e6ea] dark:hover:bg-[#333a42]",
+        )}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className={`${isEntity ? "h-[15px]" : ""} w-4 shrink-0`}>
+              <svg
+                className="block size-full"
+                fill="none"
+                preserveAspectRatio="none"
+                viewBox={isEntity ? "0 0 16 15" : "0 0 16 16"}
+              >
+                <path
+                  d={isEntity ? svgPaths.p1ac17500 : svgPaths.p8c3ef80}
+                  fill="var(--fill-0, #523EB9)"
+                />
+              </svg>
+            </div>
+            <p
+              className="m-0 min-w-0 truncate font-['Noto_Sans:SemiBold',sans-serif] text-[13px] leading-[1.4] text-[var(--screening-text-primary)]"
+              style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+            >
+              {caseItem.name}
+            </p>
+          </div>
+          {hasOverdue ? (
+            <span className="shrink-0" title={profile.reviewTargetPastDue ? "Overdue" : "Overdue warning"}>
+              <OverdueWarningIcon />
+            </span>
+          ) : null}
+        </div>
+        <p
+          className="m-0 font-['Noto_Sans:Regular',sans-serif] text-[11px] leading-[1.4] text-[var(--screening-text-secondary)]"
+          style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+        >
+          {profile.clientId}
+        </p>
+        <div className="mt-auto flex items-center justify-between gap-2">
+          <AceBadge appearance="tag" variant="gray">
+            {resultsCount} Alerts
+          </AceBadge>
+          {lockReviewer ? (
+            <CaseListLockReviewerAvatar
+              imageUrl={lockReviewer.imageUrl}
+              reviewerName={lockReviewer.name}
+            />
+          ) : null}
+        </div>
+      </div>
+    );
+  };
+
+  const filterSortRow = (stretch: boolean) => (
+    <div className={cn("flex items-end gap-2", stretch ? "w-full" : "w-fit")}>
+      <div
+        className={cn(
+          "flex flex-col gap-1.5",
+          stretch ? "min-w-0 flex-1" : "w-44 shrink-0",
+        )}
+      >
+        <span
+          className="font-['Noto_Sans:SemiBold',sans-serif] text-[13px] text-[#23262c] dark:text-[#b6c2cf]"
+          style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+        >
+          Filter by
+        </span>
+        <CaseListFilterSelect
+          selectedFilters={selectedCaseFilters}
+          onSelectedFiltersChange={setSelectedCaseFilters}
+        />
+      </div>
+      <div
+        className={cn(
+          "flex flex-col gap-1.5",
+          stretch ? "min-w-0 flex-1" : "w-44 shrink-0",
+        )}
+      >
+        <span
+          className="font-['Noto_Sans:SemiBold',sans-serif] text-[13px] text-[#23262c] dark:text-[#b6c2cf]"
+          style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+        >
+          Sort by
+        </span>
+        <CaseListSortSelect value={caseSort} onValueChange={setCaseSort} />
+      </div>
+    </div>
+  );
+
+  const emptyCarouselContent =
+    selectedCaseFilters.size > 0 && visibleRows.length === 0 ? (
+      <CaseListFilterEmptyState />
+    ) : isWorkflowView && visibleRows.length === 0 ? (
+      <div className="px-4 py-6 text-center">
+        <p
+          className="m-0 font-['Noto_Sans:Regular',sans-serif] text-[13px] leading-[1.65] text-[var(--ace-neutral-800)]"
+          style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+        >
+          No cases in this workflow yet.
+        </p>
+      </div>
+    ) : null;
+
+  if (isCarousel) {
+    return (
+      <div
+        ref={listRef}
+        tabIndex={0}
+        data-coach-target="case-list"
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        className="flex w-full shrink-0 flex-col outline-none"
+      >
+        <AceAccordion
+          className={cn(
+            "w-full shrink-0 border-[var(--screening-border-strong)]",
+            aceClientProfileAccordionHeaderClass,
+          )}
+          surface="white"
+          dropShadow
+          showTag={false}
+          showAddIcon={false}
+          showDeleteIcon={false}
+          showEditIcon={false}
+          showMoreIcon={false}
+          open={casesAccordionOpen}
+          onOpenChange={setCasesAccordionOpen}
+          title={
+            <span className="truncate">
+              {listTitle} · {visibleRows.length}
+            </span>
+          }
+          titleClassName={cn(
+            aceTypography(ACE_TYPE.p1SemiBold),
+            "min-w-0 flex-1 text-[var(--screening-text-primary)] !truncate",
+          )}
+        >
+          <div className="flex flex-col gap-3">
+            {filterSortRow(false)}
+            {emptyCarouselContent ? (
+              emptyCarouselContent
+            ) : (
+              <Carousel
+                setApi={setCarouselApi}
+                opts={{
+                  align: "start",
+                  containScroll: "trimSnaps",
+                  dragFree: true,
+                  skipSnaps: true,
+                }}
+                className="w-full px-10"
+              >
+                <CarouselContent className="-ml-3">
+                  {visibleRows.map(({ item, index }) => (
+                    <CarouselItem
+                      key={`carousel-${index}`}
+                      className="basis-[min(100%,11.5rem)] pl-3 sm:basis-[11.5rem]"
+                    >
+                      {renderCaseCard(item, index)}
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                <CarouselPrevious
+                  className="left-0 size-8 border-[var(--screening-border-strong)] bg-[var(--screening-surface)]"
+                  variant="outline"
+                  size="icon"
+                />
+                <CarouselNext
+                  className="right-0 size-8 border-[var(--screening-border-strong)] bg-[var(--screening-surface)]"
+                  variant="outline"
+                  size="icon"
+                />
+              </Carousel>
+            )}
+          </div>
+        </AceAccordion>
+      </div>
+    );
+  }
+
   const renderCaseRow = (caseItem: PepCaseListItem | (typeof casesData)[number], index: number) => {
     const section: CaseListSectionContext = isWorkflowView ? workflowCaseSection : "todo";
     const isEntity = "isEntity" in caseItem && caseItem.isEntity;
@@ -597,7 +850,7 @@ function CaseList({
       className={cn(
         "flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-sm)] border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] outline-none",
         "transition-[width] duration-200 ease-out",
-        caseListMinimized ? "w-10" : "w-64 lg:w-72",
+        caseListMinimized ? "w-10" : "w-[19.2rem] lg:w-[21.6rem]",
         aceDropShadowXsClass,
       )}
     >
@@ -662,29 +915,7 @@ function CaseList({
             </AceTooltip>
           </div>
           <div className="shrink-0 bg-[var(--screening-surface)] px-3 py-2.5">
-            <div className="flex items-end gap-2">
-              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                <span
-                  className="font-['Noto_Sans:SemiBold',sans-serif] text-[13px] text-[#23262c] dark:text-[#b6c2cf]"
-                  style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-                >
-                  Filter by
-                </span>
-                <CaseListFilterSelect
-                  selectedFilters={selectedCaseFilters}
-                  onSelectedFiltersChange={setSelectedCaseFilters}
-                />
-              </div>
-              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                <span
-                  className="font-['Noto_Sans:SemiBold',sans-serif] text-[13px] text-[#23262c] dark:text-[#b6c2cf]"
-                  style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-                >
-                  Sort by
-                </span>
-                <CaseListSortSelect value={caseSort} onValueChange={setCaseSort} />
-              </div>
-            </div>
+            {filterSortRow(true)}
           </div>
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <CaseListSection
@@ -737,6 +968,8 @@ interface DetailPanelProps {
   onDrilldownRowChange?: (row: ScreeningResultRow | null) => void;
   /** Sidebar Application ID — drives the Application field in the client profile. */
   applicationId?: string;
+  /** Side-by-side: profile lives in the left rail; omit the top Client Profile block. */
+  hideClientProfile?: boolean;
 }
 
 function DetailPanel({
@@ -757,6 +990,7 @@ function DetailPanel({
   clientIdSeries = 1,
   onDrilldownRowChange,
   applicationId,
+  hideClientProfile = false,
 }: DetailPanelProps) {
   const [clientExpanded, setClientExpanded] = useState(false);
   const profile = clientProfileForCaseIndex(selectedCaseIndex, clientIdSeries, {
@@ -791,6 +1025,7 @@ function DetailPanel({
           Read only. This case is locked and in review by another user.
         </ReviewPanelInlineInfoMessage>
       ) : null}
+      {hideClientProfile ? null : (
       <div
         className="flex shrink-0 flex-col gap-2 bg-[var(--screening-surface-muted)]"
         data-coach-target="client-profile"
@@ -938,6 +1173,7 @@ function DetailPanel({
             </div>
       </AceAccordion>
       </div>
+      )}
 
       <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
         <p
@@ -963,7 +1199,8 @@ function DetailPanel({
   );
 }
 
-export function Level1ReviewInterface() {
+function Level1ReviewWorkspace() {
+  const { isSideBySide } = useReviewLayout();
   const [sidebarPinned, setSidebarPinned] = useState(true);
   const ensureSidebarOpen = useCallback(() => {
     setSidebarPinned(true);
@@ -1262,6 +1499,21 @@ export function Level1ReviewInterface() {
 
   const workflowHasCases = useMemo(() => {
     return activeCases.some((_, index) => {
+      const cached = (
+        isAiWorkbench
+          ? aiScreeningRowsByCase
+          : isPepWork
+            ? pepScreeningRowsByCase
+            : screeningRowsByCase
+      )[index];
+      if (!cached) {
+        if (isDocumentsRequiredWorkflow || workflowStatuses.includes("Documents Required")) {
+          return getSeedDocumentsRequiredCount(index) > 0;
+        }
+        if (workflowStatuses.includes("New")) {
+          return getSeedLevel1MyWorkPendingCount(index) > 0;
+        }
+      }
       const rows = getActiveRowsForCase(index);
       if (rows.length === 0 && isDocumentsRequiredWorkflow) {
         return getSeedDocumentsRequiredCount(index) > 0;
@@ -1273,6 +1525,11 @@ export function Level1ReviewInterface() {
     activeCases,
     getActiveRowsForCase,
     isDocumentsRequiredWorkflow,
+    isAiWorkbench,
+    isPepWork,
+    aiScreeningRowsByCase,
+    pepScreeningRowsByCase,
+    screeningRowsByCase,
     workflowStatuses,
   ]);
 
@@ -1567,8 +1824,49 @@ export function Level1ReviewInterface() {
     setSidebarPinned((pinned) => !pinned);
   }, []);
 
+  const clientIdSeriesValue: ClientIdSeries = isAiWorkbench ? 6 : isPepWork ? 5 : 1;
+  const selectedCaseItem = activeCases[selectedCaseIndex] ?? activeCases[0]!;
+  const caseListSharedProps = {
+    onSelectCase: handleSelectCase,
+    selectedCaseIndex,
+    selectedCaseListSection,
+    screeningRowsByCase: activeScreeningRowsByCase,
+    onFilterVisibilityChange: setCaseFilterVisibility,
+    clientIdFilter,
+    clientIdSeries: clientIdSeriesValue,
+    workflowId: selectedWorkflowId,
+    statusFilter: workflowStatuses,
+    listTitle: selectedWorkflowLabel,
+    cases: activeCases,
+    applyCaseLocks: !isPepWork && !isAiWorkbench && !isDocumentsRequiredWorkflow,
+    getRowsForCase: getActiveRowsForCase,
+  } as const;
+
+  const detailPanelSharedProps = {
+    selectedCase: selectedCaseItem,
+    selectedCaseIndex,
+    caseListSection: selectedCaseListSection,
+    screeningRows,
+    screeningSelectedIds,
+    onScreeningSelectedIdsChange: setScreeningSelectedIds,
+    allCasesCleared: allCasesCleared && isActionableStep,
+    onQuickClearRow: handleQuickClearRow,
+    showFilterEmptyState:
+      (caseFilterVisibility.filtersActive && caseFilterVisibility.filteredCount === 0) ||
+      !workflowHasCases,
+    emptyStateMessage: !workflowHasCases
+      ? "No cases in this workflow step yet."
+      : "No cases match the selected filters.",
+    isCaseReadOnly: isSelectedCaseReadOnly,
+    workflowLabel: selectedWorkflowLabel,
+    workflowReadOnly: isWorkflowReadOnlyView,
+    onOpenClientProfileAction: handleOpenClientProfileAction,
+    clientIdSeries: clientIdSeriesValue,
+    onDrilldownRowChange: setDrilldownReviewRow,
+    applicationId: sidebarSelection.applicationId,
+  } as const;
+
   return (
-    <ThemeProvider>
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-[var(--screening-surface-muted)] text-[var(--screening-text-primary)]">
       <ReviewFlowSiteHeader />
       <PageHeader
@@ -1593,52 +1891,36 @@ export function Level1ReviewInterface() {
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <div className="flex flex-col flex-1 min-h-0 overflow-hidden px-4 pb-4 gap-4">
             <div className="flex flex-1 min-h-0 overflow-hidden gap-4 pt-4">
-              <div className="shrink-0 self-stretch flex flex-col min-h-0">
-                <CaseList
-                  onSelectCase={handleSelectCase}
-                  selectedCaseIndex={selectedCaseIndex}
-                  selectedCaseListSection={selectedCaseListSection}
-                  screeningRowsByCase={activeScreeningRowsByCase}
-                  onFilterVisibilityChange={setCaseFilterVisibility}
-                  clientIdFilter={clientIdFilter}
-                  clientIdSeries={isAiWorkbench ? 6 : isPepWork ? 5 : 1}
-                  workflowId={selectedWorkflowId}
-                  statusFilter={workflowStatuses}
-                  listTitle={selectedWorkflowLabel}
-                  cases={activeCases}
-                  applyCaseLocks={
-                    !isPepWork && !isAiWorkbench && !isDocumentsRequiredWorkflow
-                  }
-                  getRowsForCase={getActiveRowsForCase}
-                />
-              </div>
-              <DetailPanel
-                selectedCase={activeCases[selectedCaseIndex] ?? activeCases[0]!}
-                selectedCaseIndex={selectedCaseIndex}
-                caseListSection={selectedCaseListSection}
-                screeningRows={screeningRows}
-                screeningSelectedIds={screeningSelectedIds}
-                onScreeningSelectedIdsChange={setScreeningSelectedIds}
-                allCasesCleared={allCasesCleared && isActionableStep}
-                onQuickClearRow={handleQuickClearRow}
-                showFilterEmptyState={
-                  (caseFilterVisibility.filtersActive &&
-                    caseFilterVisibility.filteredCount === 0) ||
-                  !workflowHasCases
-                }
-                emptyStateMessage={
-                  !workflowHasCases
-                    ? "No cases in this workflow step yet."
-                    : "No cases match the selected filters."
-                }
-                isCaseReadOnly={isSelectedCaseReadOnly}
-                workflowLabel={selectedWorkflowLabel}
-                workflowReadOnly={isWorkflowReadOnlyView}
-                onOpenClientProfileAction={handleOpenClientProfileAction}
-                clientIdSeries={isAiWorkbench ? 6 : isPepWork ? 5 : 1}
-                onDrilldownRowChange={setDrilldownReviewRow}
-                applicationId={sidebarSelection.applicationId}
-              />
+              {isSideBySide ? (
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
+                  <CaseList {...caseListSharedProps} presentation="carousel" />
+                  <div className="flex min-h-0 flex-1 gap-4 overflow-hidden">
+                    <div className="flex h-full min-h-0 shrink-0 self-stretch flex-col">
+                      <SideBySideClientProfileRail
+                        caseName={selectedCaseItem.name}
+                        caseIndex={selectedCaseIndex}
+                        isEntity={
+                          "isEntity" in selectedCaseItem && Boolean(selectedCaseItem.isEntity)
+                        }
+                        clientIdSeries={clientIdSeriesValue}
+                        applicationLabel={formatReviewApplicationLabel(
+                          sidebarSelection.applicationId,
+                        )}
+                        readOnly={isSelectedCaseReadOnly || isWorkflowReadOnlyView}
+                        onOpenClientProfileAction={handleOpenClientProfileAction}
+                      />
+                    </div>
+                    <DetailPanel {...detailPanelSharedProps} hideClientProfile />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="shrink-0 self-stretch flex flex-col min-h-0">
+                    <CaseList {...caseListSharedProps} />
+                  </div>
+                  <DetailPanel {...detailPanelSharedProps} />
+                </>
+              )}
             </div>
             {workflowHasCases && !isSelectedCaseReadOnly && isActionableStep ? (
               <ReviewTaskBar
@@ -1705,6 +1987,15 @@ export function Level1ReviewInterface() {
         onDismiss={dismissOnboardingCoach}
       />
     </div>
+  );
+}
+
+export function Level1ReviewInterface() {
+  return (
+    <ThemeProvider>
+      <ReviewLayoutProvider>
+        <Level1ReviewWorkspace />
+      </ReviewLayoutProvider>
     </ThemeProvider>
   );
 }

@@ -34,6 +34,7 @@ import { Level2AwaitingLevel1State } from "../../components/Level2AwaitingLevel1
 import { CaseListFilterEmptyState } from "../../components/CaseListFilterEmptyState";
 import { CaseListSection } from "../../components/CaseListSection";
 import { ThemeProvider } from "../../context/ThemeContext";
+import { ReviewLayoutProvider } from "../../context/ReviewLayoutContext";
 import { aceClientProfileAccordionHeaderClass } from "../../lib/aceAccordion";
 import { aceDropShadowXsClass } from "../../lib/aceShadow";
 import { aceTypography, ACE_TYPE } from "../../lib/aceTypography";
@@ -1384,6 +1385,7 @@ export function Level2ReviewInterface() {
 
   return (
     <ThemeProvider>
+    <ReviewLayoutProvider>
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-[var(--screening-surface-muted)] text-[var(--screening-text-primary)]">
       <ReviewFlowSiteHeader />
       <PageHeader
@@ -1509,6 +1511,7 @@ export function Level2ReviewInterface() {
         onDismiss={dismissOnboardingCoach}
       />
     </div>
+    </ReviewLayoutProvider>
     </ThemeProvider>
   );
 }

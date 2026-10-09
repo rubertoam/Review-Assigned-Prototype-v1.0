@@ -3,6 +3,7 @@ import { AceSiteHeader } from "@ace-ds/components/organisms/AceSiteHeader/AceSit
 import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { aceChevronIconClass } from "@ace-ds/lib/aceChevron";
 import { useTheme } from "../context/ThemeContext";
+import { useReviewLayout } from "../context/ReviewLayoutContext";
 import { useUserFlow } from "../flows/FlowContext";
 import { getProfileForUserFlow } from "../lib/profileAssets";
 import { aceDropShadowXsClass } from "../lib/aceShadow";
@@ -200,6 +201,9 @@ function SettingsMenuDropdown() {
 
 function ProfileMenuDropdown({ profile }: { profile: FinScanProfileAvatar }) {
   const { isDark, setIsDark } = useTheme();
+  const { isSideBySide, setIsSideBySide } = useReviewLayout();
+  const { appView } = useUserFlow();
+  const showLayoutToggle = appView === "review";
 
   return (
     <DropdownMenu modal={false}>
@@ -237,6 +241,18 @@ function ProfileMenuDropdown({ profile }: { profile: FinScanProfileAvatar }) {
         >
           Dark mode
         </DropdownMenuToggleItem>
+        {showLayoutToggle ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Layout</DropdownMenuLabel>
+            <DropdownMenuToggleItem
+              checked={isSideBySide}
+              onCheckedChange={(checked) => setIsSideBySide(checked)}
+            >
+              Side by Side
+            </DropdownMenuToggleItem>
+          </>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );
