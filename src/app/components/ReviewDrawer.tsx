@@ -330,7 +330,7 @@ export function ReviewDrawer({
               aria-label="Close review panel"
               className={aceIconButtonHoverClass}
             >
-              <MaterialSymbol name="close" size="md" />
+              <MaterialSymbol name="close" size="lg" />
             </button>
           </div>
         </div>
@@ -422,7 +422,7 @@ export function ReviewDrawer({
                         if (selectedCount > 0) setScreeningHistoryOpen(true);
                       }}
                     >
-                      <MaterialSymbol name="history" size="md" />
+                      <MaterialSymbol name="history" size="lg" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent
@@ -610,40 +610,19 @@ export function ReviewDrawer({
 
           <div className="shrink-0 p-6">
             <div className="flex w-full items-start justify-end gap-4">
-              <button
+              <AceButton type="button" variant="secondary" size="md" onClick={onClose}>
+                Close
+              </AceButton>
+              <AceButton
                 type="button"
-                onClick={onClose}
-                className="relative flex cursor-pointer items-start rounded-[var(--radius-sm)] border border-[var(--screening-primary)] bg-[var(--screening-surface)] px-4 py-2 transition-colors hover:bg-[var(--screening-surface-hover)]"
-              >
-                <p
-                  className={cn(
-                    aceTypography(ACE_TYPE.p1Bold),
-                    "relative whitespace-nowrap text-[var(--screening-primary)]",
-                  )}
-                  style={notoVar}
-                >
-                  Close
-                </p>
-              </button>
-              <button
-                type="button"
+                variant="primary"
+                actionTone="primary"
+                size="md"
                 disabled={!canSubmit}
                 onClick={handleSubmit}
-                className={cn(
-                  "flex cursor-pointer items-center justify-center rounded-[var(--radius-sm)] bg-[var(--screening-primary)] px-4 py-2 transition-colors hover:bg-[var(--dialog-modal-primary-hover)]",
-                  !canSubmit && "cursor-not-allowed opacity-50",
-                )}
               >
-                <p
-                  className={cn(
-                    aceTypography(ACE_TYPE.p1Bold),
-                    "whitespace-nowrap text-white",
-                  )}
-                  style={notoVar}
-                >
-                  Submit
-                </p>
-              </button>
+                Submit
+              </AceButton>
             </div>
           </div>
             </>
@@ -683,7 +662,7 @@ export function ReviewDrawer({
                     historyPageIndex === 0 && "cursor-not-allowed opacity-50",
                   )}
                 >
-                  <MaterialSymbol name="keyboard_arrow_left" size="md" />
+                  <MaterialSymbol name="keyboard_arrow_left" size="lg" />
                 </button>
               ) : null}
 
@@ -721,7 +700,7 @@ export function ReviewDrawer({
                     historyPageIndex >= selectedRows.length - 1 && "cursor-not-allowed opacity-50",
                   )}
                 >
-                  <MaterialSymbol name="keyboard_arrow_right" size="md" />
+                  <MaterialSymbol name="keyboard_arrow_right" size="lg" />
                 </button>
               ) : null}
             </div>

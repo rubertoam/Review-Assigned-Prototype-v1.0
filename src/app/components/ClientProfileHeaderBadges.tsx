@@ -7,8 +7,9 @@ import {
   AceTooltipTrigger,
 } from "@ace-ds/components/atoms/AceTooltip/AceTooltip";
 import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
-import type { ClientRiskBand } from "../lib/reviewCaseData";
+import type { CaseRecordType, ClientRiskBand } from "../lib/reviewCaseData";
 import { riskBandPresentation } from "../lib/reviewCaseData";
+import { CaseRecordTypeIcon } from "./CaseRecordTypeIcon";
 import { cn } from "./ui/utils";
 
 /** Shared icon column so address / name / ID / status icons share one vertical axis. */
@@ -106,15 +107,31 @@ export function ClientProfileAccordionHeaderTags({
   riskBand,
   showOverdueWarning,
   onRiskClick,
+  recordType = "individual",
+  wrap = false,
 }: {
   clientId: string;
   riskBand: ClientRiskBand;
   showOverdueWarning: boolean;
   onRiskClick?: () => void;
+  recordType?: CaseRecordType;
+  /** When true, tags wrap to a new line instead of clipping (side-by-side profile). */
+  wrap?: boolean;
 }) {
   return (
-    <div className="flex min-w-0 flex-nowrap items-center gap-1.5 overflow-hidden">
-      <AceBadge appearance="tag" variant="purple">{`Client ID · ${clientId}`}</AceBadge>
+    <div
+      className={cn(
+        "flex min-w-0 items-center gap-1.5",
+        wrap ? "flex-wrap" : "flex-nowrap overflow-hidden",
+      )}
+    >
+      <AceBadge
+        appearance="tag"
+        variant="purple"
+        leading={<CaseRecordTypeIcon recordType={recordType} size="tag" />}
+      >
+        {clientId}
+      </AceBadge>
       <ClientProfileRiskTag riskBand={riskBand} onClick={onRiskClick} />
       {showOverdueWarning ? <ClientProfileOverdueBadge /> : null}
     </div>
@@ -130,7 +147,7 @@ export function ClientProfileNameRow({ name }: { name: string }) {
   return (
     <div className="flex items-center gap-2.5">
       <span className={clientProfileIconSlotClass} aria-hidden>
-        <MaterialSymbol name="account_circle" size="sm" className="text-current" />
+        <MaterialSymbol name="account_circle" size="lg" className="text-current" />
       </span>
       <p className={clientBodyLineTextClass} style={clientBodyNotoVar}>
         Client Name · {name}
@@ -143,7 +160,7 @@ export function ClientProfileClientIdRow({ clientId }: { clientId: string }) {
   return (
     <div className="flex items-center gap-2.5">
       <span className={clientProfileIconSlotClass} aria-hidden>
-        <MaterialSymbol name="account_circle" size="sm" className="text-current" />
+        <MaterialSymbol name="account_circle" size="lg" className="text-current" />
       </span>
       <p className={clientBodyLineTextClass} style={clientBodyNotoVar}>
         Client ID · {clientId}

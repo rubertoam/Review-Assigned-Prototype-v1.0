@@ -9,9 +9,12 @@ import {
   AceTooltipTrigger,
 } from "@ace-ds/components/atoms/AceTooltip/AceTooltip";
 import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
+import { AcePagination } from "@ace-ds/components/molecules/AcePagination/AcePagination";
 import { sidebarIconButtonClass } from "@ace-ds/components/organisms/AceSidebar/sidebarRowActions";
 import {
   CLIENT_PROFILE_ACTIONS,
+  clientProfileActionMenuLabel,
+  type ClientProfileActionCounts,
   type ClientProfileActionId,
 } from "../lib/clientProfileActions";
 import {
@@ -31,6 +34,7 @@ import {
   riskBandPresentation,
   type ClientIdSeries,
 } from "../lib/reviewCaseData";
+import { CaseRecordTypeIcon } from "./CaseRecordTypeIcon";
 import {
   ClientProfileAccordionHeaderTags,
   ClientProfileActiveIndicator,
@@ -60,10 +64,17 @@ type SideBySideClientProfileRailProps = {
   applicationLabel: string;
   readOnly?: boolean;
   onOpenClientProfileAction?: (action: ClientProfileActionId) => void;
+  actionCounts: ClientProfileActionCounts;
   /** When false, parent renders the section label (aligned with Match Alerts). */
   showSectionLabel?: boolean;
   /** Notify parent when the rail collapses so shared label width can track. */
   onMinimizedChange?: (minimized: boolean) => void;
+  /** 1-based position of the selected client in the visible case list. */
+  clientPage?: number;
+  /** Total clients in the visible case list. */
+  clientPageCount?: number;
+  /** Select the previous/next visible client (1-based page). */
+  onClientPageChange?: (page: number) => void;
 };
 
 export function SideBySideClientProfileRail({
@@ -74,8 +85,12 @@ export function SideBySideClientProfileRail({
   applicationLabel,
   readOnly = false,
   onOpenClientProfileAction,
+  actionCounts,
   showSectionLabel = true,
   onMinimizedChange,
+  clientPage,
+  clientPageCount,
+  onClientPageChange,
 }: SideBySideClientProfileRailProps) {
   const [minimized, setMinimized] = useState(false);
   const setMinimizedAndNotify = (next: boolean) => {
@@ -89,6 +104,8 @@ export function SideBySideClientProfileRail({
   const profileComment = clientProfileCommentForCase(caseIndex);
   const profilePassthrough = CLIENT_PROFILE_PASSTHROUGH_PLACEHOLDER;
   const riskLabel = riskBandPresentation(profile.riskBand).label;
+  const showPager =
+    clientPage != null && clientPageCount != null && onClientPageChange != null;
 
   return (
     <div
@@ -132,7 +149,7 @@ export function SideBySideClientProfileRail({
                 >
                   <MaterialSymbol
                     name="keyboard_arrow_right"
-                    size="md"
+                    size="lg"
                     className="text-current"
                   />
                 </button>
@@ -154,8 +171,17 @@ export function SideBySideClientProfileRail({
 
             <div className="flex min-h-0 flex-1 flex-col items-center gap-2 overflow-x-hidden overflow-y-auto pb-1">
               <div className="shrink-0 [writing-mode:vertical-lr]">
-                <AceBadge appearance="tag" variant="purple">
-                  {`Client ID · ${profile.clientId}`}
+                <AceBadge
+                  appearance="tag"
+                  variant="purple"
+                  leading={
+                    <CaseRecordTypeIcon
+                      recordType={profile.recordType ?? "individual"}
+                      size="tag"
+                    />
+                  }
+                >
+                  {profile.clientId}
                 </AceBadge>
               </div>
               <div className="shrink-0 [writing-mode:vertical-lr]">
@@ -194,6 +220,8 @@ export function SideBySideClientProfileRail({
                   clientId={profile.clientId}
                   riskBand={profile.riskBand}
                   showOverdueWarning={profile.reviewTargetOverdue}
+                  recordType={profile.recordType ?? "individual"}
+                  wrap
                   onRiskClick={
                     readOnly ? undefined : () => onOpenClientProfileAction?.("risk-rating")
                   }
@@ -210,7 +238,7 @@ export function SideBySideClientProfileRail({
                       >
                         <MaterialSymbol
                           name="more_horiz"
-                          size="md"
+                          size="lg"
                           weight={300}
                           className={caseActionsMenuIconClass}
                         />
@@ -227,7 +255,7 @@ export function SideBySideClientProfileRail({
                           className={caseActionsMenuItemClass}
                           onSelect={() => onOpenClientProfileAction?.(entry.id)}
                         >
-                          {entry.label}
+                          {clientProfileActionMenuLabel(entry.id, actionCounts)}
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuContent>
@@ -244,7 +272,7 @@ export function SideBySideClientProfileRail({
                     >
                       <MaterialSymbol
                         name="keyboard_arrow_left"
-                        size="md"
+                        size="lg"
                         className="text-current"
                       />
                     </button>
@@ -319,6 +347,17 @@ export function SideBySideClientProfileRail({
                 </ClientProfileCopyablePanel>
               </div>
             </div>
+            {showPager ? (
+              <div className="shrink-0 border-t border-[var(--screening-border-strong)] px-3 py-2">
+                <AcePagination
+                  totalItems={clientPageCount}
+                  page={Math.max(1, clientPage)}
+                  pageSize={1}
+                  onPageChange={onClientPageChange}
+                  className="justify-end sm:justify-end"
+                />
+              </div>
+            ) : null}
           </>
         )}
       </div>

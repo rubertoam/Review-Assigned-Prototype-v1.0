@@ -195,7 +195,7 @@ function CarouselPrevious({
       onClick={scrollPrev}
       {...props}
     >
-      <MaterialSymbol name="keyboard_arrow_left" size="md" />
+      <MaterialSymbol name="keyboard_arrow_left" size="lg" />
       <span className="sr-only">Previous slide</span>
     </Button>
   );
@@ -225,7 +225,7 @@ function CarouselNext({
       onClick={scrollNext}
       {...props}
     >
-      <MaterialSymbol name="keyboard_arrow_right" size="md" />
+      <MaterialSymbol name="keyboard_arrow_right" size="lg" />
       <span className="sr-only">Next slide</span>
     </Button>
   );

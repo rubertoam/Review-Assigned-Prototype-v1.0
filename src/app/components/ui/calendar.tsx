@@ -61,10 +61,10 @@ function Calendar({
       }}
       components={{
         IconLeft: ({ className }) => (
-          <MaterialSymbol name="keyboard_arrow_left" size="md" className={className} />
+          <MaterialSymbol name="keyboard_arrow_left" size="lg" className={className} />
         ),
         IconRight: ({ className }) => (
-          <MaterialSymbol name="keyboard_arrow_right" size="md" className={className} />
+          <MaterialSymbol name="keyboard_arrow_right" size="lg" className={className} />
         ),
       }}
       {...props}

@@ -42,6 +42,12 @@ export function CaseListFilterSelect({
       }
     }
 
+    entries.push({
+      type: "footerAction",
+      label: "Reset All",
+      onSelect: () => onSelectedFiltersChange(new Set()),
+    });
+
     return entries;
   }, [onSelectedFiltersChange, selectedFilters, setFilterChecked]);
 

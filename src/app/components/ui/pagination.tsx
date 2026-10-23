@@ -72,7 +72,7 @@ function PaginationPrevious({
       className={cn("gap-1 px-2.5 sm:pl-2.5", className)}
       {...props}
     >
-      <MaterialSymbol name="keyboard_arrow_left" size="md" />
+      <MaterialSymbol name="keyboard_arrow_left" size="lg" />
       <span className="hidden sm:block">Previous</span>
     </PaginationLink>
   );
@@ -90,7 +90,7 @@ function PaginationNext({
       {...props}
     >
       <span className="hidden sm:block">Next</span>
-      <MaterialSymbol name="keyboard_arrow_right" size="md" />
+      <MaterialSymbol name="keyboard_arrow_right" size="lg" />
     </PaginationLink>
   );
 }
@@ -106,7 +106,7 @@ function PaginationEllipsis({
       className={cn("flex size-9 items-center justify-center", className)}
       {...props}
     >
-      <MaterialSymbol name="more_horiz" size="md" weight={300} />
+      <MaterialSymbol name="more_horiz" size="lg" weight={300} />
       <span className="sr-only">More pages</span>
     </span>
   );

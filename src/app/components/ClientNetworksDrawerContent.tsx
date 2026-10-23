@@ -157,7 +157,7 @@ function NetworkAccordion({
             >
               <MaterialSymbol
                 name="lab_profile"
-                size="sm"
+                size="lg"
                 className="text-[var(--ace-accordion-icon)]"
               />
             </button>
@@ -188,7 +188,13 @@ function NetworkAccordion({
   );
 }
 
-export function ClientNetworksDrawerContent({ caseIndex }: { caseIndex: number }) {
+export function ClientNetworksDrawerContent({
+  caseIndex,
+  onCountChange,
+}: {
+  caseIndex: number;
+  onCountChange?: (count: number) => void;
+}) {
   const [networks, setNetworks] = useState(() => initialNetworksForCase(caseIndex));
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(() => new Set());
 
@@ -196,6 +202,10 @@ export function ClientNetworksDrawerContent({ caseIndex }: { caseIndex: number }
     setNetworks(initialNetworksForCase(caseIndex));
     setExpandedIds(new Set());
   }, [caseIndex]);
+
+  useEffect(() => {
+    onCountChange?.(networks.length);
+  }, [networks.length, onCountChange]);
 
   const allExpanded =
     networks.length > 0 && networks.every((network) => expandedIds.has(network.id));

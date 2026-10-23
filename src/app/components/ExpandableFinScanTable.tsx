@@ -108,7 +108,7 @@ function ExpandChevronIcon({ expanded }: { expanded: boolean }) {
       )}
       aria-hidden
     >
-      <MaterialSymbol name="keyboard_arrow_down" size="md" className={aceChevronIconClass} />
+      <MaterialSymbol name="keyboard_arrow_down" size="lg" className={aceChevronIconClass} />
     </span>
   );
 }
@@ -553,7 +553,7 @@ export function ExpandableFinScanTable<T extends { id: string }>({
                       >
                         <MaterialSymbol
                           name="drag_indicator"
-                          size="sm"
+                          size="lg"
                           weight={300}
                           className="leading-none"
                         />
@@ -570,18 +570,18 @@ export function ExpandableFinScanTable<T extends { id: string }>({
                           sort.sortDir === "asc" ? (
                             <MaterialSymbol
                               name="arrow_upward"
-                              size="sm"
+                              size="lg"
                               className={sortIconActiveClass}
                             />
                           ) : (
                             <MaterialSymbol
                               name="arrow_downward"
-                              size="sm"
+                              size="lg"
                               className={sortIconActiveClass}
                             />
                           )
                         ) : (
-                          <MaterialSymbol name="swap_vert" size="sm" className={sortIconIdleClass} />
+                          <MaterialSymbol name="swap_vert" size="lg" className={sortIconIdleClass} />
                         )}
                       </button>
                     ) : (

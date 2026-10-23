@@ -273,7 +273,7 @@ function SidebarTrigger({
       }}
       {...props}
     >
-      <MaterialSymbol name="left_panel_close" size="md" />
+      <MaterialSymbol name="left_panel_close" size="lg" />
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   );

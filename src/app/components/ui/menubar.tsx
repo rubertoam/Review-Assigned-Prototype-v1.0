@@ -129,7 +129,7 @@ function MenubarCheckboxItem({
     >
       <span className="pointer-events-none absolute left-2 flex size-3.5 items-center justify-center">
         <MenubarPrimitive.ItemIndicator>
-          <MaterialSymbol name="check" size="md" />
+          <MaterialSymbol name="check" size="lg" />
         </MenubarPrimitive.ItemIndicator>
       </span>
       {children}
@@ -235,7 +235,7 @@ function MenubarSubTrigger({
       {...props}
     >
       {children}
-      <MaterialSymbol name="keyboard_arrow_right" size="md" className="ml-auto" />
+      <MaterialSymbol name="keyboard_arrow_right" size="lg" className="ml-auto" />
     </MenubarPrimitive.SubTrigger>
   );
 }

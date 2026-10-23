@@ -148,7 +148,7 @@ function Select({
           )}
         >
           <span className="min-w-0 flex-1 truncate text-left">{selectedLabel}</span>
-          <MaterialSymbol name="keyboard_arrow_down" size="md" className={cn(aceChevronIconClass, "ml-auto opacity-70")} />
+          <MaterialSymbol name="keyboard_arrow_down" size="lg" className={cn(aceChevronIconClass, "ml-auto opacity-70")} />
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>

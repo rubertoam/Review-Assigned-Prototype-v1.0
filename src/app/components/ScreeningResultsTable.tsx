@@ -957,6 +957,8 @@ interface ScreeningResultsTableProps {
   readOnly?: boolean;
   /** Fired when a row drilldown opens or closes (three-dot menu detail views). */
   onDrilldownRowChange?: (row: ScreeningResultRow | null) => void;
+  /** Fired whenever the visible (filtered/searched) table row count changes. */
+  onVisibleRowCountChange?: (count: number) => void;
 }
 
 /** Per-row Quick Clear dropdown — resolves a single match to a decision status from the table. */
@@ -1017,7 +1019,7 @@ function ScreeningRowQuickClear({
                     "cursor-not-allowed border-[#cfd2d9] bg-[#f5f6f8] text-[#949baa] opacity-60 dark:border-[#38414a] dark:bg-[#2c333a] dark:text-[#6a7285]",
                 )}
               >
-                <MaterialSymbol name="flash_on" size="md" weight={300} />
+                <MaterialSymbol name="flash_on" size="lg" weight={300} />
               </button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
@@ -1207,7 +1209,7 @@ function ScreeningRowActionsMenu({
         >
           <MaterialSymbol
             name="more_horiz"
-            size="md"
+            size="lg"
             weight={300}
             className={caseActionsMenuIconClass}
           />
@@ -1275,6 +1277,7 @@ export function ScreeningResultsTable({
   onQuickClearRow,
   readOnly = false,
   onDrilldownRowChange,
+  onVisibleRowCountChange,
 }: ScreeningResultsTableProps) {
   const isLevel2 = flowVariant === "level-2";
   /** Empty set = no filter (show all). Otherwise rows must match one of the selected status labels. */
@@ -1564,6 +1567,10 @@ export function ScreeningResultsTable({
     });
     return list;
   }, [searchFilteredRows, sortKey, sortDir]);
+
+  useEffect(() => {
+    onVisibleRowCountChange?.(sortedRows.length);
+  }, [sortedRows.length, onVisibleRowCountChange]);
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(sortedRows.length / pageSize)),
@@ -1923,7 +1930,7 @@ export function ScreeningResultsTable({
             className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-[#e8f4ea] dark:bg-[#2a302c]"
             aria-hidden
           >
-            <MaterialSymbol name="check" size="sm" className="text-[#87b531]" />
+            <MaterialSymbol name="check" size="lg" className="text-[#87b531]" />
           </span>
           <span
             className={cn(
@@ -2057,9 +2064,9 @@ export function ScreeningResultsTable({
                             )}
                           >
                             {showReviewHistory && !historyToggleDisabled ? (
-                              <MaterialSymbol name="visibility_off" size="md" weight={300} />
+                              <MaterialSymbol name="visibility_off" size="lg" weight={300} />
                             ) : (
-                              <MaterialSymbol name="visibility" size="md" weight={300} />
+                              <MaterialSymbol name="visibility" size="lg" weight={300} />
                             )}
                           </button>
                         </span>
@@ -2100,7 +2107,7 @@ export function ScreeningResultsTable({
                               aria-label="Edit Columns"
                               className={screeningToolbarIconButtonClass}
                             >
-                              <MaterialSymbol name="view_list" size="md" weight={300} />
+                              <MaterialSymbol name="view_list" size="lg" weight={300} />
                             </button>
                           </DropdownMenuTrigger>
                         </span>

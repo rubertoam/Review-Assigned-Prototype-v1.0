@@ -27,7 +27,7 @@ export function ReviewPanelInlineInfoMessage({
     >
       <MaterialSymbol
         name={icon}
-        size="md"
+        size="lg"
         className="shrink-0 text-[16px] text-[var(--screening-primary)] dark:text-[#7c6bc4]"
       />
       <span

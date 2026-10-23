@@ -146,7 +146,7 @@ function CardHeaderIcon({ name }: { name: string }) {
       className="pointer-events-none absolute right-3 top-3 z-10 inline-flex size-5 items-center justify-center text-[var(--screening-text-muted)]"
       aria-hidden
     >
-      <MaterialSymbol name={name} className="text-[20px] leading-none" />
+      <MaterialSymbol size="lg" name={name} className="text-[20px] leading-none" />
     </span>
   );
 }
@@ -381,7 +381,7 @@ export function ProductLandingPage({
                 <div className="flex items-center gap-2">
                   <MaterialSymbol
                     name={column.icon}
-                    size="md"
+                    size="lg"
                     className="text-[var(--screening-text-secondary)]"
                   />
                   <h2

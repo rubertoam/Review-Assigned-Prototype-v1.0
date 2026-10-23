@@ -55,7 +55,7 @@ export function TaskBarQuickClear({
       <DropdownMenuTrigger asChild disabled={disabled}>
         <button type="button" className={fieldTriggerClass}>
           <span className="whitespace-nowrap">Quick Clear</span>
-          <MaterialSymbol name="keyboard_arrow_down" size="md" className={cn(aceChevronIconClass, "opacity-70")} />
+          <MaterialSymbol name="keyboard_arrow_down" size="lg" className={cn(aceChevronIconClass, "opacity-70")} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" side="top" sideOffset={8} className="min-w-[12rem]">

@@ -104,7 +104,7 @@ function DocumentAccordion({
           >
             <MaterialSymbol
               name="download"
-              size="sm"
+              size="lg"
               className="text-[var(--ace-accordion-icon)]"
             />
           </button>
@@ -119,7 +119,7 @@ function DocumentAccordion({
           >
             <MaterialSymbol
               name="delete"
-              size="sm"
+              size="lg"
               className="text-[var(--ace-error-500)]"
             />
           </button>
@@ -282,7 +282,7 @@ export function DocumentsPanel({
               "hover:text-[var(--dialog-modal-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)] focus-visible:ring-offset-2",
             )}
           >
-            <MaterialSymbol name="keyboard_arrow_left" size="md" />
+            <MaterialSymbol name="keyboard_arrow_left" size="lg" />
             <span
               className={cn(aceTypography(ACE_TYPE.p1Bold), "text-[var(--screening-primary)]")}
               style={notoVar}

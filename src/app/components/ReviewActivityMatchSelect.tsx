@@ -57,7 +57,7 @@ export function ReviewActivityMatchSelect({
             style={notoVar}
           >
             <span className="whitespace-nowrap">{triggerLabel}</span>
-            <MaterialSymbol name="keyboard_arrow_down" size="md" className={cn(aceChevronIconClass, "opacity-70")} />
+            <MaterialSymbol name="keyboard_arrow_down" size="lg" className={cn(aceChevronIconClass, "opacity-70")} />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent

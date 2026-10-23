@@ -102,7 +102,7 @@ function DocumentAccordion({
           >
             <MaterialSymbol
               name="download"
-              size="sm"
+              size="lg"
               className="text-[var(--ace-accordion-icon)]"
             />
           </button>
@@ -117,7 +117,7 @@ function DocumentAccordion({
           >
             <MaterialSymbol
               name="delete"
-              size="sm"
+              size="lg"
               className="text-[var(--ace-error-500)]"
             />
           </button>
@@ -139,9 +139,11 @@ function DocumentAccordion({
 export function ClientDocumentsDrawerContent({
   caseIndex,
   modifyUser = "antonio",
+  onCountChange,
 }: {
   caseIndex: number;
   modifyUser?: string;
+  onCountChange?: (count: number) => void;
 }) {
   const [documents, setDocuments] = useState(() => initialDocumentsForCase(caseIndex));
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(() => new Set());
@@ -162,6 +164,10 @@ export function ClientDocumentsDrawerContent({
     setDeleteTarget(null);
     setDeleteConfirmText("");
   }, [caseIndex]);
+
+  useEffect(() => {
+    onCountChange?.(documents.length);
+  }, [documents.length, onCountChange]);
 
   const hasDocuments = documents.length > 0;
   const allExpanded =

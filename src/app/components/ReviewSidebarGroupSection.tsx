@@ -51,7 +51,7 @@ export function ReviewSidebarGroupSection({
       >
         <MaterialSymbol
           name="keyboard_arrow_right"
-          size="md"
+          size="lg"
           className={cn(
             aceChevronIconClass,
             "text-[var(--screening-text-primary)] transition-transform duration-[var(--ace-sidebar-duration-expand)]",

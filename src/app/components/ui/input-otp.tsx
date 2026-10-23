@@ -69,7 +69,7 @@ function InputOTPSlot({
 function InputOTPSeparator({ ...props }: React.ComponentProps<"div">) {
   return (
     <div data-slot="input-otp-separator" role="separator" {...props}>
-      <MaterialSymbol name="remove" size="md" />
+      <MaterialSymbol name="remove" size="lg" />
     </div>
   );
 }

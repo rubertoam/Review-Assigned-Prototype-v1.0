@@ -18,7 +18,7 @@ export function AllCasesClearedState() {
         )}
         style={notoVar}
       >
-        <MaterialSymbol name="autorenew" size="sm" />
+        <MaterialSymbol name="autorenew" size="lg" />
         Refresh
       </Button>
     </ReviewPanelEmptyState>

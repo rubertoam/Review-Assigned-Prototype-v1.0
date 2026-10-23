@@ -58,7 +58,7 @@ export function ReportingWorkspaceShell({
               >
                 <MaterialSymbol
                   name="left_panel_close"
-                  size="md"
+                  size="lg"
                   className={cn("text-current", !sidebarOpen && "rotate-180")}
                 />
               </button>
@@ -67,7 +67,7 @@ export function ReportingWorkspaceShell({
               {titleIcon ? (
                 <MaterialSymbol
                   name={titleIcon}
-                  size="md"
+                  size="lg"
                   className="text-[var(--ace-secondary-teal-500)]"
                 />
               ) : null}

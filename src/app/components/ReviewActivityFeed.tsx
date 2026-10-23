@@ -156,7 +156,7 @@ function ActivityReplyField({
           !canSubmit && "cursor-not-allowed opacity-50",
         )}
       >
-        <MaterialSymbol name="arrow_upward" size="sm" className="text-white" />
+        <MaterialSymbol name="arrow_upward" size="lg" className="text-white" />
       </button>
     </div>
   );
@@ -315,7 +315,7 @@ function ActivityCommentBlock({
               >
                 <MaterialSymbol
                   name="keyboard_arrow_down"
-                  size="md"
+                  size="lg"
                   className={cn(ICON_CLASS, PRIMARY_PURPLE)}
                 />
               </span>
@@ -356,7 +356,7 @@ function ActivityStatusTag({ label }: { label: string }) {
 function ActivityFileTag({ fileName }: { fileName: string }) {
   return (
     <span className="inline-flex max-w-full items-center gap-2 rounded-[4px] border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] px-2 py-1">
-      <MaterialSymbol name="draft" size="md" className={cn(ICON_CLASS, "text-[#dc264b]")} />
+      <MaterialSymbol name="draft" size="lg" className={cn(ICON_CLASS, "text-[#dc264b]")} />
       <span
         className="truncate text-[10px] font-normal leading-[1.65] tracking-[0.2px] text-[var(--screening-text-primary)]"
         style={notoVar}
@@ -377,7 +377,7 @@ function ActivityLogRow({ item }: { item: ActivityLogItem }) {
   if (item.kind === "upload") {
     return (
       <article className="flex items-center gap-2">
-        <MaterialSymbol name="cloud_upload" size="md" className={ICON_CLASS} />
+        <MaterialSymbol name="cloud_upload" size="lg" className={ICON_CLASS} />
         <p className={cn(aceTypography(ACE_TYPE.p1Regular), "m-0 inline", NEUTRAL_800)} style={notoVar}>
           <ActivityFileTag fileName={item.fileName ?? "attachment"} />
           {mutedTime}
@@ -389,7 +389,7 @@ function ActivityLogRow({ item }: { item: ActivityLogItem }) {
   if (item.kind === "url") {
     return (
       <article className="flex items-center gap-2">
-        <MaterialSymbol name="link" size="md" className={ICON_CLASS} />
+        <MaterialSymbol name="link" size="lg" className={ICON_CLASS} />
         <p className={cn(aceTypography(ACE_TYPE.p1Regular), "m-0 inline", NEUTRAL_800)} style={notoVar}>
           <span>{item.url}</span>
           {mutedTime}
@@ -401,7 +401,7 @@ function ActivityLogRow({ item }: { item: ActivityLogItem }) {
   if (item.kind === "screening") {
     return (
       <article className="flex items-center gap-2">
-        <MaterialSymbol name="check_circle" size="md" className={ICON_CLASS} />
+        <MaterialSymbol name="check_circle" size="lg" className={ICON_CLASS} />
         <p className={cn(aceTypography(ACE_TYPE.p1Regular), "m-0 inline", NEUTRAL_800)} style={notoVar}>
           <span>Screened by screening rule </span>
           <span className="font-bold">{item.screeningRule}</span>
@@ -413,7 +413,7 @@ function ActivityLogRow({ item }: { item: ActivityLogItem }) {
 
   return (
     <article className="flex items-center gap-2">
-      <MaterialSymbol name="check_circle" size="md" className={ICON_CLASS} />
+      <MaterialSymbol name="check_circle" size="lg" className={ICON_CLASS} />
       <p className={cn(aceTypography(ACE_TYPE.p1Regular), "m-0 inline", NEUTRAL_800)} style={notoVar}>
         <span>{item.author} moved status to </span>
         {item.statusLabel ? <ActivityStatusTag label={item.statusLabel} /> : null}

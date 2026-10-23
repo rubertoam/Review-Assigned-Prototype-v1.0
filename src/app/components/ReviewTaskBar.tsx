@@ -1,8 +1,13 @@
+import { AceButton } from "@ace-ds/components/atoms/AceButton";
+import {
+  AceTooltip,
+  AceTooltipContent,
+  AceTooltipTrigger,
+} from "@ace-ds/components/atoms/AceTooltip/AceTooltip";
 import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { aceDropShadowXsClass } from "../lib/aceShadow";
 import { aceTypography, ACE_TYPE } from "../lib/aceTypography";
 import { TaskBarQuickClear } from "./TaskBarQuickClear";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { cn } from "./ui/utils";
 import type { ScreeningResultRow, ScreeningRowStatus } from "./ScreeningResultsTable";
 
@@ -32,24 +37,16 @@ export function ReviewTaskBar({
   const isShowReviewDisabled = !isReviewOpen && isSelectionEmpty && !hasDrilldownContext;
 
   const showReviewButton = (
-    <button
+    <AceButton
       type="button"
+      variant="primary"
+      actionTone="primary"
+      size="md"
       disabled={isShowReviewDisabled}
       onClick={onShowReview}
-      className={cn(
-        "shrink-0 rounded-[4px] px-4 py-2 transition-colors",
-        isShowReviewDisabled
-          ? "cursor-not-allowed bg-[#3d2e8a] opacity-50"
-          : "cursor-pointer bg-[#3d2e8a] hover:bg-[#523eb9]",
-      )}
     >
-      <p
-        className="font-['Noto_Sans:Bold',sans-serif] font-bold leading-[1.65] text-[14px] text-white"
-        style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
-      >
-        {isReviewOpen ? "Hide Review" : "Show Review"}
-      </p>
-    </button>
+      {isReviewOpen ? "Hide Review" : "Show Review"}
+    </AceButton>
   );
 
   return (
@@ -64,7 +61,7 @@ export function ReviewTaskBar({
         type="button"
         className={cn(
           "inline-flex min-w-0 shrink items-center gap-2 rounded-[var(--radius-sm)] border-0 bg-transparent px-1 py-1 text-left",
-          "text-[var(--ace-button-purple-400)] transition-colors",
+          "text-[var(--color-text-brand)] transition-colors",
           "hover:bg-[var(--ace-sidebar-item-selected-bg)]",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)]",
           "focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--screening-primary-ring-offset)]",
@@ -72,13 +69,13 @@ export function ReviewTaskBar({
       >
         <MaterialSymbol
           name="help"
-          size="md"
-          className="shrink-0 text-[var(--ace-button-purple-400)]"
+          size="lg"
+          className="shrink-0 text-current"
         />
         <span
           className={cn(
-            "[font:var(--ace-type-paragraph-p1-regular)] [letter-spacing:var(--ace-type-paragraph-p1-regular-tracking)]",
-            "truncate text-sm text-[var(--ace-button-purple-400)]",
+            aceTypography(ACE_TYPE.p1Regular),
+            "truncate text-[var(--color-text-brand)]",
           )}
         >
           Online Help
@@ -88,19 +85,21 @@ export function ReviewTaskBar({
         {screeningSelectionCount > 0 ? (
           <>
             <span
-              className="whitespace-nowrap font-['Noto_Sans:Regular',sans-serif] text-[13px] tabular-nums text-[var(--screening-text-secondary)]"
-              style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
+              className={cn(
+                aceTypography(ACE_TYPE.p1Regular),
+                "whitespace-nowrap tabular-nums text-[var(--screening-text-secondary)]",
+              )}
             >
               {screeningSelectionCount} selected
             </span>
-            <button
+            <AceButton
               type="button"
+              variant="tertiary"
+              size="md"
               onClick={onDeselectAllScreening}
-              className="rounded-[4px] px-2 py-1.5 font-['Noto_Sans:SemiBold',sans-serif] text-[13px] text-[var(--screening-primary)] transition-colors hover:bg-[var(--screening-primary-soft-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--screening-primary-ring)]"
-              style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
             >
               Deselect all
-            </button>
+            </AceButton>
           </>
         ) : null}
         <TaskBarQuickClear
@@ -110,21 +109,14 @@ export function ReviewTaskBar({
           onSelect={onBulkQuickClear}
         />
         {isShowReviewDisabled ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
+          <AceTooltip>
+            <AceTooltipTrigger asChild>
               <span className="inline-flex shrink-0">{showReviewButton}</span>
-            </TooltipTrigger>
-            <TooltipContent
-              side="top"
-              hideArrow
-              className={cn(
-                aceTypography(ACE_TYPE.captionSemiBold),
-                "border border-[var(--screening-border-strong)] bg-[var(--screening-surface)] text-[var(--screening-text-primary)] shadow-[var(--ace-drop-shadow-xs)]",
-              )}
-            >
+            </AceTooltipTrigger>
+            <AceTooltipContent side="top" variant="screening-toolbar" hideArrow>
               Select one or more matches
-            </TooltipContent>
-          </Tooltip>
+            </AceTooltipContent>
+          </AceTooltip>
         ) : (
           showReviewButton
         )}

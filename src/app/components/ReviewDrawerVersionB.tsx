@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AceBadge } from "@ace-ds/components/atoms/AceBadge/AceBadge";
+import { AceButton } from "@ace-ds/components/atoms/AceButton";
 import { MaterialSymbol } from "@ace-ds/components/molecules/AceAccordion/MaterialSymbol";
 import { AceAccordion } from "@ace-ds/components/molecules/AceAccordion/AceAccordion";
 import {
@@ -114,6 +115,15 @@ export function ReviewDrawerVersionB({
       setActivityPulseSignal((signal) => signal + 1);
     }
   };
+
+  const canReset =
+    selectedStatus != null ||
+    selectedReason != null ||
+    decisionCommentDraft.trim().length > 0 ||
+    attachmentFiles.length > 0 ||
+    attachmentLinks.length > 0 ||
+    attachmentUrlDraft.trim().length > 0 ||
+    activityFilter !== "all";
 
   const showActivityBadge = !activityExpanded && !activitySeen && selectedRows.length > 0;
   const showAiRecommendation =
@@ -238,53 +248,45 @@ export function ReviewDrawerVersionB({
           {canSubmit ? (
             <span
               className={cn(
-                aceTypography(ACE_TYPE.p1Regular),
-                "inline-flex items-center gap-2 text-[var(--ace-success-500,#87b531)]",
+                aceTypography(ACE_TYPE.p1Bold),
+                "inline-flex items-center gap-2 text-[var(--color-text-brand)]",
               )}
               style={notoVar}
             >
-              <MaterialSymbol name="check_circle" size="sm" />
+              <MaterialSymbol name="check_circle" size="lg" className="text-current" />
               Ready to submit
             </span>
           ) : (
             <span
-              className={cn(aceTypography(ACE_TYPE.p1SemiBold), "text-[var(--screening-primary)]")}
+              className={cn(
+                aceTypography(ACE_TYPE.p1SemiBold),
+                "text-[var(--color-text-disabled)]",
+              )}
               style={notoVar}
             >
               Not ready to submit
             </span>
           )}
           <div className="flex shrink-0 items-center gap-3">
-            <button
+            <AceButton
               type="button"
+              variant="secondary"
+              size="md"
+              disabled={!canReset}
               onClick={onReset}
-              className="flex cursor-pointer items-center justify-center rounded-[var(--radius-sm)] border border-[var(--screening-primary-hover-border)] bg-[var(--screening-surface)] px-4 py-2 transition-colors hover:bg-[var(--screening-surface-hover)]"
             >
-              <p
-                className={cn(aceTypography(ACE_TYPE.p1Bold), "whitespace-nowrap text-[var(--screening-primary)]")}
-                style={notoVar}
-              >
-                Reset
-              </p>
-            </button>
-            <button
+              Reset
+            </AceButton>
+            <AceButton
               type="button"
+              variant="primary"
+              actionTone="primary"
+              size="md"
               disabled={!canSubmit}
               onClick={onSubmit}
-              className={cn(
-                "flex cursor-pointer items-center justify-center rounded-[var(--radius-sm)] px-4 py-2 transition-colors",
-                canSubmit
-                  ? "bg-[var(--ace-success-500,#87b531)] hover:bg-[#76a02b]"
-                  : "cursor-not-allowed bg-[var(--screening-icon-muted)] opacity-80",
-              )}
             >
-              <p
-                className={cn(aceTypography(ACE_TYPE.p1Bold), "whitespace-nowrap text-white")}
-                style={notoVar}
-              >
-                Submit
-              </p>
-            </button>
+              Submit
+            </AceButton>
           </div>
         </div>
       </div>

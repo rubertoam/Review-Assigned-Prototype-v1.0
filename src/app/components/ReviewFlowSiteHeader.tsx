@@ -154,7 +154,7 @@ function SettingsMenuDropdown() {
         <button type="button" aria-label="Settings" className={aceIconButtonHoverClass}>
           <MaterialSymbol
             name="tune"
-            size="xl"
+            size="lg"
             className="text-[var(--ace-site-header-toolbar-icon-color)]"
           />
         </button>
@@ -263,10 +263,10 @@ function HeaderTrailingActions({ profile }: { profile: FinScanProfileAvatar }) {
     <div className="flex items-center gap-[var(--ace-site-header-toolbar-gap)] overflow-visible py-1">
       {/* Settings / product landings hidden until those screens are ready to share. */}
       <ToolbarIconButton label="Notifications">
-        <MaterialSymbol name="notifications" size="md" />
+        <MaterialSymbol name="notifications" size="lg" />
       </ToolbarIconButton>
       <ToolbarIconButton label="Help">
-        <MaterialSymbol name="help" size="md" />
+        <MaterialSymbol name="help" size="lg" />
       </ToolbarIconButton>
       <ProfileMenuDropdown profile={profile} />
     </div>
@@ -305,7 +305,7 @@ function WatchlistNavMenu({
           className={navTriggerClass}
         >
           <span>Watchlist</span>
-          <MaterialSymbol name="keyboard_arrow_down" className={aceChevronIconClass} />
+          <MaterialSymbol size="lg" name="keyboard_arrow_down" className={aceChevronIconClass} />
           {selected ? <ProductAccent color={accent} /> : null}
         </button>
       </DropdownMenuTrigger>
@@ -340,7 +340,7 @@ function WatchlistNavMenu({
             <span className="min-w-0 flex-1 truncate">{label}</span>
             <MaterialSymbol
               name="chevron_right"
-              size="md"
+              size="lg"
               className={cn(aceChevronIconClass, "ml-auto text-[var(--ace-dropdown-menu-primary)]")}
             />
           </DropdownMenuItem>
@@ -382,7 +382,7 @@ function ProductLandingNavMenu({
           className={navTriggerClass}
         >
           <span>{label}</span>
-          <MaterialSymbol name="keyboard_arrow_down" className={aceChevronIconClass} />
+          <MaterialSymbol size="lg" name="keyboard_arrow_down" className={aceChevronIconClass} />
           {selected ? <ProductAccent color={accent} /> : null}
         </button>
       </DropdownMenuTrigger>
@@ -426,7 +426,7 @@ function ProductLandingNavMenu({
                 <span className="min-w-0 flex-1 truncate">{sectionLabel}</span>
                 <MaterialSymbol
                   name="chevron_right"
-                  size="md"
+                  size="lg"
                   className={cn(aceChevronIconClass, "ml-auto text-[var(--ace-dropdown-menu-primary)]")}
                 />
               </DropdownMenuItem>

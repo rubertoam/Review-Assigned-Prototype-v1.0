@@ -216,7 +216,7 @@ export function ReviewAssignedSidebar({
                 "border-[var(--ace-icon-button-border)] bg-[var(--ace-icon-button-hover-bg)] text-[var(--ace-icon-button-icon)]",
             )}
           >
-            <MaterialSymbol name="search" size="md" className="text-current" />
+            <MaterialSymbol name="search" size="lg" className="text-current" />
           </button>
         </AceTooltipTrigger>
         <AceTooltipContent side="bottom" variant="screening-toolbar">

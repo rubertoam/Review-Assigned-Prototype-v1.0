@@ -85,7 +85,7 @@ export function OrganizationSettingsPage() {
                 className="inline-flex items-center text-[var(--ace-button-purple-500)] hover:text-[var(--ace-button-purple-500)]"
               >
                 <button type="button" onClick={openAllSettings} aria-label="All Settings">
-                  <MaterialSymbol name="tune" size="md" />
+                  <MaterialSymbol name="tune" size="lg" />
                 </button>
               </BreadcrumbLink>
             </BreadcrumbItem>

@@ -98,7 +98,7 @@ export function CaseListSection({
       >
         <MaterialSymbol
           name="keyboard_arrow_right"
-          size="md"
+          size="lg"
           className={cn(
             aceChevronIconClass,
             "text-[#464c59] dark:text-[#9fadbc]",

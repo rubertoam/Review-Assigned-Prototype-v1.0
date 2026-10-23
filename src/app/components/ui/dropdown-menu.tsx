@@ -355,7 +355,7 @@ function DropdownMenuSubTrigger({
       {...props}
     >
       {children}
-      <MaterialSymbol name="keyboard_arrow_right" size="md" className={cn(aceChevronIconClass, "ml-auto opacity-70")} />
+      <MaterialSymbol name="keyboard_arrow_right" size="lg" className={cn(aceChevronIconClass, "ml-auto opacity-70")} />
     </DropdownMenuPrimitive.SubTrigger>
   );
 }

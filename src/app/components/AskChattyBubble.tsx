@@ -138,7 +138,7 @@ export function AskChattyBubble({ open, onClose }: AskChattyBubbleProps) {
         <div className="flex min-w-0 items-center gap-2">
           <MaterialSymbol
             name="smart_toy"
-            size="md"
+            size="lg"
             className="text-[var(--screening-primary)]"
           />
           <h2
@@ -157,7 +157,7 @@ export function AskChattyBubble({ open, onClose }: AskChattyBubbleProps) {
           onClick={onClose}
           className={aceIconButtonHoverClass}
         >
-          <MaterialSymbol name="close" size="md" />
+          <MaterialSymbol name="close" size="lg" />
         </button>
       </header>
 
@@ -253,7 +253,7 @@ export function AskChattyBubble({ open, onClose }: AskChattyBubbleProps) {
               "disabled:cursor-not-allowed disabled:opacity-35",
             )}
           >
-            <MaterialSymbol name="arrow_upward" className="text-[12px] leading-none" />
+            <MaterialSymbol size="lg" name="arrow_upward" className="text-[12px] leading-none" />
           </button>
         </div>
       </form>

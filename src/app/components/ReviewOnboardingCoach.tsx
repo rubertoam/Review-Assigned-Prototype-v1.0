@@ -462,7 +462,7 @@ export function ReviewOnboardingCoach({
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ace-button-on-solid)]",
                     )}
                   >
-                    <MaterialSymbol name="close" size="md" className="text-current" />
+                    <MaterialSymbol name="close" size="lg" className="text-current" />
                   </button>
                 </div>
                 <p

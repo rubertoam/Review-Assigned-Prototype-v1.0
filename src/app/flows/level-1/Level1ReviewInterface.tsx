@@ -1,5 +1,4 @@
 /** Level 1 user flow — Workbench (primary UX concept). */
-import svgPaths from "../../../imports/ReviewAssignedAllCollapsed/svg-e16bopzh98";
 import {
   useCallback,
   useEffect,
@@ -24,9 +23,13 @@ import {
 } from "../../lib/caseActionsMenuStyles";
 import {
   CLIENT_PROFILE_ACTIONS,
+  clientProfileActionCounts,
+  clientProfileActionMenuLabel,
+  type ClientProfileActionCounts,
   type ClientProfileActionId,
 } from "../../lib/clientProfileActions";
 import { AllCasesClearedState } from "../../components/AllCasesClearedState";
+import { CaseRecordTypeIcon } from "../../components/CaseRecordTypeIcon";
 import { ClientProfileActionDrawer } from "../../components/ClientProfileActionDrawer";
 import { CaseListFilterEmptyState } from "../../components/CaseListFilterEmptyState";
 import { CaseListLockReviewerAvatar } from "../../components/CaseListLockReviewerAvatar";
@@ -182,7 +185,7 @@ function PageHeader({
     >
       <MaterialSymbol
         name="left_panel_close"
-        size="md"
+        size="lg"
         className={cn("text-current", !sidebarPinned && "rotate-180")}
       />
     </button>
@@ -226,7 +229,7 @@ function PageHeader({
                 className={cn(screeningToolbarIconButtonClass, "leading-none")}
                 onClick={onOpenWorkLog}
               >
-                <MaterialSymbol name="tab_recent" size="md" weight={300} className="text-current" />
+                <MaterialSymbol name="tab_recent" size="lg" weight={300} className="text-current" />
               </button>
             </AceTooltipTrigger>
             <AceTooltipContent side="top" variant="screening-toolbar" hideArrow>
@@ -292,6 +295,8 @@ interface CaseListProps {
   selectedCaseListSection: CaseListSectionContext;
   screeningRowsByCase: Record<number, ScreeningResultRow[]>;
   onFilterVisibilityChange?: (state: { filtersActive: boolean; filteredCount: number }) => void;
+  /** Ordered case indices currently visible in the list (filter + sort + queue). */
+  onVisibleCaseIndicesChange?: (indices: readonly number[]) => void;
   /** Case-list Client ID filter from the sidebar search modal (substring, case-insensitive). */
   clientIdFilter?: string | null;
   /** Disjoint ID series so Sanction vs PEP clients never share an ID. */
@@ -325,6 +330,7 @@ function CaseList({
   selectedCaseListSection,
   screeningRowsByCase,
   onFilterVisibilityChange,
+  onVisibleCaseIndicesChange,
   clientIdFilter = null,
   clientIdSeries = 1,
   workflowId = null,
@@ -453,6 +459,10 @@ function CaseList({
   }, [visibleRows.length, selectedCaseFilters.size, clientIdFilter, onFilterVisibilityChange]);
 
   useEffect(() => {
+    onVisibleCaseIndicesChange?.(visibleRows.map((row) => row.index));
+  }, [visibleRows, onVisibleCaseIndicesChange]);
+
+  useEffect(() => {
     if (isWorkflowView) return;
     const rows = caseRowsForIndex(selectedCaseIndex);
     wasSelectedCaseCompleteRef.current = rows ? isCaseScreeningComplete(rows) : false;
@@ -576,19 +586,7 @@ function CaseList({
       >
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
-            <div className={`${isEntity ? "h-[15px]" : ""} w-4 shrink-0`}>
-              <svg
-                className="block size-full"
-                fill="none"
-                preserveAspectRatio="none"
-                viewBox={isEntity ? "0 0 16 15" : "0 0 16 16"}
-              >
-                <path
-                  d={isEntity ? svgPaths.p1ac17500 : svgPaths.p8c3ef80}
-                  fill="var(--fill-0, #523EB9)"
-                />
-              </svg>
-            </div>
+            <CaseRecordTypeIcon recordType={profile.recordType ?? "individual"} />
             <p
               className="m-0 min-w-0 truncate font-['Noto_Sans:SemiBold',sans-serif] text-[13px] leading-[1.4] text-[var(--screening-text-primary)]"
               style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
@@ -794,19 +792,7 @@ function CaseList({
         )}
         <div className="relative z-10 flex items-center justify-between gap-3">
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className={`${isEntity ? "h-[15px]" : ""} w-[16px] shrink-0`}>
-              <svg
-                className="block size-full"
-                fill="none"
-                preserveAspectRatio="none"
-                viewBox={isEntity ? "0 0 16 15" : "0 0 16 16"}
-              >
-                <path
-                  d={isEntity ? svgPaths.p1ac17500 : svgPaths.p8c3ef80}
-                  fill="var(--fill-0, #523EB9)"
-                />
-              </svg>
-            </div>
+            <CaseRecordTypeIcon recordType={profile.recordType ?? "individual"} />
             <div className="flex min-w-0 flex-1 flex-col">
               <p
                 className="font-['Noto_Sans:Regular',sans-serif] text-[14px] font-normal leading-[1.65] text-[#23262c] dark:text-[#b6c2cf]"
@@ -873,7 +859,7 @@ function CaseList({
               >
                 <MaterialSymbol
                   name="keyboard_arrow_right"
-                  size="md"
+                  size="lg"
                   className="text-current"
                 />
               </button>
@@ -912,7 +898,7 @@ function CaseList({
                   className={cn(sidebarIconButtonClass, "shrink-0")}
                   onClick={() => setCaseListMinimized(true)}
                 >
-                  <MaterialSymbol name="keyboard_arrow_left" size="md" className="text-current" />
+                  <MaterialSymbol name="keyboard_arrow_left" size="lg" className="text-current" />
                 </button>
               </AceTooltipTrigger>
               <AceTooltipContent side="top" variant="screening-toolbar" hideArrow>
@@ -978,6 +964,8 @@ interface DetailPanelProps {
   hideClientProfile?: boolean;
   /** Side-by-side: Match Alerts title is rendered in the shared labels row. */
   hideMatchAlertsLabel?: boolean;
+  actionCounts?: ClientProfileActionCounts;
+  onVisibleMatchAlertsCountChange?: (count: number) => void;
 }
 
 function DetailPanel({
@@ -1000,8 +988,11 @@ function DetailPanel({
   applicationId,
   hideClientProfile = false,
   hideMatchAlertsLabel = false,
+  actionCounts,
+  onVisibleMatchAlertsCountChange,
 }: DetailPanelProps) {
   const [clientExpanded, setClientExpanded] = useState(false);
+  const [matchAlertsCount, setMatchAlertsCount] = useState(screeningRows.length);
   const profile = clientProfileForCaseIndex(selectedCaseIndex, clientIdSeries, {
     name: selectedCase.name,
     isEntity: "isEntity" in selectedCase && selectedCase.isEntity,
@@ -1010,6 +1001,15 @@ function DetailPanel({
   const isWorkflowView = Boolean(workflowLabel);
   const profileComment = clientProfileCommentForCase(selectedCaseIndex);
   const profilePassthrough = CLIENT_PROFILE_PASSTHROUGH_PLACEHOLDER;
+  const resolvedActionCounts = actionCounts ?? clientProfileActionCounts(selectedCaseIndex);
+
+  const handleVisibleMatchAlertsCountChange = useCallback(
+    (count: number) => {
+      setMatchAlertsCount(count);
+      onVisibleMatchAlertsCountChange?.(count);
+    },
+    [onVisibleMatchAlertsCountChange],
+  );
 
   if (showFilterEmptyState) {
     return (
@@ -1070,6 +1070,7 @@ function DetailPanel({
               clientId={profile.clientId}
               riskBand={profile.riskBand}
               showOverdueWarning={profile.reviewTargetOverdue}
+              recordType={profile.recordType ?? "individual"}
               onRiskClick={
                 isCaseReadOnly || workflowReadOnly
                   ? undefined
@@ -1093,7 +1094,7 @@ function DetailPanel({
                   className={caseActionsMenuTriggerClass}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <MaterialSymbol name="more_horiz" size="md" weight={300} className={caseActionsMenuIconClass} />
+                  <MaterialSymbol name="more_horiz" size="lg" weight={300} className={caseActionsMenuIconClass} />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -1108,7 +1109,7 @@ function DetailPanel({
                     className={caseActionsMenuItemClass}
                     onSelect={() => onOpenClientProfileAction?.(entry.id)}
                   >
-                    {entry.label}
+                    {clientProfileActionMenuLabel(entry.id, resolvedActionCounts)}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -1190,7 +1191,7 @@ function DetailPanel({
             className="m-0 shrink-0 font-['Noto_Sans:Bold',sans-serif] text-[14px] font-bold leading-[1.65] text-[var(--screening-text-primary)]"
             style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
           >
-            Match Alerts
+            Match Alerts · {matchAlertsCount}
           </p>
         )}
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -1203,6 +1204,7 @@ function DetailPanel({
             onQuickClearRow={onQuickClearRow}
             readOnly={isCaseReadOnly || workflowReadOnly}
             onDrilldownRowChange={onDrilldownRowChange}
+            onVisibleRowCountChange={handleVisibleMatchAlertsCountChange}
           />
         </div>
       </div>
@@ -1245,6 +1247,10 @@ function Level1ReviewWorkspace() {
   const [clientProfileAction, setClientProfileAction] = useState<ClientProfileActionId | null>(
     null,
   );
+  const [profileActionCounts, setProfileActionCounts] = useState(() =>
+    clientProfileActionCounts(0),
+  );
+  const [matchAlertsVisibleCount, setMatchAlertsVisibleCount] = useState(0);
   const [screeningSelectedIds, setScreeningSelectedIds] = useState<Set<string>>(() => new Set());
   const [drilldownReviewRow, setDrilldownReviewRow] = useState<ScreeningResultRow | null>(null);
   const [caseFilterVisibility, setCaseFilterVisibility] = useState<{
@@ -1254,6 +1260,7 @@ function Level1ReviewWorkspace() {
     filtersActive: false,
     filteredCount: casesData.length,
   });
+  const [visibleCaseIndices, setVisibleCaseIndices] = useState<readonly number[]>([]);
   const handleSelectCase = useCallback((index: number, section: CaseListSectionContext) => {
     setSelectedCaseIndex(index);
     setSelectedCaseListSection(section);
@@ -1261,6 +1268,14 @@ function Level1ReviewWorkspace() {
     setDrilldownReviewRow(null);
     setClientProfileAction(null);
   }, []);
+  const handleClientPageChange = useCallback(
+    (page: number) => {
+      const nextIndex = visibleCaseIndices[page - 1];
+      if (nextIndex == null) return;
+      handleSelectCase(nextIndex, selectedCaseListSection);
+    },
+    [visibleCaseIndices, selectedCaseListSection, handleSelectCase],
+  );
   const [screeningRowsByCase, setScreeningRowsByCase] = useScreeningRowsByCase();
   const [pepCases] = useState(() => INITIAL_PEP_WORK_QUEUE.cases);
   const [pepScreeningRowsByCase, setPepScreeningRowsByCase] = useState(
@@ -1572,13 +1587,6 @@ function Level1ReviewWorkspace() {
     });
   }, [screeningSelectedIds.size, drilldownReviewRow]);
 
-  useEffect(() => {
-    if (screeningSelectedIds.size > 0) {
-      setClientProfileAction(null);
-      setIsReviewDrawerOpen(true);
-    }
-  }, [screeningSelectedIds]);
-
   const restoreSubmittedRows = useCallback(
     (caseIndex: number, previousRowsById: Record<string, (typeof screeningRows)[number]>) => {
       setWorkLogEntries((prev) =>
@@ -1835,6 +1843,10 @@ function Level1ReviewWorkspace() {
     setScreeningSelectedIds(new Set());
   }, [selectedCaseIndex]);
 
+  useEffect(() => {
+    setProfileActionCounts(clientProfileActionCounts(selectedCaseIndex));
+  }, [selectedCaseIndex]);
+
   const handleTriggerClick = useCallback(() => {
     setSidebarPinned((pinned) => !pinned);
   }, []);
@@ -1847,6 +1859,7 @@ function Level1ReviewWorkspace() {
     selectedCaseListSection,
     screeningRowsByCase: activeScreeningRowsByCase,
     onFilterVisibilityChange: setCaseFilterVisibility,
+    onVisibleCaseIndicesChange: setVisibleCaseIndices,
     clientIdFilter,
     clientIdSeries: clientIdSeriesValue,
     workflowId: selectedWorkflowId,
@@ -1856,6 +1869,12 @@ function Level1ReviewWorkspace() {
     applyCaseLocks: !isPepWork && !isAiWorkbench && !isDocumentsRequiredWorkflow,
     getRowsForCase: getActiveRowsForCase,
   } as const;
+  const selectedClientListPos = visibleCaseIndices.indexOf(selectedCaseIndex);
+  const selectedClientPage = selectedClientListPos < 0 ? 0 : selectedClientListPos + 1;
+  const selectedCaseProfile = clientProfileForCaseIndex(selectedCaseIndex, clientIdSeriesValue, {
+    name: selectedCaseItem.name,
+    isEntity: "isEntity" in selectedCaseItem && Boolean(selectedCaseItem.isEntity),
+  });
 
   const detailPanelSharedProps = {
     selectedCase: selectedCaseItem,
@@ -1879,6 +1898,8 @@ function Level1ReviewWorkspace() {
     clientIdSeries: clientIdSeriesValue,
     onDrilldownRowChange: setDrilldownReviewRow,
     applicationId: sidebarSelection.applicationId,
+    actionCounts: profileActionCounts,
+    onVisibleMatchAlertsCountChange: setMatchAlertsVisibleCount,
   } as const;
 
   return (
@@ -1928,7 +1949,7 @@ function Level1ReviewWorkspace() {
                         className={cn(sideBySideSectionLabelClass, "min-w-0 flex-1")}
                         style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
                       >
-                        Match Alerts
+                        Match Alerts · {matchAlertsVisibleCount}
                       </p>
                     </div>
                     <div className="flex min-h-0 flex-1 gap-4 overflow-hidden">
@@ -1945,8 +1966,12 @@ function Level1ReviewWorkspace() {
                           )}
                           readOnly={isSelectedCaseReadOnly || isWorkflowReadOnlyView}
                           onOpenClientProfileAction={handleOpenClientProfileAction}
+                          actionCounts={profileActionCounts}
                           showSectionLabel={false}
                           onMinimizedChange={setProfileRailMinimized}
+                          clientPage={selectedClientPage}
+                          clientPageCount={visibleCaseIndices.length}
+                          onClientPageChange={handleClientPageChange}
                         />
                       </div>
                       <DetailPanel
@@ -1985,6 +2010,10 @@ function Level1ReviewWorkspace() {
             onActionChange={handleOpenClientProfileAction}
             onClose={() => setClientProfileAction(null)}
             caseIndex={selectedCaseIndex}
+            actionCounts={profileActionCounts}
+            onActionCountsChange={setProfileActionCounts}
+            clientName={isSideBySide ? selectedCaseItem.name : undefined}
+            clientId={isSideBySide ? selectedCaseProfile.clientId : undefined}
           />
           <ReviewDrawer
             isOpen={isReviewDrawerOpen}

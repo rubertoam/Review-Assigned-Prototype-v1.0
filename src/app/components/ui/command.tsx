@@ -62,7 +62,7 @@ function CommandInput({
       data-slot="command-input-wrapper"
       className="flex h-9 items-center gap-2 border-b px-3"
     >
-      <MaterialSymbol name="search" size="md" className="opacity-50" />
+      <MaterialSymbol name="search" size="lg" className="opacity-50" />
       <CommandPrimitive.Input
         data-slot="command-input"
         className={cn(

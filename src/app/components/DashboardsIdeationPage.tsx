@@ -217,10 +217,10 @@ function WorkbenchWidgetShell({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <button type="button" aria-label={`Refresh ${title}`} className={widgetIconButtonClass}>
-            <MaterialSymbol name="refresh" size="md" className="text-current" />
+            <MaterialSymbol name="refresh" size="lg" className="text-current" />
           </button>
           <button type="button" aria-label={`${title} options`} className={widgetIconButtonClass}>
-            <MaterialSymbol name="more_horiz" size="md" className="text-current" />
+            <MaterialSymbol name="more_horiz" size="lg" className="text-current" />
           </button>
         </div>
       </header>

@@ -323,7 +323,7 @@ export function ListHistoryPanel({
           onClick={() => setDifferencesOpenSafe(false)}
           className={backLinkClass}
         >
-          <MaterialSymbol name="keyboard_arrow_left" size="md" />
+          <MaterialSymbol name="keyboard_arrow_left" size="lg" />
           <span
             className={cn(aceTypography(ACE_TYPE.p1Bold), "text-[var(--screening-primary)]")}
             style={notoVar}
@@ -355,7 +355,7 @@ export function ListHistoryPanel({
       {hideChrome ? null : (
         <div className="shrink-0 bg-[var(--screening-surface)] px-4 pb-2 pt-3">
           <button type="button" onClick={onBack} className={backLinkClass}>
-            <MaterialSymbol name="keyboard_arrow_left" size="md" />
+            <MaterialSymbol name="keyboard_arrow_left" size="lg" />
             <span
               className={cn(aceTypography(ACE_TYPE.p1Bold), "text-[var(--screening-primary)]")}
               style={notoVar}
@@ -397,7 +397,7 @@ export function ListHistoryPanel({
               onClick={() => setPageIndex((index) => Math.max(0, index - 1))}
               className={pagerIconButtonClass}
             >
-              <MaterialSymbol name="keyboard_arrow_left" size="md" className="text-current" />
+              <MaterialSymbol name="keyboard_arrow_left" size="lg" className="text-current" />
             </button>
             <span
               className={cn(
@@ -416,7 +416,7 @@ export function ListHistoryPanel({
               onClick={() => setPageIndex((index) => Math.min(total - 1, index + 1))}
               className={pagerIconButtonClass}
             >
-              <MaterialSymbol name="keyboard_arrow_right" size="md" className="text-current" />
+              <MaterialSymbol name="keyboard_arrow_right" size="lg" className="text-current" />
             </button>
           </div>
         </div>

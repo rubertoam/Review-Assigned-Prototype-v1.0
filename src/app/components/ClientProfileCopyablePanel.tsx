@@ -72,7 +72,7 @@ export function ClientProfileCopyButton({
         >
           <MaterialSymbol
             name={copied ? "check" : "content_copy"}
-            size="sm"
+            size="lg"
             className="text-current"
           />
         </button>

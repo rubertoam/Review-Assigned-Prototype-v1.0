@@ -104,7 +104,7 @@ export function ClientRiskRatingDrawerContent({ caseIndex }: { caseIndex: number
           >
             <span className="inline-flex items-center gap-2">
               Refresh
-              <MaterialSymbol name="autorenew" size="md" className="text-current" />
+              <MaterialSymbol name="autorenew" size="lg" className="text-current" />
             </span>
           </AceButton>
         </div>

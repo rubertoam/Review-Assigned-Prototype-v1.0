@@ -76,7 +76,7 @@ function NavigationMenuTrigger({
       {children}{" "}
       <MaterialSymbol
         name="keyboard_arrow_down"
-        size="sm"
+        size="lg"
         className="relative top-[1px] ml-1 transition duration-300 group-data-[state=open]:rotate-180"
       />
     </NavigationMenuPrimitive.Trigger>

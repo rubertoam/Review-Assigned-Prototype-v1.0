@@ -43,7 +43,7 @@ function AccordionTrigger({
         {children}
         <MaterialSymbol
           name="keyboard_arrow_down"
-          size="md"
+          size="lg"
           className="text-muted-foreground pointer-events-none translate-y-0.5 transition-transform duration-200"
         />
       </AccordionPrimitive.Trigger>

@@ -67,7 +67,7 @@ function GeneralMatchCheck() {
       className="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-[#2e7d32]"
       aria-hidden
     >
-      <MaterialSymbol name="check" size="sm" className="text-white" />
+      <MaterialSymbol name="check" size="lg" className="text-white" />
     </span>
   );
 }

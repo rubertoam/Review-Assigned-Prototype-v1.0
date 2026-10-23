@@ -68,7 +68,7 @@ function WorkLogOpenDemo() {
                 "work-log-intro-icon relative z-[1] leading-none",
               )}
             >
-              <MaterialSymbol name="tab_recent" size="md" weight={300} className="text-current" />
+              <MaterialSymbol name="tab_recent" size="lg" weight={300} className="text-current" />
             </button>
             <div
               className={cn(

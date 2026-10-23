@@ -288,9 +288,11 @@ function ClientHistoryDifferencesModal({
 export function ClientHistoryDrawerContent({
   caseIndex,
   onClose,
+  onCountChange,
 }: {
   caseIndex: number;
   onClose: () => void;
+  onCountChange?: (count: number) => void;
 }) {
   const [versions, setVersions] = useState(() => initialHistoryVersionsForCase(caseIndex));
   const [pageIndex, setPageIndex] = useState(0);
@@ -301,6 +303,10 @@ export function ClientHistoryDrawerContent({
     setPageIndex(0);
     setDifferencesOpen(false);
   }, [caseIndex]);
+
+  useEffect(() => {
+    onCountChange?.(versions.length);
+  }, [versions.length, onCountChange]);
 
   const safeIndex = Math.min(pageIndex, Math.max(0, versions.length - 1));
   const activeVersion = versions[safeIndex] ?? null;
@@ -340,7 +346,7 @@ export function ClientHistoryDrawerContent({
               onClick={() => setPageIndex((index) => Math.max(0, index - 1))}
               className={pagerIconButtonClass}
             >
-              <MaterialSymbol name="keyboard_arrow_left" size="md" className="text-current" />
+              <MaterialSymbol name="keyboard_arrow_left" size="lg" className="text-current" />
             </button>
             <span
               className={cn(
@@ -359,7 +365,7 @@ export function ClientHistoryDrawerContent({
               onClick={() => setPageIndex((index) => Math.min(total - 1, index + 1))}
               className={pagerIconButtonClass}
             >
-              <MaterialSymbol name="keyboard_arrow_right" size="md" className="text-current" />
+              <MaterialSymbol name="keyboard_arrow_right" size="lg" className="text-current" />
             </button>
           </div>
         </div>

@@ -50,7 +50,8 @@ Organisms: `ScreeningResultsTable`, `AceSidebar`, `AceSiteHeader`, `AceDatePicke
 | **`GroupFormDialog` contextual titles** | Partial | Edit/Copy titles are fixed to “Edit/Copy Group”. Reporting pages need page-specific wording (e.g. report category); delete confirm already uses local contextual copy. Prefer optional `title` / `description` props on `GroupFormDialog`. |
 | **`AceSiteHeader` logo click** | Missing | No `onLogoClick` / home action. Prototype overlays a hit target in `ReviewFlowSiteHeader` to open the selected start page. |
 | **`AceSidebar` hide New Group** | Missing | Groups variant always renders the top “New Group” control. Data Manager hides it via a local CSS selector until DS adds e.g. `showNewGroup`. |
-| **Case list, task bar, review drawer** | Custom | Figma-derived markup; not yet migrated to DS organisms. |
+| **Case list, task bar, review drawer** | Partial | Task bar + review footer actions use `AceButton` / ACE color tokens. Case list chrome and drawer layout still custom. |
 | **Full screening table cells** | Partial | Section shell uses `AceAccordion`; row/table chrome still has hardcoded colors in places. |
-| **Typography & colors (shell)** | Partial | Top nav, page header, pills, and accordion headers use `--ace-type-*` / `--screening-*` tokens. Many detail panels and table cells still use legacy hex / `font-['Noto_Sans:…']`. |
+| **Typography & colors (shell)** | Partial | Prefer `--color-text-*` / `--color-action-*` / `--ace-type-*`. Some detail panels and table cells still use legacy hex / `font-['Noto_Sans:…']`. |
+| **Icons** | Partial | App `MaterialSymbol` usage standardized to `size="lg"`. |
 | **Unused shims** | Local only | `ui/sidebar.tsx`, `ui/accordion.tsx` (shadcn/Radix) remain unused. |

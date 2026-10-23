@@ -61,13 +61,13 @@ export function SettingsWorkspaceShell({
                 >
                   <MaterialSymbol
                     name="left_panel_close"
-                    size="md"
+                    size="lg"
                     className={cn("text-current", !sidebarOpen && "rotate-180")}
                   />
                 </button>
                 <MaterialSymbol
                   name="keyboard_arrow_right"
-                  size="md"
+                  size="lg"
                   className="shrink-0 text-[var(--screening-text-muted)]"
                 />
               </>

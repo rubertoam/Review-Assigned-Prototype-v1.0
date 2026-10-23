@@ -1,5 +1,4 @@
-ï»¿/** Level 2 user flow Ã¢â‚¬â€ cloned from Level 1; diverge flow-specific edits here only. */
-import svgPaths from "../../../imports/ReviewAssignedAllCollapsed/svg-e16bopzh98";
+/** Level 2 user flow â€” cloned from Level 1; diverge flow-specific edits here only. */
 import {
   useCallback,
   useEffect,
@@ -24,9 +23,12 @@ import {
 } from "../../lib/caseActionsMenuStyles";
 import {
   CLIENT_PROFILE_ACTIONS,
+  clientProfileActionCounts,
+  clientProfileActionMenuLabel,
   type ClientProfileActionId,
 } from "../../lib/clientProfileActions";
 import { AllCasesClearedState } from "../../components/AllCasesClearedState";
+import { CaseRecordTypeIcon } from "../../components/CaseRecordTypeIcon";
 import { ClientProfileActionDrawer } from "../../components/ClientProfileActionDrawer";
 import { InsightsInlineDrawer } from "../../components/InsightsInlineDrawer";
 import { CaseListLevel2TodoEmptyState } from "../../components/CaseListLevel2TodoEmptyState";
@@ -140,7 +142,7 @@ interface PageHeaderProps {
 
 /**
  * Apply a Level 2 decision to a screening row. "Remediate" sends the match back
- * to Level 1 â€” it is reopened as "New" and the prior L1/L2 decision is cleared.
+ * to Level 1 — it is reopened as "New" and the prior L1/L2 decision is cleared.
  */
 function applyLevel2Decision(
   row: ScreeningResultRow,
@@ -185,7 +187,7 @@ function PageHeader({
     >
       <MaterialSymbol
         name="left_panel_close"
-        size="md"
+        size="lg"
         className={cn("text-current", !sidebarPinned && "rotate-180")}
       />
     </button>
@@ -229,7 +231,7 @@ function PageHeader({
                 className={cn(screeningToolbarIconButtonClass, "leading-none")}
                 onClick={onOpenInsights}
               >
-                <MaterialSymbol name="earthquake" size="md" weight={300} className="text-current" />
+                <MaterialSymbol name="earthquake" size="lg" weight={300} className="text-current" />
               </button>
             </AceTooltipTrigger>
             <AceTooltipContent side="top" variant="screening-toolbar" hideArrow>
@@ -537,17 +539,13 @@ function CaseList({
         )}
         <div className="relative z-10 flex items-center justify-between gap-3">
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className={`${isEntity ? 'h-[15px]' : ''} w-[16px] shrink-0`}>
-              <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox={isEntity ? "0 0 16 15" : "0 0 16 16"}>
-                <path d={isEntity ? svgPaths.p1ac17500 : svgPaths.p8c3ef80} fill="var(--fill-0, #523EB9)" />
-              </svg>
-            </div>
+            <CaseRecordTypeIcon recordType={profile.recordType ?? "individual"} />
             <div className="flex flex-col flex-1 min-w-0">
               <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[#23262c] dark:text-[#b6c2cf] text-[14px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
                 {caseItem.name}
               </p>
               <p className="font-['Noto_Sans:Regular',sans-serif] font-normal leading-[1.65] text-[#23262c] dark:text-[#b6c2cf] text-[10px] tracking-[0.2px]" style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}>
-                {clientId} Â· {resultsCount} Alerts
+                {clientId} · {resultsCount} Alerts
               </p>
             </div>
           </div>
@@ -595,7 +593,7 @@ function CaseList({
               >
                 <MaterialSymbol
                   name="keyboard_arrow_right"
-                  size="md"
+                  size="lg"
                   className="text-current"
                 />
               </button>
@@ -634,7 +632,7 @@ function CaseList({
                   className={cn(sidebarIconButtonClass, "shrink-0")}
                   onClick={() => setCaseListMinimized(true)}
                 >
-                  <MaterialSymbol name="keyboard_arrow_left" size="md" className="text-current" />
+                  <MaterialSymbol name="keyboard_arrow_left" size="lg" className="text-current" />
                 </button>
               </AceTooltipTrigger>
               <AceTooltipContent side="top" variant="screening-toolbar" hideArrow>
@@ -718,8 +716,9 @@ interface DetailPanelProps {
   workQueueId: Level2WorkQueueId;
   onOpenClientProfileAction?: (action: ClientProfileActionId) => void;
   onDrilldownRowChange?: (row: ScreeningResultRow | null) => void;
-  /** Sidebar Application ID â€” drives the Application field in the client profile. */
+  /** Sidebar Application ID — drives the Application field in the client profile. */
   applicationId?: string;
+  actionCounts?: ReturnType<typeof clientProfileActionCounts>;
 }
 
 function DetailPanel({
@@ -737,8 +736,12 @@ function DetailPanel({
   onOpenClientProfileAction,
   onDrilldownRowChange,
   applicationId,
+  actionCounts,
 }: DetailPanelProps) {
   const [clientExpanded, setClientExpanded] = useState(false);
+  const [matchAlertsCount, setMatchAlertsCount] = useState(screeningRows.length);
+  const resolvedActionCounts =
+    actionCounts ?? clientProfileActionCounts(selectedCaseIndex ?? 0);
 
   if (showFilterEmptyState) {
     return (
@@ -819,6 +822,7 @@ function DetailPanel({
               clientId={profile.clientId}
               riskBand={profile.riskBand}
               showOverdueWarning={showOverdueWarning}
+              recordType={profile.recordType ?? "individual"}
               onRiskClick={() => onOpenClientProfileAction?.("risk-rating")}
             />
           </div>
@@ -837,7 +841,7 @@ function DetailPanel({
                   className={caseActionsMenuTriggerClass}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <MaterialSymbol name="more_horiz" size="md" weight={300} className={caseActionsMenuIconClass} />
+                  <MaterialSymbol name="more_horiz" size="lg" weight={300} className={caseActionsMenuIconClass} />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -852,7 +856,7 @@ function DetailPanel({
                     className={caseActionsMenuItemClass}
                     onSelect={() => onOpenClientProfileAction?.(entry.id)}
                   >
-                    {entry.label}
+                    {clientProfileActionMenuLabel(entry.id, resolvedActionCounts)}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -866,8 +870,8 @@ function DetailPanel({
                 getCopyText={() => {
                   const lines = [
                     ...profile.addressLines,
-                    `Client Name Â· ${selectedCase.name}`,
-                    `Client ID Â· ${profile.clientId}`,
+                    `Client Name · ${selectedCase.name}`,
+                    `Client ID · ${profile.clientId}`,
                     "Address Validated",
                   ];
                   if (profile.showIdVerified) lines.push("ID Verified");
@@ -887,17 +891,17 @@ function DetailPanel({
                 copyLabel="Copy profile details"
                 getCopyText={() => {
                   const lines: string[] = [];
-                  if (profile.gender != null) lines.push(`Gender Â· ${profile.gender}`);
-                  if (profile.dob != null) lines.push(`Date of Birth Â· ${profile.dob}`);
-                  lines.push(`Application Â· ${applicationLabel}`);
+                  if (profile.gender != null) lines.push(`Gender · ${profile.gender}`);
+                  if (profile.dob != null) lines.push(`Date of Birth · ${profile.dob}`);
+                  lines.push(`Application · ${applicationLabel}`);
                   lines.push(
-                    `Review Target Â· ${profile.reviewTargetSummary}${
+                    `Review Target · ${profile.reviewTargetSummary}${
                       showOverdueWarning ? " Overdue Warning" : ""
                     }`,
                   );
-                  lines.push(`Last Modified Â· ${profile.lastModified}`);
-                  lines.push(`Comments Â· ${profileComment}`);
-                  lines.push(`Passthrough Â· ${profilePassthrough}`);
+                  lines.push(`Last Modified · ${profile.lastModified}`);
+                  lines.push(`Comments · ${profileComment}`);
+                  lines.push(`Passthrough · ${profilePassthrough}`);
                   return lines.join("\n");
                 }}
               >
@@ -931,7 +935,7 @@ function DetailPanel({
           className="m-0 shrink-0 font-['Noto_Sans:Bold',sans-serif] text-[14px] font-bold leading-[1.65] text-[var(--screening-text-primary)]"
           style={{ fontVariationSettings: "'CTGR' 0, 'wdth' 100" }}
         >
-          Match Alerts
+          Match Alerts · {matchAlertsCount}
         </p>
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <ScreeningResultsTable
@@ -943,6 +947,7 @@ function DetailPanel({
             onSelectedIdsChange={onScreeningSelectedIdsChange}
             onQuickClearRow={onQuickClearRow}
             onDrilldownRowChange={onDrilldownRowChange}
+            onVisibleRowCountChange={setMatchAlertsCount}
           />
         </div>
       </div>
@@ -972,6 +977,9 @@ export function Level2ReviewInterface() {
   const [insightsOpen, setInsightsOpen] = useState(false);
   const [clientProfileAction, setClientProfileAction] = useState<ClientProfileActionId | null>(
     null,
+  );
+  const [profileActionCounts, setProfileActionCounts] = useState(() =>
+    clientProfileActionCounts(0),
   );
   const [screeningSelectedIds, setScreeningSelectedIds] = useState<Set<string>>(() => new Set());
   const [drilldownReviewRow, setDrilldownReviewRow] = useState<ScreeningResultRow | null>(null);
@@ -1177,7 +1185,7 @@ export function Level2ReviewInterface() {
     (group) => group.id === sidebarSelection.groupId,
   );
   const workListTitle = selectedStep
-    ? `${selectedGroupDef?.label ?? "Sanction Matches"} Â· ${selectedStep.label}`
+    ? `${selectedGroupDef?.label ?? "Sanction Matches"} · ${selectedStep.label}`
     : selectedGroupDef?.label ?? "Sanction Matches";
 
   const workflowHasCases = useMemo(() => {
@@ -1189,7 +1197,7 @@ export function Level2ReviewInterface() {
     });
   }, [activeCases, getActiveRowsForCase, stepStatuses]);
 
-  /** Only one inline drawer at a time â€” opening either replaces the other. */
+  /** Only one inline drawer at a time — opening either replaces the other. */
   const handleOpenClientProfileAction = useCallback((action: ClientProfileActionId) => {
     setIsReviewDrawerOpen(false);
     setInsightsOpen(false);
@@ -1220,14 +1228,6 @@ export function Level2ReviewInterface() {
       return next;
     });
   }, []);
-
-  useEffect(() => {
-    if (screeningSelectedIds.size > 0) {
-      setClientProfileAction(null);
-      setInsightsOpen(false);
-      setIsReviewDrawerOpen(true);
-    }
-  }, [screeningSelectedIds]);
 
   const restoreSubmittedRows = useCallback(
     (caseIndex: number, previousRowsById: Record<string, (typeof screeningRows)[number]>) => {
@@ -1379,6 +1379,10 @@ export function Level2ReviewInterface() {
     setScreeningSelectedIds(new Set());
   }, [selectedCaseIndex]);
 
+  useEffect(() => {
+    setProfileActionCounts(clientProfileActionCounts(selectedCaseIndex ?? 0));
+  }, [selectedCaseIndex]);
+
   const handleTriggerClick = useCallback(() => {
     setSidebarPinned((pinned) => !pinned);
   }, []);
@@ -1452,6 +1456,7 @@ export function Level2ReviewInterface() {
                 onOpenClientProfileAction={handleOpenClientProfileAction}
                 onDrilldownRowChange={setDrilldownReviewRow}
                 applicationId={sidebarSelection.applicationId}
+                actionCounts={profileActionCounts}
               />
             </div>
             {workflowHasCases && isActionableStep && !allCasesCleared && !awaitingLevel1Work ? (
@@ -1473,6 +1478,8 @@ export function Level2ReviewInterface() {
             onActionChange={handleOpenClientProfileAction}
             onClose={() => setClientProfileAction(null)}
             caseIndex={selectedCaseIndex ?? 0}
+            actionCounts={profileActionCounts}
+            onActionCountsChange={setProfileActionCounts}
           />
           <ReviewDrawer
             isOpen={isReviewDrawerOpen}

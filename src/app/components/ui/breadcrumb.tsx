@@ -75,7 +75,7 @@ function BreadcrumbSeparator({
       className={cn("[&_.material-symbols-outlined]:text-[14px]", className)}
       {...props}
     >
-      {children ?? <MaterialSymbol name="keyboard_arrow_right" size="md" />}
+      {children ?? <MaterialSymbol name="keyboard_arrow_right" size="lg" />}
     </li>
   );
 }
@@ -92,7 +92,7 @@ function BreadcrumbEllipsis({
       className={cn("flex size-9 items-center justify-center", className)}
       {...props}
     >
-      <MaterialSymbol name="more_horiz" size="md" weight={300} />
+      <MaterialSymbol name="more_horiz" size="lg" weight={300} />
       <span className="sr-only">More</span>
     </span>
   );
