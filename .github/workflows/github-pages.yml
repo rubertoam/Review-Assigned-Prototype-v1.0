@@ -27,6 +27,9 @@ jobs:
           DS_ROOT="${GITHUB_WORKSPACE}/../../Design System/Design System Sandbox"
           mkdir -p "$(dirname "$DS_ROOT")"
           git clone --depth 1 https://github.com/rubertoam/ACEDesignSystem.git "$DS_ROOT"
+          # Prototype still imports Ace* deep paths; ACEDesignSystem renamed to Figma folder names.
+          # Overlay thin re-export shims so Vite resolves the same paths as local Sandbox.
+          cp -R "${GITHUB_WORKSPACE}/ace-ds-compat/components/." "$DS_ROOT/src/components/"
 
       - uses: actions/setup-node@v4
         with:

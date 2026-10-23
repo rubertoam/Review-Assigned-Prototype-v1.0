@@ -1,0 +1,36 @@
+/**
+ * @deprecated Prefer `@ace-ds/components/molecules/Filtering/filterFieldStyles`
+ * (unprefixed export names).
+ */
+export {
+  filterTriggerClass,
+  filterTriggerClass as aceFilterTriggerClass,
+  filterToggleChipClass,
+  filterToggleChipClass as aceFilterToggleChipClass,
+  filterToggleChipPressedClass,
+  filterToggleChipPressedClass as aceFilterToggleChipPressedClass,
+  filterChipClass,
+  filterChipClass as aceFilterChipClass,
+  filterChipLabelClass,
+  filterChipLabelClass as aceFilterChipLabelClass,
+  filterChipOpenButtonClass,
+  filterChipOpenButtonClass as aceFilterChipOpenButtonClass,
+  filterChipClearButtonClass,
+  filterChipClearButtonClass as aceFilterChipClearButtonClass,
+  filterChipChevronClass,
+  filterChipChevronClass as aceFilterChipChevronClass,
+  filterChipClearIconClass,
+  filterChipClearIconClass as aceFilterChipClearIconClass,
+  filterHeaderTitleClass,
+  filterHeaderTitleClass as aceFilterHeaderTitleClass,
+  filterHeaderShellClass,
+  filterHeaderShellClass as aceFilterHeaderShellClass,
+  filterHeaderRowClass,
+  filterHeaderRowClass as aceFilterHeaderRowClass,
+  filterHeaderActionsClass,
+  filterHeaderActionsClass as aceFilterHeaderActionsClass,
+  filterHeaderChipsClass,
+  filterHeaderChipsClass as aceFilterHeaderChipsClass,
+  filterHeaderSearchClass,
+  filterHeaderSearchClass as aceFilterHeaderSearchClass,
+} from '../Filtering/filterFieldStyles'
